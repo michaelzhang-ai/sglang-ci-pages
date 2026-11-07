@@ -1,0 +1,1265 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AMD Bot - SGLang CI</title>
+
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+
+    <!-- Bootstrap Icons -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
+
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+
+    <!-- Flatpickr Date Picker -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr@4.6.13/dist/flatpickr.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr@4.6.13/dist/flatpickr.min.js"></script>
+
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="/sglang-ci/static/css/style.css">
+
+    
+<script>
+(function(){
+var B='/sglang-ci/';
+var _f=window.fetch;
+window.fetch=function(u,o){
+if(typeof u!=='string')return _f.apply(this,arguments);
+if(o&&o.method&&o.method.toUpperCase()==='POST')
+  return Promise.resolve(new Response(
+    JSON.stringify({error:'Not available in static mode',success:false}),
+    {status:405,headers:{'Content-Type':'application/json'}}));
+if(u.startsWith('/api/')){
+  var p=u.substring(1),q=p.indexOf('?');
+  if(q>=0){var sp=new URLSearchParams(p.substring(q));p=p.substring(0,q);
+    Array.from(sp.entries()).sort(function(a,b){return a[0].localeCompare(b[0])})
+    .forEach(function(e){p+='-'+e[0]+'-'+e[1];});}
+  p+='.json';
+  return _f.call(this,B+p,o);}
+return _f.apply(this,arguments);
+};
+})();
+</script>
+<style>
+.static-hidden{display:none!important}
+.static-banner{background:#e8f4fd;border-bottom:1px solid #bee5eb;padding:0.35rem 1rem;text-align:center;font-size:0.82rem;color:#0c5460}
+@media(max-width:768px){.static-banner{font-size:0.75rem;padding:0.3rem 0.5rem}}
+</style>
+</head>
+<body>
+    <!-- Navigation Bar -->
+    <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="/sglang-ci/summary/">
+                <i class="bi bi-graph-up"></i> SGLang Dashboard
+            </a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav me-auto">
+                    <li class="nav-item">
+                        <a class="nav-link " href="/sglang-ci/summary/">
+                            <i class="bi bi-grid-1x2"></i> Summary
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link " href="/sglang-ci/coverage/">
+                            <i class="bi bi-bar-chart-steps"></i> Coverage
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link " href="/sglang-ci/benchmark-dashboard/">
+                            <i class="bi bi-speedometer2"></i> Benchmarks
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link " href="/sglang-ci/nightly-ci/">
+                            <i class="bi bi-moon-stars"></i> Nightly CI
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link " href="/sglang-ci/day0/">
+                            <i class="bi bi-rocket-takeoff"></i> <span class="text-nowrap">Day-0</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link " href="/sglang-ci/docker-images/">
+                            <i class="bi bi-box-seam"></i> Docker Images
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link " href="/sglang-ci/aiter/">
+                            <i class="bi bi-cpu"></i> AITER
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link " href="/sglang-ci/rocm-versions/">
+                            <i class="bi bi-layers"></i> <span class="text-nowrap">ROCm</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link " href="/sglang-ci/miles/">
+                            <i class="bi bi-signpost-split"></i> MILES
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link " href="/sglang-ci/runner-health/">
+                            <i class="bi bi-heart-pulse"></i> Runner Health
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link " href="/sglang-ci/amd-pr-tracker/">
+                            <i class="bi bi-git"></i> AMD PRs
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link active" href="/sglang-ci/amd-bot/">
+                            <i class="bi bi-robot"></i> AMD Bot
+                        </a>
+                    </li>
+                </ul>
+                <ul class="navbar-nav">
+                    
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle " href="#" id="githubDropdown" role="button" data-bs-toggle="dropdown">
+                            <i class="bi bi-github"></i> GitHub
+                            <i class="bi bi-circle-fill d-none" id="github-status-dot" style="font-size:0.5rem;vertical-align:middle"></i>
+                        </a>
+                        <ul class="dropdown-menu dropdown-menu-end">
+                            <li><a class="dropdown-item " href="/sglang-ci/pr-test/">
+                                <i class="bi bi-check2-square"></i> PR Test (AMD)
+                            </a></li>
+                            
+                            <li><hr class="dropdown-divider"></li>
+                            <li><a class="dropdown-item " href="/sglang-ci/sglang-info/">
+                                <i class="bi bi-info-circle"></i> SGLang Info
+                            </a></li>
+                            <li><a class="dropdown-item" href="https://github.com/sgl-project/sglang" target="_blank" rel="noopener">
+                                <i class="bi bi-git"></i> SGLang Repo
+                            </a></li>
+                            <li><hr class="dropdown-divider"></li>
+                            
+                            <li><a class="dropdown-item" href="https://grafana.aws-usea1-eks-pvt-prd.k8s.external.platform-stg.amd.com/d/ci-tenant-cluster-detail-read-only/ci-tenant-cluster-detail?orgId=1&amp;from=now-7d&amp;to=now&amp;timezone=browser&amp;var-datasource=amp-prometheus&amp;var-cluster=$__all&amp;var-tenant=sglang&amp;var-gpu_type=$__all" target="_blank" rel="noopener"
+                                   title="CI tenant cluster telemetry in Grafana (Okta sign-in required)">
+                                <i class="bi bi-activity"></i> Grafana
+                            </a></li>
+                            
+                            <li><a class="dropdown-item" href="https://www.githubstatus.com/" target="_blank" rel="noopener" id="github-status-link">
+                                <i class="bi bi-broadcast-pin"></i> GitHub Status
+                                <span class="d-block small text-muted" id="github-status-text">checking...</span>
+                            </a></li>
+                        </ul>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Internal-only banner: live dashboard link. Rendered only when
+         DASHBOARD_URL is configured, and stripped from the public GitHub Pages
+         static build so the internal address is never published. -->
+    
+
+    <!-- Main Content -->
+    <div class="static-banner"><i class="bi bi-clock-history"></i> This is a static snapshot. Data auto-updates every 20 minutes. Please reach out to CI dashboard owner Zhang, Michael, Chen, Bingxu or Tseng, YC for any question.</div>
+    <main class="container-fluid py-4">
+        <!-- Shared data-freshness stamp and time zone choice, in the same spot
+             on every page. Pages report the timestamp of the data they render
+             via setPageLastUpdated(); the rest fall back to the site-wide
+             refresh time from /api/build-info. -->
+        <div class="d-flex justify-content-end align-items-center gap-2 mb-2" id="page-updated-bar">
+            <small class="text-muted" id="page-updated-stamp" style="display:none">
+                <i class="bi bi-clock-history"></i> Last Updated: <span id="page-last-updated"></span>
+            </small>
+            <select class="form-select form-select-sm py-0" id="timeZoneSelect" style="width: auto;"
+                onchange="setDisplayTimeZone(this.value)" data-no-capture aria-label="Time zone"
+                title="Time zone for every time on the site. Remembered for your next visit.">
+                <option value="local">Local time</option>
+                <option value="beijing">Beijing time</option>
+                <option value="pt">Pacific time</option>
+                <option value="utc">UTC</option>
+            </select>
+        </div>
+        
+<div class="row mb-3" id="bot-header">
+    <div class="col">
+        <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+            <div>
+                <h1 class="display-5 mb-1">
+                    <i class="bi bi-robot"></i> AMD Bot
+                </h1>
+                <p class="text-muted mb-0">Who uses <code>@amd-bot</code> on SGLang PRs, how fast it answers, and whether its workflows are running</p>
+            </div>
+            <div class="d-flex gap-2 align-items-center flex-wrap">
+                <div class="btn-group btn-group-sm" role="group" id="bot-window" aria-label="Window">
+                    <button type="button" class="btn btn-outline-primary" data-days="7">7 days</button>
+                    <button type="button" class="btn btn-outline-primary active" data-days="30">30 days</button>
+                    <button type="button" class="btn btn-outline-primary" data-days="90">90 days</button>
+                </div>
+                <div class="btn-group btn-group-sm" role="group">
+                    <a href="https://github.com/bingxche/sglang-ci-bot" target="_blank" rel="noopener" class="btn btn-outline-secondary">
+                        <i class="bi bi-github"></i> sglang-ci-bot
+                    </a>
+                    <a href="https://github.com/bingxche/sglang-ci-bot/actions" target="_blank" rel="noopener" class="btn btn-outline-secondary">
+                        <i class="bi bi-play-circle"></i> Actions
+                    </a>
+                    <a href="https://github.com/bingxche/sglang-ci-bot#supported-commands" target="_blank" rel="noopener" class="btn btn-outline-secondary">
+                        <i class="bi bi-terminal"></i> Commands
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card mb-3" id="bot-usage">
+    <div class="card-header py-2">
+        <h6 class="mb-0"><i class="bi bi-terminal"></i> How to use it</h6>
+    </div>
+    <div class="card-body py-2" style="font-size: 0.88rem;">
+        <div class="row g-3">
+            <div class="col-lg-6">
+                <p class="mb-2">Comment on any <a href="https://github.com/sgl-project/sglang/pulls" target="_blank" rel="noopener">sgl-project/sglang</a> PR:</p>
+                <table class="table table-sm mb-0">
+                    <thead><tr><th>Command</th><th>What it does</th></tr></thead>
+                    <tbody>
+                        <tr><td class="text-nowrap"><code>@amd-bot ci-status</code></td><td>Checks all CI on the PR, says whether each failure is caused by the PR, and flags required jobs that were skipped or AMD tests for the changed code that did not run</td></tr>
+                        <tr><td class="text-nowrap"><code>@amd-bot review</code></td><td>Full code review of the PR, with the whole codebase as context</td></tr>
+                        <tr><td class="text-nowrap"><code>@amd-bot review-focus &lt;areas&gt;</code></td><td>Review focused on the areas you name</td></tr>
+                        <tr><td class="text-nowrap"><code>@amd-bot help</code></td><td>Replies with the list of commands</td></tr>
+                    </tbody>
+                </table>
+            </div>
+            <div class="col-lg-6">
+                <ul class="mb-2 ps-3">
+                    <li><code>@amd-bot</code> has to start its own line. A mention inside a sentence, or in a quote-reply line (starting with <code>&gt;</code>), does nothing.</li>
+                    <li>A space works in place of the hyphen: <code>@amd-bot ci status</code>, <code>@amd-bot review focus &lt;areas&gt;</code>.</li>
+                    <li>An unknown command (for example <code>@amd-bot ci</code>) gets the help reply.</li>
+                    <li>The bot reacts with 🚀 when it picks a command up, usually within a minute, and answers as
+                        <a href="https://github.com/amd-bot" target="_blank" rel="noopener">amd-bot</a> in a new comment.</li>
+                </ul>
+                <div class="text-muted" id="bot-usage-users">
+                    Only users in the bot's <code>AUTHORIZED_USERS</code> can run commands; other users' commands are ignored.
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div id="bot-loading" class="text-center py-5">
+    <div class="spinner-border text-primary" role="status"></div>
+    <p class="mt-2 text-muted">Loading bot activity...</p>
+</div>
+<div id="bot-error" class="alert alert-warning" style="display: none;"></div>
+
+<div id="bot-content" style="display: none;">
+    <div id="bot-signals" class="mb-3"></div>
+
+    <div class="row g-3 mb-3" id="bot-cards">
+        <div class="col-md-6 col-xl-3">
+            <div class="card h-100">
+                <div class="card-header bg-dark text-white py-2">
+                    <h6 class="mb-0"><i class="bi bi-heart-pulse"></i> Bot status</h6>
+                </div>
+                <div class="card-body" id="card-status" style="font-size: 0.88rem;"></div>
+            </div>
+        </div>
+        <div class="col-md-6 col-xl-3">
+            <div class="card h-100">
+                <div class="card-header bg-primary text-white py-2">
+                    <h6 class="mb-0"><i class="bi bi-chat-left-text"></i> Commands</h6>
+                </div>
+                <div class="card-body" id="card-commands" style="font-size: 0.88rem;"></div>
+            </div>
+        </div>
+        <div class="col-md-6 col-xl-3">
+            <div class="card h-100">
+                <div class="card-header bg-success text-white py-2">
+                    <h6 class="mb-0"><i class="bi bi-reply"></i> Answered</h6>
+                </div>
+                <div class="card-body" id="card-answered" style="font-size: 0.88rem;"></div>
+            </div>
+        </div>
+        <div class="col-md-6 col-xl-3">
+            <div class="card h-100">
+                <div class="card-header bg-secondary text-white py-2">
+                    <h6 class="mb-0"><i class="bi bi-stopwatch"></i> Time to answer</h6>
+                </div>
+                <div class="card-body" id="card-latency" style="font-size: 0.88rem;"></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-3 mb-3">
+        <div class="col-lg-8">
+            <div class="card h-100">
+                <div class="card-header py-2">
+                    <h6 class="mb-0"><i class="bi bi-bar-chart"></i> Commands per week <span class="text-muted small" id="chart-note"></span></h6>
+                </div>
+                <div class="card-body">
+                    <div style="position: relative; height: 240px;"><canvas id="bot-weekly"></canvas></div>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-4">
+            <div class="card h-100">
+                <div class="card-header py-2">
+                    <h6 class="mb-0"><i class="bi bi-people"></i> Who uses it <span class="text-muted small" id="users-note"></span></h6>
+                </div>
+                <div class="card-body p-0" style="max-height: 290px; overflow-y: auto;">
+                    <table class="table table-sm mb-0" style="font-size: 0.85rem;">
+                        <thead class="table-light"><tr>
+                            <th>User</th><th class="text-end" title="@amd-bot ci-status">CI status</th>
+                            <th class="text-end" title="@amd-bot review / review-focus">Review</th>
+                            <th class="text-end">Other</th><th class="text-end">PRs</th><th>Last</th>
+                        </tr></thead>
+                        <tbody id="bot-users"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card mb-3">
+        <div class="card-header bg-dark text-white d-flex justify-content-between align-items-center flex-wrap gap-2 py-2">
+            <h6 class="mb-0"><i class="bi bi-list-check"></i> Commands <span class="small opacity-75" id="commands-count"></span></h6>
+            <div class="d-flex gap-2">
+                <select class="form-select form-select-sm" id="filter-command" style="width: auto;">
+                    <option value="">All commands</option>
+                    <option value="ci-status">ci-status</option>
+                    <option value="review">review</option>
+                    <option value="review-focus">review-focus</option>
+                    <option value="help">help</option>
+                    <option value="unknown">unrecognized</option>
+                </select>
+                <select class="form-select form-select-sm" id="filter-status" style="width: auto;">
+                    <option value="">Any outcome</option>
+                    <option value="answered">Answered</option>
+                    <option value="no_reply">No answer</option>
+                    <option value="pending">In flight</option>
+                    <option value="ignored">Not authorized</option>
+                </select>
+            </div>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive" style="max-height: 520px; overflow-y: auto;">
+                <table class="table table-sm table-hover mb-0 align-middle" style="font-size: 0.85rem;">
+                    <thead class="table-light" style="position: sticky; top: 0; z-index: 1;">
+                        <tr>
+                            <th style="width: 190px;">When</th>
+                            <th>PR</th>
+                            <th>User</th>
+                            <th>Command</th>
+                            <th>Answer</th>
+                            <th style="width: 130px;">Outcome</th>
+                        </tr>
+                    </thead>
+                    <tbody id="bot-commands"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div class="card mb-3" id="suspect-card">
+        <div class="card-header bg-dark text-white d-flex justify-content-between align-items-center flex-wrap gap-2 py-2">
+            <h6 class="mb-0"><i class="bi bi-crosshair"></i> Suspect PR comments <span class="small opacity-75" id="suspect-count"></span></h6>
+            <span id="suspect-mode"></span>
+        </div>
+        <div class="card-body py-2" style="font-size: 0.88rem;">
+            <p class="text-muted mb-2">
+                When the daily report ties an AMD CI break to a merged sglang PR with FACT or HIGH confidence, no fix PR, and at least
+                2 failed jobs, the CI monitor comments on that PR once per cluster. Replies and reactions are read from each PR's thread.
+            </p>
+            <div id="suspect-summary" class="mb-2"></div>
+        </div>
+        <div class="table-responsive" style="max-height: 520px; overflow-y: auto;">
+            <table class="table table-sm table-hover mb-0 align-middle" style="font-size: 0.85rem;">
+                <thead class="table-light" style="position: sticky; top: 0; z-index: 1;">
+                    <tr>
+                        <th style="width: 190px;">Posted</th>
+                        <th>PR</th>
+                        <th>Cluster</th>
+                        <th class="text-end" title="Failed jobs in the cluster when the comment was last logged">Jobs</th>
+                        <th>Reactions</th>
+                        <th>Replies</th>
+                    </tr>
+                </thead>
+                <tbody id="suspect-posted"></tbody>
+            </table>
+        </div>
+        <div class="card-body py-2 border-top" style="font-size: 0.85rem;">
+            <details id="suspect-days-wrap">
+                <summary>Decisions by day <span class="text-muted small">(each day's last hourly pass)</span></summary>
+                <table class="table table-sm mb-0 mt-2">
+                    <thead><tr><th>Day</th><th>Mode</th><th class="text-end">Suspects</th><th class="text-end">Commented</th>
+                        <th class="text-end" title="Passed every check in dry-run mode">Would comment</th><th>Skipped, by reason</th></tr></thead>
+                    <tbody id="suspect-days"></tbody>
+                </table>
+            </details>
+            <details id="suspect-latest-wrap" class="mt-1">
+                <summary>Latest pass, every suspect <span class="text-muted small" id="suspect-latest-note"></span></summary>
+                <table class="table table-sm mb-0 mt-2">
+                    <thead><tr><th>Cluster</th><th>PR</th><th>Confidence</th><th class="text-end">Jobs</th><th>Result</th></tr></thead>
+                    <tbody id="suspect-latest"></tbody>
+                </table>
+            </details>
+        </div>
+    </div>
+
+    <div class="card mb-3">
+        <div class="card-header bg-dark text-white py-2">
+            <h6 class="mb-0"><i class="bi bi-gear-wide-connected"></i> Bot workflows <span class="small opacity-75" id="workflows-note"></span></h6>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-sm table-hover mb-0 align-middle" style="font-size: 0.85rem;">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Workflow</th>
+                            <th>Runs</th>
+                            <th>Last run</th>
+                            <th class="text-end">Runs</th>
+                            <th class="text-end" title="Successful runs out of those that succeeded or failed; cancelled runs are left out">Success</th>
+                            <th class="text-end" title="Median run time">Median time</th>
+                            <th title="One cell per UTC day, oldest first">By day</th>
+                            <th style="width: 110px;">Status</th>
+                        </tr>
+                    </thead>
+                    <tbody id="bot-workflows"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div class="card mb-3">
+        <div class="card-header py-2">
+            <h6 class="mb-0"><i class="bi bi-journal-text"></i> What the bot publishes</h6>
+        </div>
+        <div class="card-body py-2" id="bot-outputs" style="font-size: 0.88rem;"></div>
+    </div>
+
+    <div class="card">
+        <div class="card-body py-2 text-muted" style="font-size: 0.8rem;" id="bot-method">
+            Commands are the <code>@amd-bot</code> comments on
+            <a href="https://github.com/sgl-project/sglang" target="_blank" rel="noopener">sgl-project/sglang</a> PRs, read the
+            way the bot reads them: the trigger has to start an unquoted line, and a bare <code>@amd-bot</code> asks for a review.
+            Each is paired with the first answer of its kind posted after it for the same user (a <em>CI Status for PR</em>,
+            <em>Claude Code Review</em> or help comment), whichever account posted it. A command with no answer is
+            <em>in flight</em> for its first <span id="pending-hours">2</span> hours and <em>no answer</em> after that; one from a
+            user missing from the bot's <code>AUTHORIZED_USERS</code> is <em>not authorized</em>, because the bot ignores it.
+            Workflow runs are read from the bot repo's Actions.
+        </div>
+    </div>
+</div>
+
+    </main>
+
+    <!-- Footer -->
+    <footer class="bg-light text-center text-muted py-3 mt-5">
+        <div class="container">
+            <p class="mb-0">
+                SGLang Dashboard
+                <span class="ms-3"><a href="https://www.githubstatus.com/" target="_blank" rel="noopener" class="text-decoration-none"><i class="bi bi-broadcast-pin"></i> GitHub Status</a></span>
+                <span class="ms-3"><i class="bi bi-people-fill"></i> <span id="visitor-count">...</span> visitors</span>
+            </p>
+        </div>
+    </footer>
+
+    <script>
+        // Shared timestamp formatting and the "Last Updated" stamp. Defined
+        // before any page script runs so pages can use them as soon as their
+        // data lands.
+        (function () {
+            let pageReported = false;
+            let lastStamp = null;
+
+            // Times are shown in the zone picked in the select above every
+            // page: the viewer's own by default, or Beijing, Pacific or UTC,
+            // remembered across visits. The zone is always named, so a time
+            // copied into a chat still means the same thing to a reader
+            // elsewhere. Format every wall-clock time through these helpers
+            // (or zoneOptions) so it follows the choice.
+            const TIME_ZONE_KEY = 'display_time_zone';
+            const TIME_ZONES = {
+                local: undefined,
+                beijing: 'Asia/Shanghai',
+                pt: 'America/Los_Angeles',
+                utc: 'UTC',
+            };
+            let zoneChoice = 'local';
+            try {
+                const saved = localStorage.getItem(TIME_ZONE_KEY);
+                if (saved in TIME_ZONES) zoneChoice = saved;
+            } catch (e) { /* private mode */ }
+
+            window.getDisplayTimeZone = () => zoneChoice;
+            // The IANA zone to pass as `timeZone`, or undefined for the viewer's.
+            window.displayTimeZoneId = () => TIME_ZONES[zoneChoice];
+
+            // A page that can redraw its times in place registers here; one
+            // that doesn't is reloaded, so nothing is left in the old zone.
+            const zoneHandlers = [];
+            window.onTimeZoneChange = fn => { zoneHandlers.push(fn); };
+
+            window.setDisplayTimeZone = function (choice) {
+                if (!(choice in TIME_ZONES) || choice === zoneChoice) return;
+                zoneChoice = choice;
+                try { localStorage.setItem(TIME_ZONE_KEY, choice); } catch (e) { /* private mode */ }
+                const select = document.getElementById('timeZoneSelect');
+                if (select) select.value = choice;
+                if (!zoneHandlers.length) { location.reload(); return; }
+                if (lastStamp) render(lastStamp);
+                localizeClocks();
+                zoneHandlers.forEach(fn => fn(choice));
+            };
+
+            // `toLocaleString` options with the chosen zone applied and named.
+            window.zoneOptions = function (options) {
+                return { ...options, timeZone: TIME_ZONES[zoneChoice], timeZoneName: 'short' };
+            };
+
+            // Single definition of how an absolute moment is shown, so a new
+            // one can't be added without the zone. Values that aren't dates are
+            // passed through untouched.
+            window.formatTimestamp = function (value) {
+                const parsed = new Date(value);
+                return isNaN(parsed.getTime())
+                    ? String(value)
+                    : parsed.toLocaleString(undefined, window.zoneOptions({}));
+            };
+
+            // The compact form for table cells, e.g. "Oct 8, 14:02 PDT"; put
+            // formatTimestamp in the tooltip when the full one matters.
+            window.formatShortTime = function (value) {
+                const parsed = value ? new Date(value) : null;
+                if (!parsed || isNaN(parsed.getTime())) return '';
+                return parsed.toLocaleString(undefined, window.zoneOptions({
+                    month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', hourCycle: 'h23',
+                }));
+            };
+
+            // The calendar date of a moment in the chosen zone, in the viewer's
+            // locale (formatDate) or as YYYY-MM-DD (formatIsoDate). No zone
+            // name: it is a day, not a clock time. A bare "2026-11-03" is a
+            // day already and is not shifted.
+            const BARE_DATE = /^\d{4}-\d{2}-\d{2}$/;
+            function zonedDate(value, locale) {
+                if (!value) return '';
+                const parsed = new Date(BARE_DATE.test(value) ? `${value}T12:00:00Z` : value);
+                if (isNaN(parsed.getTime())) return String(value);
+                const timeZone = BARE_DATE.test(value) ? 'UTC' : TIME_ZONES[zoneChoice];
+                return parsed.toLocaleDateString(locale, { timeZone });
+            }
+            window.formatDate = value => zonedDate(value, undefined);
+            window.formatIsoDate = value => zonedDate(value, 'en-CA');
+
+            // A UTC clock time ("16:00") as the chosen zone reads it on `on`
+            // (default today, which decides DST): its clock, the zone's short
+            // name, and how many days it moved (-1, 0, +1).
+            window.zonedClock = function (hhmm, on) {
+                const [h, m] = String(hhmm).split(':').map(Number);
+                const ref = on ? new Date(on) : new Date();
+                const at = new Date(Date.UTC(ref.getUTCFullYear(), ref.getUTCMonth(), ref.getUTCDate(), h, m || 0));
+                const parts = {};
+                new Intl.DateTimeFormat('en-US', window.zoneOptions({
+                    year: 'numeric', month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit', hourCycle: 'h23',
+                })).formatToParts(at).forEach(p => { parts[p.type] = p.value; });
+                const zonedDay = Date.UTC(Number(parts.year), Number(parts.month) - 1, Number(parts.day));
+                const utcDay = Date.UTC(at.getUTCFullYear(), at.getUTCMonth(), at.getUTCDate());
+                return {
+                    clock: `${parts.hour}:${parts.minute}`,
+                    zone: parts.timeZoneName,
+                    dayShift: Math.round((zonedDay - utcDay) / 86400000),
+                };
+            };
+
+            // Cron summaries are written in UTC ("16:00 UTC daily", "01:00 &
+            // 13:00 UTC daily", "20:00 UTC Sat", "21:00 UTC odd days", joined
+            // with " + "). Each clock time is shown in the chosen zone. A time
+            // that lands on another date moves its weekdays with it; odd/even
+            // and every-N-days counts are UTC dates and can't move, so those
+            // keep the UTC schedule and give the zone's time beside it.
+            const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+            const WEEKDAY_LIST = /^ ((?:Sun|Mon|Tue|Wed|Thu|Fri|Sat)(?:, (?:Sun|Mon|Tue|Wed|Thu|Fri|Sat))*(?: & (?:Sun|Mon|Tue|Wed|Thu|Fri|Sat))?)$/;
+            window.localizeSchedule = function (text) {
+                if (!text || zoneChoice === 'utc') return text;
+                return String(text).split(' + ').map(segment => {
+                    const match = /^(\d{1,2}:\d{2}(?: & \d{1,2}:\d{2})*) UTC(.*)$/.exec(segment);
+                    if (!match) return segment;
+                    const clocks = match[1].split(' & ').map(c => window.zonedClock(c));
+                    const times = `${clocks.map(c => c.clock).join(' & ')} ${clocks[0].zone}`;
+                    const suffix = match[2];
+                    const shifts = new Set(clocks.map(c => c.dayShift));
+                    const shift = shifts.size === 1 ? [...shifts][0] : null;
+                    if (shift === 0 || suffix.trim() === 'daily') return times + suffix;
+                    if (shift !== null && WEEKDAY_LIST.test(suffix)) {
+                        return times + suffix.replace(/Sun|Mon|Tue|Wed|Thu|Fri|Sat/g,
+                            d => WEEKDAYS[(WEEKDAYS.indexOf(d) + shift + 7) % 7]);
+                    }
+                    const when = shift === 1 ? ' next day' : shift === -1 ? ' previous day' : '';
+                    return `${segment} (${times}${when})`;
+                }).join(' + ');
+            };
+
+            // Static markup names a time that recurs every day as
+            // <span data-utc-clock="16:00">16:00 UTC</span>; it is rewritten
+            // here, on load and on every change. (Prose that ties a time to
+            // UTC dates, like "even dates", should stay in UTC.)
+            function localizeClocks() {
+                document.querySelectorAll('[data-utc-clock]').forEach(el => {
+                    el.textContent = window.localizeSchedule(`${el.dataset.utcClock} UTC daily`).replace(/ daily$/, '');
+                });
+            }
+
+            function render(value) {
+                const bar = document.getElementById('page-updated-stamp');
+                const out = document.getElementById('page-last-updated');
+                if (!bar || !out || !value) return;
+                lastStamp = value;
+                out.textContent = window.formatTimestamp(value);
+                bar.style.display = '';
+            }
+
+            // "Local time" names the viewer's zone so it can be told apart
+            // from the others.
+            const select = document.getElementById('timeZoneSelect');
+            if (select) {
+                select.value = zoneChoice;
+                const local = new Intl.DateTimeFormat('en-US', { timeZoneName: 'short' })
+                    .formatToParts(new Date()).find(p => p.type === 'timeZoneName');
+                if (local) select.querySelector('option[value="local"]').textContent = `Local time (${local.value})`;
+            }
+            localizeClocks();
+
+            window.setPageLastUpdated = function (value) {
+                if (!value) return;
+                pageReported = true;
+                render(value);
+            };
+
+            fetch('/api/build-info')
+                .then(response => response.json())
+                .then(data => { if (!pageReported) render(data.generated_at); })
+                .catch(() => {});
+        })();
+
+        // Shared "Copy as image" button: a picture of part of a page, as it is
+        // shown now, for a chat or an email. Copied to the clipboard where the
+        // browser allows images there (a secure page and ClipboardItem),
+        // downloaded as a PNG otherwise. html2canvas (~45 KB) is loaded from the
+        // CDN on the first click, so a page pays nothing for it until then.
+        // Anything tagged data-no-capture (the button itself, selects, show/hide
+        // toggles) is left out of the image.
+        (function () {
+            let html2canvasLoad = null;
+            function loadHtml2canvas() {
+                if (window.html2canvas) return Promise.resolve(window.html2canvas);
+                if (!html2canvasLoad) {
+                    html2canvasLoad = new Promise((resolve, reject) => {
+                        const s = document.createElement('script');
+                        s.src = 'https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js';
+                        s.onload = () => resolve(window.html2canvas);
+                        s.onerror = () => { html2canvasLoad = null; reject(new Error('could not load html2canvas')); };
+                        document.head.appendChild(s);
+                    });
+                }
+                return html2canvasLoad;
+            }
+
+            function downloadBlob(blob, fileName) {
+                const a = document.createElement('a');
+                a.href = URL.createObjectURL(blob);
+                a.download = fileName;
+                document.body.appendChild(a);
+                a.click();
+                setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1000);
+            }
+
+            // `region` is one element, or [first, last] for everything from the
+            // top of `first` to the bottom of `last` -- for a section that is not
+            // one element, like a page header plus the cards below it. `name` is
+            // the file name, without .png, used when the image is downloaded.
+            // `ready`, if given, is a promise the picture waits for, so a page
+            // still loading its data is pictured once it has finished.
+            // The button's <span> (or the button) reports how it went.
+            window.copyScreenshot = function (btn, region, name, ready) {
+                const [first, last] = Array.isArray(region) ? region : [region, region];
+                const opts = {
+                    backgroundColor: '#ffffff',
+                    scale: Math.min(2, window.devicePixelRatio || 1),
+                    ignoreElements: el => el.hasAttribute && el.hasAttribute('data-no-capture'),
+                    windowWidth: document.documentElement.scrollWidth,
+                };
+                let target = first;
+                if (last !== first) {
+                    // Their common parent, cropped to the span between them.
+                    // The crop is measured on the copy html2canvas renders, not
+                    // at the click: anything that finishes loading in between
+                    // (the library itself is fetched on the first click) grows
+                    // the page, and a crop measured earlier cut off its bottom.
+                    // html2canvas measures the crop from the captured element's
+                    // own top, not the page's.
+                    while (!target.contains(last)) target = target.parentElement;
+                    opts.onclone = (doc, clonedTarget) => {
+                        const f = doc.querySelector('[data-shot-first]');
+                        const l = doc.querySelector('[data-shot-last]');
+                        const top = f.getBoundingClientRect().top;
+                        // `last` not rendered yet (page still loading): just `first`.
+                        opts.y = top - clonedTarget.getBoundingClientRect().top;
+                        opts.height = (l.getClientRects().length ? l : f).getBoundingClientRect().bottom - top;
+                    };
+                }
+
+                const label = btn.querySelector('span') || btn;
+                const idle = label.textContent;
+                btn.disabled = true;
+                label.textContent = 'Rendering…';
+
+                const png = Promise.all([loadHtml2canvas(), ready])
+                    .then(([h2c]) => {
+                        // The clone is taken when html2canvas starts, so the
+                        // markers only need to outlive that call.
+                        first.setAttribute('data-shot-first', '');
+                        last.setAttribute('data-shot-last', '');
+                        const shot = h2c(target, opts);
+                        first.removeAttribute('data-shot-first');
+                        last.removeAttribute('data-shot-last');
+                        return shot;
+                    })
+                    .then(canvas => new Promise((resolve, reject) =>
+                        canvas.toBlob(b => (b ? resolve(b) : reject(new Error('empty image'))), 'image/png')));
+                const download = () => png.then(blob => { downloadBlob(blob, `${name}.png`); return 'Downloaded PNG'; });
+                let done;
+                try {
+                    // The clipboard write starts now, inside the click, with the
+                    // image still rendering: a browser that only lets a page write
+                    // the clipboard straight after a click (Safari, and Chrome
+                    // once a render runs long) would refuse a write made later.
+                    if (!(window.isSecureContext && navigator.clipboard && window.ClipboardItem)) throw 0;
+                    done = navigator.clipboard.write([new ClipboardItem({'image/png': png})])
+                        .then(() => 'Copied image', download);
+                } catch (e) {
+                    done = download();
+                }
+                done.then(text => text, () => 'Image failed').then(text => {
+                    label.textContent = text;
+                    btn.disabled = false;
+                    setTimeout(() => { label.textContent = idle; }, 2500);
+                });
+            };
+        })();
+
+        // GitHub's own incident status, read straight from its public Statuspage
+        // in the browser: no backend involved, so the live server and the
+        // static snapshot both show a current value. The dot next to the
+        // GitHub menu is what makes an ongoing incident visible without
+        // opening the menu -- a GitHub outage is a common reason for the CI
+        // results on these pages to look broken.
+        (function () {
+            // Muted enough to sit on the navbar, bright enough to read on it.
+            const DOT_COLORS = {
+                none: '#5cd97b',
+                minor: '#ffd43b',
+                major: '#ff922b',
+                critical: '#ff6b6b',
+            };
+
+            const text = document.getElementById('github-status-text');
+            const dot = document.getElementById('github-status-dot');
+            const link = document.getElementById('github-status-link');
+
+            fetch('https://www.githubstatus.com/api/v2/status.json')
+                .then(response => response.ok ? response.json() : Promise.reject())
+                .then(data => {
+                    const status = data.status || {};
+                    const description = status.description || 'Status unknown';
+                    if (text) text.textContent = description;
+                    if (link) link.title = 'GitHub Status: ' + description;
+                    const color = DOT_COLORS[status.indicator];
+                    if (dot && color) {
+                        dot.style.color = color;
+                        dot.classList.remove('d-none');
+                    }
+                })
+                .catch(() => {
+                    // Ignore: the link itself still works, and a failed check
+                    // here says nothing about GitHub (it is just as likely to
+                    // be the viewer's network).
+                    if (text) text.textContent = 'check on githubstatus.com';
+                });
+        })();
+
+        // Load visitor count
+        fetch('/api/visitor-count')
+            .then(response => response.json())
+            .then(data => {
+                document.getElementById('visitor-count').textContent = data.count.toLocaleString();
+            })
+            .catch(() => {
+                document.getElementById('visitor-count').textContent = '-';
+            });
+    </script>
+
+    <!-- Bootstrap JS Bundle -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+    <!-- Custom JS -->
+    <script src="/sglang-ci/static/js/dashboard.js"></script>
+
+    
+<script>
+    const OUTCOMES = {
+        answered: ['bg-success', 'answered'],
+        no_reply: ['bg-danger', 'no answer'],
+        pending: ['bg-info text-dark', 'in flight'],
+        ignored: ['bg-light text-muted border', 'not authorized'],
+    };
+    const VERDICTS = {
+        ok: ['bg-success', 'healthy'],
+        failing: ['bg-danger', 'failing'],
+        stale: ['bg-danger', 'not running'],
+        unstable: ['bg-warning text-dark', 'unstable'],
+        idle: ['bg-light text-muted border', 'idle'],
+    };
+    const PR_STATES = {
+        open: 'bi-record-circle text-success',
+        draft: 'bi-pencil-square text-muted',
+        merged: 'bi-check-circle-fill text-primary',
+        closed: 'bi-x-circle text-danger',
+    };
+    const FAMILY_COLORS = { 'ci-status': '#0d6efd', review: '#6f42c1', other: '#adb5bd' };
+
+    let botData = null;
+    let windowDays = 30;
+    let weeklyChart = null;
+
+    document.addEventListener('DOMContentLoaded', () => {
+        document.querySelectorAll('#bot-window button').forEach(b => b.addEventListener('click', () => {
+            document.querySelectorAll('#bot-window button').forEach(x => x.classList.toggle('active', x === b));
+            windowDays = Number(b.dataset.days);
+            renderWindow();
+        }));
+        document.getElementById('filter-command').addEventListener('change', renderCommands);
+        document.getElementById('filter-status').addEventListener('change', renderCommands);
+        loadBot();
+    });
+
+    function escapeHtml(value) {
+        return String(value == null ? '' : value).replace(/[&<>"']/g, c =>
+            ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+    }
+
+    function link(url, html, cls) {
+        if (!/^https:\/\//.test(url || '')) return html;
+        return `<a href="${escapeHtml(url)}" target="_blank" rel="noopener" class="${cls || 'text-decoration-none'}">${html}</a>`;
+    }
+
+    function duration(seconds) {
+        if (seconds == null) return '-';
+        if (seconds < 60) return `${seconds}s`;
+        const m = Math.round(seconds / 60);
+        if (m < 60) return `${m}m`;
+        const h = Math.floor(m / 60);
+        return h < 48 ? `${h}h ${m % 60}m` : `${Math.round(h / 24)}d`;
+    }
+
+    function ago(value) {
+        const t = Date.parse(value || '');
+        if (isNaN(t)) return '';
+        const s = Math.max(0, Math.round((Date.now() - t) / 1000));
+        return `${duration(s)} ago`;
+    }
+
+    function when(value) {
+        return `<span title="${escapeHtml(window.formatTimestamp ? window.formatTimestamp(value) : value)}">${escapeHtml(ago(value))}</span>`;
+    }
+
+    function pct(x) {
+        return x == null ? '-' : `${Math.round(x * 100)}%`;
+    }
+
+    function family(command) {
+        if (command === 'ci-status') return 'ci-status';
+        if (command === 'review' || command === 'review-focus') return 'review';
+        return 'other';
+    }
+
+    function loadBot() {
+        fetch('/api/amd-bot/status')
+            .then(r => {
+                if (!r.ok) throw new Error(`HTTP ${r.status}`);
+                return r.json();
+            })
+            .then(renderBot)
+            .catch(err => showError(err.message === 'HTTP 404'
+                ? 'Not published yet: the next data refresh writes this page\'s data.'
+                : `Could not load bot activity: ${err.message}`));
+    }
+
+    function showError(message) {
+        document.getElementById('bot-loading').style.display = 'none';
+        const el = document.getElementById('bot-error');
+        el.innerHTML = `<i class="bi bi-exclamation-triangle"></i> ${escapeHtml(message)}`;
+        el.style.display = 'block';
+    }
+
+    function renderBot(data) {
+        if (!data || !data.available) {
+            showError(`Bot activity unavailable: ${(data && (data.reason || data.error)) || 'unknown reason'}`);
+            return;
+        }
+        botData = data;
+        setPageLastUpdated(data.generated_at || data.checked_at);
+        document.getElementById('pending-hours').textContent = data.pending_hours ?? 2;
+        renderUsageUsers(data.authorized_users);
+        renderSignals(data.signals || []);
+        renderStatusCard(data.workflows || []);
+        renderWorkflows(data);
+        renderSuspects(data.suspect_comments);
+        renderOutputs(data);
+        renderWindow();
+        document.getElementById('bot-loading').style.display = 'none';
+        document.getElementById('bot-content').style.display = '';
+    }
+
+    // The static sentence stays when the bot's list could not be read.
+    function renderUsageUsers(users) {
+        if (!Array.isArray(users) || !users.length) return;
+        const names = [...users].sort((a, b) => a.toLowerCase().localeCompare(b.toLowerCase()))
+            .map(u => link(`https://github.com/${encodeURIComponent(u)}`, '@' + escapeHtml(u)));
+        document.getElementById('bot-usage-users').innerHTML = `
+            <details>
+                <summary>Only the ${users.length} users in the bot's <code>AUTHORIZED_USERS</code> can run commands; other users' commands are ignored.</summary>
+                <div class="mt-1">${names.join(', ')}</div>
+            </details>`;
+    }
+
+    function renderSignals(signals) {
+        const cls = { warning: 'alert-warning', error: 'alert-danger', info: 'alert-info' };
+        document.getElementById('bot-signals').innerHTML = signals.map(s => {
+            const i = s.severity === 'info' ? 'bi-info-circle' : 'bi-exclamation-triangle-fill';
+            const more = s.url ? ` ${link(s.url, '<i class="bi bi-box-arrow-up-right"></i>')}` : '';
+            return `<div class="alert ${cls[s.severity] || 'alert-secondary'} py-1 px-2 mb-1" style="font-size: 0.88rem;"><i class="bi ${i}"></i> ${escapeHtml(s.message)}${more}</div>`;
+        }).join('');
+    }
+
+    function windowRows() {
+        const since = Date.now() - windowDays * 86400 * 1000;
+        return (botData.commands || []).filter(c => Date.parse(c.created_at) >= since);
+    }
+
+    function renderWindow() {
+        if (!botData) return;
+        const s = (botData.summary || {})[String(windowDays)] || {};
+        const label = `last ${windowDays} days`;
+        const rows = windowRows();
+        const byFamily = { 'ci-status': 0, review: 0, other: 0 };
+        rows.forEach(r => byFamily[family(r.command)]++);
+
+        document.getElementById('card-commands').innerHTML = `
+            <div class="d-flex align-items-baseline gap-2"><span class="fs-2 fw-bold">${s.commands ?? 0}</span>
+                <span class="text-muted">in the ${label}</span></div>
+            <div>${byFamily['ci-status']} ci-status &middot; ${byFamily.review} review${byFamily.other ? ` &middot; ${byFamily.other} other` : ''}</div>
+            <div class="text-muted">${s.users ?? 0} user${s.users === 1 ? '' : 's'} on ${s.prs ?? 0} PR${s.prs === 1 ? '' : 's'}</div>`;
+
+        const rateCls = s.answer_rate == null ? '' : s.answer_rate >= 0.95 ? 'text-success' : s.answer_rate >= 0.8 ? 'text-warning' : 'text-danger';
+        const extras = [];
+        if (s.no_reply) extras.push(`<span class="text-danger">${s.no_reply} with no answer</span>`);
+        if (s.pending) extras.push(`${s.pending} in flight`);
+        if (s.ignored) extras.push(`<span class="text-muted">${s.ignored} not authorized</span>`);
+        document.getElementById('card-answered').innerHTML = `
+            <div class="d-flex align-items-baseline gap-2"><span class="fs-2 fw-bold ${rateCls}">${pct(s.answer_rate)}</span>
+                <span class="text-muted">${s.answered ?? 0} answered</span></div>
+            <div>${extras.join(' &middot; ') || '<span class="text-success">Every command got an answer</span>'}</div>`;
+
+        document.getElementById('card-latency').innerHTML = s.p50_latency_s == null
+            ? '<span class="text-muted">No answered command in this window</span>'
+            : `<div class="d-flex align-items-baseline gap-2"><span class="fs-2 fw-bold">${duration(s.p50_latency_s)}</span>
+                <span class="text-muted">median</span></div>
+               <div>90% within ${duration(s.p90_latency_s)}</div>
+               <div class="text-muted small">From the command to the bot's comment</div>`;
+
+        document.getElementById('users-note').textContent = `(${label})`;
+        document.getElementById('chart-note').textContent = `(last ${botData.window_days} days)`;
+        renderUsers(rows);
+        renderCommands();
+        renderWeekly();
+    }
+
+    function renderStatusCard(workflows) {
+        const scheduled = workflows.filter(w => w.schedule !== 'on demand');
+        const bad = workflows.filter(w => ['stale', 'failing'].includes(w.verdict));
+        const head = bad.length
+            ? `<div class="fs-5 fw-bold text-danger"><i class="bi bi-exclamation-octagon-fill"></i> ${bad.length} workflow${bad.length === 1 ? '' : 's'} need${bad.length === 1 ? 's' : ''} attention</div>`
+            : `<div class="fs-5 fw-bold text-success"><i class="bi bi-check-circle-fill"></i> Running normally</div>`;
+        const lines = scheduled.map(w => {
+            const [cls] = VERDICTS[w.verdict] || ['bg-secondary'];
+            const last = w.last_run ? `last run ${when(w.last_run.created_at)}` : 'no run';
+            return `<div><span class="badge ${cls}" style="width: 0.7rem; height: 0.7rem; padding: 0;">&nbsp;</span>
+                ${link(w.url, escapeHtml(w.label))} <span class="text-muted small">${last}</span></div>`;
+        }).join('');
+        const report = botData.daily_report;
+        const reportLine = report
+            ? `<div class="mt-1 small">Daily report ${link(report.url, escapeHtml(report.date))} updated ${when(report.updated_at)}</div>`
+            : '';
+        document.getElementById('card-status').innerHTML = head + `<div class="mt-1">${lines}</div>` + reportLine;
+    }
+
+    function renderUsers(rows) {
+        const users = {};
+        rows.forEach(r => {
+            const u = users[r.author.toLowerCase()] ||= { login: r.author, 'ci-status': 0, review: 0, other: 0, prs: new Set(), last: '' };
+            u[family(r.command)]++;
+            u.prs.add(r.pr);
+            if (r.created_at > u.last) u.last = r.created_at;
+        });
+        const list = Object.values(users).sort((a, b) =>
+            (b['ci-status'] + b.review + b.other) - (a['ci-status'] + a.review + a.other) || b.last.localeCompare(a.last));
+        document.getElementById('bot-users').innerHTML = list.length ? list.map(u => `<tr>
+            <td>${link(`https://github.com/${encodeURIComponent(u.login)}`, '@' + escapeHtml(u.login))}</td>
+            <td class="text-end">${u['ci-status'] || ''}</td><td class="text-end">${u.review || ''}</td>
+            <td class="text-end">${u.other || ''}</td><td class="text-end">${u.prs.size}</td>
+            <td class="small text-muted text-nowrap">${when(u.last)}</td></tr>`).join('')
+            : '<tr><td colspan="6" class="text-muted text-center py-3">No commands in this window</td></tr>';
+    }
+
+    function prCell(number) {
+        const pr = (botData.prs || {})[String(number)] || {};
+        const url = pr.url || `https://github.com/sgl-project/sglang/pull/${number}`;
+        const icon = `<i class="bi ${PR_STATES[pr.state] || 'bi-question-circle text-muted'}" title="${escapeHtml(pr.state || '')}"></i>`;
+        return `${link(url, `${icon} #${escapeHtml(number)}`)} <span class="text-muted d-inline-block text-truncate align-bottom" style="max-width: 360px;" title="${escapeHtml(pr.title || '')}">${escapeHtml(pr.title || '')}</span>`;
+    }
+
+    function commandCell(row) {
+        const name = row.command === 'unknown' ? row.args : row.command;
+        const args = row.command === 'review-focus' && row.args
+            ? ` <span class="text-muted small text-truncate d-inline-block align-bottom" style="max-width: 200px;" title="${escapeHtml(row.args)}">${escapeHtml(row.args)}</span>` : '';
+        const cls = row.command === 'unknown' ? 'text-danger' : '';
+        const title = row.command === 'unknown' ? ' title="Not a command the bot knows; it answers with the help text"' : '';
+        return `${link(row.url, `<code class="${cls}"${title}>${escapeHtml(name)}</code>`)}${args}`;
+    }
+
+    function renderCommands() {
+        if (!botData) return;
+        const cmd = document.getElementById('filter-command').value;
+        const status = document.getElementById('filter-status').value;
+        const rows = windowRows().filter(r => (!cmd || r.command === cmd) && (!status || r.status === status));
+        document.getElementById('commands-count').textContent = `(${rows.length})`;
+        document.getElementById('bot-commands').innerHTML = rows.length ? rows.map(r => {
+            const [cls, word] = OUTCOMES[r.status] || ['bg-secondary', r.status];
+            const reply = r.reply
+                ? `${link(r.reply.url, `<i class="bi bi-reply"></i> ${duration(r.reply.latency_s)}`)} <span class="text-muted small">by @${escapeHtml(r.reply.by)}</span>`
+                : '<span class="text-muted">-</span>';
+            return `<tr>
+                <td class="text-nowrap small" title="${escapeHtml(r.created_at)}">${escapeHtml(window.formatTimestamp ? window.formatTimestamp(r.created_at) : r.created_at)}</td>
+                <td>${prCell(r.pr)}</td>
+                <td>${link(`https://github.com/${encodeURIComponent(r.author)}`, '@' + escapeHtml(r.author))}</td>
+                <td>${commandCell(r)}</td>
+                <td class="text-nowrap">${reply}</td>
+                <td><span class="badge ${cls}">${escapeHtml(word)}</span></td></tr>`;
+        }).join('') : '<tr><td colspan="6" class="text-muted text-center py-3">No commands match</td></tr>';
+    }
+
+    function weekStart(date) {
+        const d = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()));
+        d.setUTCDate(d.getUTCDate() - ((d.getUTCDay() + 6) % 7));
+        return d.toISOString().slice(0, 10);
+    }
+
+    function renderWeekly() {
+        const weeks = [];
+        const first = new Date(Date.now() - (botData.window_days - 1) * 86400 * 1000);
+        for (let d = new Date(weekStart(first)); d <= new Date(); d.setUTCDate(d.getUTCDate() + 7)) {
+            weeks.push(d.toISOString().slice(0, 10));
+        }
+        const counts = { 'ci-status': {}, review: {}, other: {} };
+        (botData.commands || []).forEach(r => {
+            const w = weekStart(new Date(r.created_at));
+            counts[family(r.command)][w] = (counts[family(r.command)][w] || 0) + 1;
+        });
+        const datasets = Object.keys(counts).map(f => ({
+            label: f === 'other' ? 'help / other' : f,
+            data: weeks.map(w => counts[f][w] || 0),
+            backgroundColor: FAMILY_COLORS[f],
+            stack: 'commands',
+        }));
+        if (weeklyChart) weeklyChart.destroy();
+        weeklyChart = new Chart(document.getElementById('bot-weekly'), {
+            type: 'bar',
+            data: { labels: weeks.map(w => `wk of ${w.slice(5)}`), datasets },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: { x: { stacked: true }, y: { stacked: true, beginAtZero: true, ticks: { precision: 0 } } },
+                plugins: { legend: { position: 'bottom' } },
+            },
+        });
+    }
+
+    function dayStrip(daily) {
+        return `<div class="d-flex gap-1">${(daily || []).map(([day, ok, bad, other]) => {
+            const total = ok + bad + other;
+            let color = '#e9ecef';
+            if (bad && !ok) color = '#dc3545';
+            else if (bad) color = '#fd7e14';
+            else if (ok) color = '#198754';
+            else if (other) color = '#adb5bd';
+            const title = `${day}: ${ok} ok, ${bad} failed${other ? `, ${other} cancelled/other` : ''}`;
+            return `<span title="${escapeHtml(title)}" style="display:inline-block;width:12px;height:16px;border-radius:2px;background:${color};${total ? '' : 'border:1px solid #dee2e6;'}"></span>`;
+        }).join('')}</div>`;
+    }
+
+    function lastRunCell(w) {
+        const r = w.last_run;
+        if (!r) return '<span class="text-muted">none</span>';
+        let icon = '<i class="bi bi-hourglass-split text-info" title="running"></i>';
+        if (r.status === 'completed') {
+            icon = r.conclusion === 'success' ? '<i class="bi bi-check-circle-fill text-success" title="success"></i>'
+                : r.conclusion === 'cancelled' ? '<i class="bi bi-slash-circle text-muted" title="cancelled"></i>'
+                : `<i class="bi bi-x-circle-fill text-danger" title="${escapeHtml(r.conclusion)}"></i>`;
+        }
+        let failed = '';
+        if (w.last_failure && w.last_failure.url !== r.url) {
+            failed = `<div class="small text-muted">last failure ${link(w.last_failure.url, ago(w.last_failure.created_at))}</div>`;
+        }
+        return `${link(r.url, `${icon} ${escapeHtml(ago(r.created_at))}`)}${failed}`;
+    }
+
+    function renderWorkflows(data) {
+        document.getElementById('workflows-note').textContent = `(last ${data.run_window_days} days)`;
+        document.getElementById('bot-workflows').innerHTML = (data.workflows || []).map(w => {
+            const [cls, word] = VERDICTS[w.verdict] || ['bg-secondary', w.verdict];
+            const rateCls = w.success_rate == null ? '' : w.success_rate >= 0.95 ? 'text-success' : w.success_rate >= 0.8 ? 'text-warning' : 'text-danger';
+            return `<tr>
+                <td>${link(w.url, `<b>${escapeHtml(w.label)}</b>`)}<div class="small text-muted">${escapeHtml(w.what)}</div></td>
+                <td class="small text-nowrap">${escapeHtml(w.schedule)}</td>
+                <td class="text-nowrap">${lastRunCell(w)}</td>
+                <td class="text-end">${w.runs}${w.active ? ` <span class="small text-info" title="queued or running">(${w.active} active)</span>` : ''}</td>
+                <td class="text-end ${rateCls}" title="${w.success} succeeded, ${w.failure} failed, ${w.cancelled} cancelled">${pct(w.success_rate)}</td>
+                <td class="text-end text-nowrap" title="90% within ${duration(w.p90_duration_s)}">${duration(w.p50_duration_s)}</td>
+                <td>${dayStrip(w.daily)}</td>
+                <td><span class="badge ${cls}">${escapeHtml(word)}</span>${w.note ? `<div class="small text-muted">${escapeHtml(w.note)}</div>` : ''}</td></tr>`;
+        }).join('');
+    }
+
+    const REACTIONS = {
+        '+1': '👍', '-1': '👎', laugh: '😄', hooray: '🎉', confused: '😕', heart: '❤️', rocket: '🚀', eyes: '👀',
+    };
+    const SUSPECT_RESULTS = {
+        posted: ['bg-success', 'commented'],
+        already: ['bg-light text-dark border', 'already commented'],
+        would: ['bg-info text-dark', 'would comment'],
+        held: ['bg-warning text-dark', 'held (per-tick limit)'],
+        skipped: ['bg-light text-muted border', 'skipped'],
+    };
+
+    function sglangPr(number) {
+        return `https://github.com/sgl-project/sglang/pull/${encodeURIComponent(number)}`;
+    }
+
+    function userLink(login) {
+        return link(`https://github.com/${encodeURIComponent(login)}`, '@' + escapeHtml(login));
+    }
+
+    // Hidden when the payload predates this section (an older published snapshot).
+    function renderSuspects(s) {
+        const card = document.getElementById('suspect-card');
+        if (!s) { card.style.display = 'none'; return; }
+        const posted = s.posted || [];
+        const mode = s.mode === 'post'
+            ? '<span class="badge bg-success">Posting</span>'
+            : s.mode === 'dry-run' ? '<span class="badge bg-secondary" title="Decisions are logged on the daily report; nothing is posted on PRs">Dry run</span>' : '';
+        document.getElementById('suspect-mode').innerHTML = mode;
+        document.getElementById('suspect-count').textContent = `(${posted.length} in the last ${s.window_days} days)`;
+
+        const prs = new Set(posted.map(r => r.pr));
+        const replied = posted.filter(r => (r.replies || []).some(x => !x.bot));
+        const byAuthor = posted.filter(r => r.author_replied);
+        const reacted = posted.filter(r => Object.keys(r.reactions || {}).length);
+        const dupes = posted.filter(r => r.bot_comments_on_pr > 1);
+        const parts = [`<b>${posted.length}</b> comment${posted.length === 1 ? '' : 's'} on <b>${prs.size}</b> PR${prs.size === 1 ? '' : 's'}`];
+        if (posted.length) {
+            parts.push(`${replied.length} with a reply (${byAuthor.length} from the PR author)`);
+            parts.push(`${reacted.length} with reactions`);
+        }
+        if (dupes.length) parts.push(`<span class="text-danger">${dupes.length} on a PR with more than one</span>`);
+        const latest = s.latest;
+        if (latest) {
+            const would = latest.rows.filter(r => r.result === 'would').length;
+            parts.push(`latest pass ${link(latest.url, escapeHtml(latest.date))}: ${latest.rows.length} suspect${latest.rows.length === 1 ? '' : 's'}${would ? `, ${would} would get a comment` : ''}`);
+        }
+        document.getElementById('suspect-summary').innerHTML = parts.join(' &middot; ');
+
+        document.getElementById('suspect-posted').innerHTML = posted.length ? posted.map(r => {
+            const state = `<i class="bi ${PR_STATES[r.pr_state] || 'bi-question-circle text-muted'}" title="${escapeHtml(r.pr_state || '')}"></i>`;
+            const reactions = Object.entries(r.reactions || {})
+                .map(([k, v]) => `<span title="${escapeHtml(k)}">${REACTIONS[k] || escapeHtml(k)} ${v}</span>`).join(' ') || '<span class="text-muted">-</span>';
+            const humans = (r.replies || []).filter(x => !x.bot);
+            const replies = humans.length ? humans.map(x => `<div class="small">
+                    ${userLink(x.user)}${x.is_author ? ' <span class="badge bg-primary">author</span>' : ''}
+                    ${link(x.url, escapeHtml(ago(x.created_at)), 'text-muted text-decoration-none')}:
+                    <span class="text-muted">${escapeHtml(x.excerpt)}</span></div>`).join('')
+                : '<span class="text-muted">none yet</span>';
+            const dupe = r.bot_comments_on_pr > 1 ? ` <span class="badge bg-danger" title="This PR has ${r.bot_comments_on_pr} suspect-PR comments">×${r.bot_comments_on_pr}</span>` : '';
+            return `<tr>
+                <td class="text-nowrap small">${link(r.url, escapeHtml(window.formatTimestamp ? window.formatTimestamp(r.created_at) : r.created_at))}
+                    <div class="text-muted">as ${userLink(r.by)}</div></td>
+                <td>${link(sglangPr(r.pr), `${state} #${escapeHtml(r.pr)}`)}${dupe}
+                    <div class="text-muted small text-truncate" style="max-width: 360px;" title="${escapeHtml(r.pr_title)}">${escapeHtml(r.pr_title)}</div>
+                    <div class="small">by ${userLink(r.pr_author)}</div></td>
+                <td><code>${escapeHtml(r.cluster)}</code> <span class="badge bg-light text-dark border">${escapeHtml(r.confidence || '')}</span></td>
+                <td class="text-end">${escapeHtml(r.jobs ?? '')}</td>
+                <td class="text-nowrap">${reactions}</td>
+                <td>${replies}</td></tr>`;
+        }).join('') : '<tr><td colspan="6" class="text-muted text-center py-3">No comments posted yet</td></tr>';
+
+        document.getElementById('suspect-days').innerHTML = (s.days || []).map(d => {
+            const reasons = Object.entries(d.skip_reasons || {}).map(([k, v]) => `${escapeHtml(k)} ${v}`).join(' &middot; ');
+            return `<tr><td>${link(d.url, escapeHtml(d.date))}</td>
+                <td>${d.mode === 'post' ? '<span class="badge bg-success">post</span>' : '<span class="badge bg-secondary">dry run</span>'}</td>
+                <td class="text-end">${d.suspects}</td><td class="text-end">${(d.posted || 0) + (d.already || 0) || ''}</td>
+                <td class="text-end">${d.would || ''}</td><td class="small text-muted">${reasons}</td></tr>`;
+        }).join('') || '<tr><td colspan="6" class="text-muted">No logs yet</td></tr>';
+
+        document.getElementById('suspect-latest-note').textContent = latest ? `(${latest.date})` : '';
+        document.getElementById('suspect-latest').innerHTML = latest ? latest.rows.map(r => {
+            const [cls, word] = SUSPECT_RESULTS[r.result] || ['bg-secondary', r.result];
+            const badge = `<span class="badge ${cls}">${escapeHtml(word)}</span>`;
+            return `<tr><td><code>${escapeHtml(r.cluster)}</code></td><td>${link(sglangPr(r.pr), '#' + escapeHtml(r.pr))}</td>
+                <td>${escapeHtml(r.confidence)}</td><td class="text-end">${escapeHtml(r.jobs)}</td>
+                <td>${r.comment_url ? link(r.comment_url, badge) : badge}${r.reason ? ` <span class="small text-muted">${escapeHtml(r.reason)}</span>` : ''}</td></tr>`;
+        }).join('') : '';
+    }
+
+    function renderOutputs(data) {
+        const parts = [];
+        const r = data.daily_report;
+        if (r) {
+            parts.push(`<div><i class="bi bi-calendar-check"></i> <b>Daily CI report</b>: ${link(r.url, `${escapeHtml(r.date)} (#${escapeHtml(r.number)})`)},
+                ${escapeHtml(r.comments)} workflow comment${r.comments === 1 ? '' : 's'}, last edited ${when(r.updated_at)}.
+                ${link('https://github.com/bingxche/sglang-ci-bot/issues?q=label%3Aci-monitor', 'All reports')}</div>`);
+        }
+        const trackers = data.failure_trackers || [];
+        parts.push(`<div class="mt-1"><i class="bi bi-clipboard-pulse"></i> <b>Failure trackers</b> on sgl-project/sglang: ${trackers.length
+            ? trackers.map(t => `${link(t.url, `#${escapeHtml(t.number)} ${escapeHtml(t.title.replace('[Failure Tracker] ', ''))}`)} <span class="text-muted small">updated ${when(t.updated_at)}</span>`).join(', ')
+            : '<span class="text-muted">none open</span>'}</div>`);
+        document.getElementById('bot-outputs').innerHTML = parts.join('');
+    }
+</script>
+
+<script>
+document.addEventListener('DOMContentLoaded',function(){
+  // Hide refresh buttons that need a backend
+  document.querySelectorAll('[onclick*="loadStatus"],[onclick*="refreshAllPRs"]').forEach(function(el){el.classList.add('static-hidden')});
+  // Hide refresh buttons next to cache status on nightly/pr-test
+  document.querySelectorAll('[onclick*="loadData(true)"]').forEach(function(el){el.classList.add('static-hidden')});
+  // Replace visitor count with dash
+  var vc=document.getElementById('visitor-count');if(vc)vc.textContent='-';
+});
+</script>
+</body>
+</html>

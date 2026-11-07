@@ -1,0 +1,1640 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AITER Pin - SGLang CI</title>
+
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+
+    <!-- Bootstrap Icons -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
+
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+
+    <!-- Flatpickr Date Picker -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr@4.6.13/dist/flatpickr.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr@4.6.13/dist/flatpickr.min.js"></script>
+
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="/sglang-ci/static/css/style.css">
+
+    
+<script>
+(function(){
+var B='/sglang-ci/';
+var _f=window.fetch;
+window.fetch=function(u,o){
+if(typeof u!=='string')return _f.apply(this,arguments);
+if(o&&o.method&&o.method.toUpperCase()==='POST')
+  return Promise.resolve(new Response(
+    JSON.stringify({error:'Not available in static mode',success:false}),
+    {status:405,headers:{'Content-Type':'application/json'}}));
+if(u.startsWith('/api/')){
+  var p=u.substring(1),q=p.indexOf('?');
+  if(q>=0){var sp=new URLSearchParams(p.substring(q));p=p.substring(0,q);
+    Array.from(sp.entries()).sort(function(a,b){return a[0].localeCompare(b[0])})
+    .forEach(function(e){p+='-'+e[0]+'-'+e[1];});}
+  p+='.json';
+  return _f.call(this,B+p,o);}
+return _f.apply(this,arguments);
+};
+})();
+</script>
+<style>
+.static-hidden{display:none!important}
+.static-banner{background:#e8f4fd;border-bottom:1px solid #bee5eb;padding:0.35rem 1rem;text-align:center;font-size:0.82rem;color:#0c5460}
+@media(max-width:768px){.static-banner{font-size:0.75rem;padding:0.3rem 0.5rem}}
+</style>
+</head>
+<body>
+    <!-- Navigation Bar -->
+    <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="/sglang-ci/summary/">
+                <i class="bi bi-graph-up"></i> SGLang Dashboard
+            </a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav me-auto">
+                    <li class="nav-item">
+                        <a class="nav-link " href="/sglang-ci/summary/">
+                            <i class="bi bi-grid-1x2"></i> Summary
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link " href="/sglang-ci/coverage/">
+                            <i class="bi bi-bar-chart-steps"></i> Coverage
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link " href="/sglang-ci/benchmark-dashboard/">
+                            <i class="bi bi-speedometer2"></i> Benchmarks
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link " href="/sglang-ci/nightly-ci/">
+                            <i class="bi bi-moon-stars"></i> Nightly CI
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link " href="/sglang-ci/day0/">
+                            <i class="bi bi-rocket-takeoff"></i> <span class="text-nowrap">Day-0</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link " href="/sglang-ci/docker-images/">
+                            <i class="bi bi-box-seam"></i> Docker Images
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link active" href="/sglang-ci/aiter/">
+                            <i class="bi bi-cpu"></i> AITER
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link " href="/sglang-ci/rocm-versions/">
+                            <i class="bi bi-layers"></i> <span class="text-nowrap">ROCm</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link " href="/sglang-ci/miles/">
+                            <i class="bi bi-signpost-split"></i> MILES
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link " href="/sglang-ci/runner-health/">
+                            <i class="bi bi-heart-pulse"></i> Runner Health
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link " href="/sglang-ci/amd-pr-tracker/">
+                            <i class="bi bi-git"></i> AMD PRs
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link " href="/sglang-ci/amd-bot/">
+                            <i class="bi bi-robot"></i> AMD Bot
+                        </a>
+                    </li>
+                </ul>
+                <ul class="navbar-nav">
+                    
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle " href="#" id="githubDropdown" role="button" data-bs-toggle="dropdown">
+                            <i class="bi bi-github"></i> GitHub
+                            <i class="bi bi-circle-fill d-none" id="github-status-dot" style="font-size:0.5rem;vertical-align:middle"></i>
+                        </a>
+                        <ul class="dropdown-menu dropdown-menu-end">
+                            <li><a class="dropdown-item " href="/sglang-ci/pr-test/">
+                                <i class="bi bi-check2-square"></i> PR Test (AMD)
+                            </a></li>
+                            
+                            <li><hr class="dropdown-divider"></li>
+                            <li><a class="dropdown-item " href="/sglang-ci/sglang-info/">
+                                <i class="bi bi-info-circle"></i> SGLang Info
+                            </a></li>
+                            <li><a class="dropdown-item" href="https://github.com/sgl-project/sglang" target="_blank" rel="noopener">
+                                <i class="bi bi-git"></i> SGLang Repo
+                            </a></li>
+                            <li><hr class="dropdown-divider"></li>
+                            
+                            <li><a class="dropdown-item" href="https://grafana.aws-usea1-eks-pvt-prd.k8s.external.platform-stg.amd.com/d/ci-tenant-cluster-detail-read-only/ci-tenant-cluster-detail?orgId=1&amp;from=now-7d&amp;to=now&amp;timezone=browser&amp;var-datasource=amp-prometheus&amp;var-cluster=$__all&amp;var-tenant=sglang&amp;var-gpu_type=$__all" target="_blank" rel="noopener"
+                                   title="CI tenant cluster telemetry in Grafana (Okta sign-in required)">
+                                <i class="bi bi-activity"></i> Grafana
+                            </a></li>
+                            
+                            <li><a class="dropdown-item" href="https://www.githubstatus.com/" target="_blank" rel="noopener" id="github-status-link">
+                                <i class="bi bi-broadcast-pin"></i> GitHub Status
+                                <span class="d-block small text-muted" id="github-status-text">checking...</span>
+                            </a></li>
+                        </ul>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Internal-only banner: live dashboard link. Rendered only when
+         DASHBOARD_URL is configured, and stripped from the public GitHub Pages
+         static build so the internal address is never published. -->
+    
+
+    <!-- Main Content -->
+    <div class="static-banner"><i class="bi bi-clock-history"></i> This is a static snapshot. Data auto-updates every 20 minutes. Please reach out to CI dashboard owner Zhang, Michael, Chen, Bingxu or Tseng, YC for any question.</div>
+    <main class="container-fluid py-4">
+        <!-- Shared data-freshness stamp and time zone choice, in the same spot
+             on every page. Pages report the timestamp of the data they render
+             via setPageLastUpdated(); the rest fall back to the site-wide
+             refresh time from /api/build-info. -->
+        <div class="d-flex justify-content-end align-items-center gap-2 mb-2" id="page-updated-bar">
+            <small class="text-muted" id="page-updated-stamp" style="display:none">
+                <i class="bi bi-clock-history"></i> Last Updated: <span id="page-last-updated"></span>
+            </small>
+            <select class="form-select form-select-sm py-0" id="timeZoneSelect" style="width: auto;"
+                onchange="setDisplayTimeZone(this.value)" data-no-capture aria-label="Time zone"
+                title="Time zone for every time on the site. Remembered for your next visit.">
+                <option value="local">Local time</option>
+                <option value="beijing">Beijing time</option>
+                <option value="pt">Pacific time</option>
+                <option value="utc">UTC</option>
+            </select>
+        </div>
+        
+<div class="row mb-3" id="aiter-header">
+    <div class="col">
+        <div class="d-flex justify-content-between align-items-center flex-wrap">
+            <div>
+                <h1 class="display-5 mb-1">
+                    <i class="bi bi-cpu"></i> AITER Pin
+                </h1>
+                <p class="text-muted mb-0">Which AITER commit the AMD images are built with, the PRs that moved it, and which AITER each CI run actually tested</p>
+            </div>
+            <div class="d-flex gap-2 align-items-center">
+                <button class="btn btn-outline-secondary btn-sm" id="aiter-shot" onclick="copySummaryImage()" data-no-capture
+                    title="Copy a picture of the header and the three summary cards to paste into a chat or email (downloads a PNG where the browser cannot copy images)">
+                    <i class="bi bi-image"></i> <span>Copy as image</span></button>
+                <div class="btn-group btn-group-sm" role="group">
+                    <a href="https://github.com/sgl-project/sglang/blob/main/docker/rocm.Dockerfile" target="_blank" rel="noopener" class="btn btn-outline-primary">
+                        <i class="bi bi-file-earmark-code"></i> rocm.Dockerfile
+                    </a>
+                    <a href="https://github.com/ROCm/aiter" target="_blank" rel="noopener" class="btn btn-outline-secondary">
+                        <i class="bi bi-github"></i> ROCm/aiter
+                    </a>
+                    <a href="https://github.com/sgl-project/sglang/actions/workflows/amd-aiter-scout.yml" target="_blank" rel="noopener" class="btn btn-outline-secondary">
+                        <i class="bi bi-gear"></i> AITER Scout
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div id="aiter-loading" class="text-center py-5">
+    <div class="spinner-border text-primary" role="status"></div>
+    <p class="mt-2 text-muted">Loading the AITER pin...</p>
+</div>
+<div id="aiter-error" class="alert alert-warning" style="display: none;"></div>
+
+<div id="aiter-content" style="display: none;">
+    <div class="row g-3 mb-3" id="aiter-summary-cards">
+        <div class="col-lg-5">
+            <div class="card h-100">
+                <div class="card-header bg-primary text-white py-2">
+                    <h6 class="mb-0"><i class="bi bi-pin-angle"></i> Pinned on main</h6>
+                </div>
+                <div class="card-body" id="aiter-pinned" style="font-size: 0.88rem;"></div>
+            </div>
+        </div>
+        <div class="col-lg-4">
+            <div class="card h-100">
+                <div class="card-header bg-secondary text-white py-2">
+                    <h6 class="mb-0"><i class="bi bi-cpu"></i> What CI is testing</h6>
+                </div>
+                <div class="card-body py-2" id="aiter-ci-now" style="font-size: 0.85rem;"></div>
+            </div>
+        </div>
+        <div class="col-lg-3">
+            <div class="card h-100">
+                <div class="card-header bg-dark text-white py-2">
+                    <h6 class="mb-0"><i class="bi bi-check2-square"></i> How the bump was tested</h6>
+                </div>
+                <div class="card-body py-2" id="aiter-bump-tests" style="font-size: 0.85rem;"></div>
+            </div>
+        </div>
+    </div>
+
+    <details id="aiter-signals" class="mb-3" style="display: none; font-size: 0.85rem;">
+        <summary id="aiter-signals-summary"></summary>
+        <div id="aiter-signals-list" class="mt-2"></div>
+    </details>
+
+    <div class="card mb-3" id="aiter-scout-section" style="display: none;">
+        <div class="card-header bg-dark text-white d-flex justify-content-between align-items-center flex-wrap py-2">
+            <h6 class="mb-0"><i class="bi bi-binoculars"></i> AITER Scout verdicts</h6>
+            <small class="opacity-75" id="aiter-scout-meta"></small>
+        </div>
+        <div id="aiter-scout-unlogged" class="border-bottom px-3 py-2" style="display: none; font-size: 0.82rem;"></div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-sm table-hover table-wrap mb-0" style="font-size: 0.85rem;">
+                    <thead class="table-light">
+                        <tr>
+                            <th style="width: 90px;">Run</th>
+                            <th style="width: 190px;">AITER commit</th>
+                            <th style="width: 100px;">Verdict</th>
+                            <th>Memo</th>
+                        </tr>
+                    </thead>
+                    <tbody id="aiter-scout-rows"></tbody>
+                </table>
+            </div>
+            <details class="px-3 py-2" id="aiter-scout-older" style="display: none; font-size: 0.85rem;">
+                <summary class="text-muted" id="aiter-scout-older-summary">Older verdicts</summary>
+                <table class="table table-sm table-wrap mb-0 mt-2">
+                    <tbody id="aiter-scout-older-rows"></tbody>
+                </table>
+            </details>
+        </div>
+    </div>
+
+    <div class="card mb-3" id="aiter-open-section" style="display: none;">
+        <div class="card-header bg-warning text-dark py-2">
+            <h6 class="mb-0"><i class="bi bi-git"></i> AITER changes in review</h6>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-sm table-hover table-wrap mb-0" style="font-size: 0.85rem;">
+                    <thead class="table-light">
+                        <tr>
+                            <th>PR</th>
+                            <th>Change</th>
+                            <th style="width: 230px;">AMD CI</th>
+                            <th style="width: 110px;">Updated</th>
+                        </tr>
+                    </thead>
+                    <tbody id="aiter-open-rows"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div class="card mb-3">
+        <div class="card-header bg-dark text-white d-flex justify-content-between align-items-center flex-wrap py-2">
+            <h6 class="mb-0"><i class="bi bi-clock-history"></i> Pin changes</h6>
+            <small class="opacity-75" id="aiter-history-meta"></small>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-sm table-hover table-wrap mb-0" style="font-size: 0.85rem;">
+                    <thead class="table-light">
+                        <tr>
+                            <th style="width: 100px;">Merged</th>
+                            <th>PR</th>
+                            <th>Change</th>
+                            <th style="width: 300px;">AITER Scout verdict</th>
+                            <th style="width: 230px;">AMD CI on the PR</th>
+                            <th style="width: 230px;">First CI run on the new pin</th>
+                        </tr>
+                    </thead>
+                    <tbody id="aiter-history-rows"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div class="card mb-3" id="aiter-readiness-section" style="display: none;">
+        <div class="card-header bg-dark text-white d-flex justify-content-between align-items-center flex-wrap py-2">
+            <h6 class="mb-0"><i class="bi bi-signpost-2"></i> PR readiness</h6>
+            <small class="opacity-75" id="aiter-readiness-meta"></small>
+        </div>
+        <div class="card-body py-2" style="font-size: 0.85rem;">
+            <div id="aiter-readiness-note" class="mb-2"></div>
+            <div id="aiter-readiness-summary" class="mb-2"></div>
+            <div class="table-responsive">
+                <table class="table table-sm table-hover table-wrap mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th style="width: 150px;">Readiness</th>
+                            <th style="width: 260px;">SGLang PR</th>
+                            <th style="width: 300px;">AITER change</th>
+                            <th>Feature</th>
+                            <th style="width: 110px;">Listed under</th>
+                        </tr>
+                    </thead>
+                    <tbody id="aiter-readiness-rows"></tbody>
+                </table>
+            </div>
+            <div id="aiter-readiness-pending" class="mt-2" style="display: none;"></div>
+            <details class="mt-2" id="aiter-readiness-versions">
+                <summary class="text-muted">Every version in the tracker, as written</summary>
+                <div id="aiter-readiness-sections" class="mt-2"></div>
+            </details>
+        </div>
+    </div>
+
+    <div class="card mb-3">
+        <div class="card-header bg-secondary text-white d-flex justify-content-between align-items-center flex-wrap gap-2 py-2">
+            <h6 class="mb-0"><i class="bi bi-list-check"></i> Which AITER each CI run tested</h6>
+            <div class="d-flex gap-2 align-items-center">
+                <small class="opacity-75" id="aiter-runs-meta"></small>
+                <select class="form-select form-select-sm" id="aiter-runs-workflow" style="width: auto;" onchange="renderRuns()">
+                    <option value="">All workflows</option>
+                </select>
+                <select class="form-select form-select-sm" id="aiter-runs-track" style="width: auto;" onchange="renderRuns()">
+                    <option value="">All images</option>
+                </select>
+            </div>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive" style="max-height: 560px; overflow-y: auto;">
+                <table class="table table-sm table-hover mb-0" style="font-size: 0.85rem;">
+                    <thead class="table-light" style="position: sticky; top: 0;">
+                        <tr>
+                            <th style="width: 150px;">Run</th>
+                            <th>Workflow</th>
+                            <th>Image</th>
+                            <th>AITER tested</th>
+                            <th>Pin on main then</th>
+                            <th class="text-center" style="width: 110px;">Jobs passed</th>
+                        </tr>
+                    </thead>
+                    <tbody id="aiter-runs-rows"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div class="card mb-3" id="aiter-sglang-ci-section" style="display: none;">
+        <div class="card-header bg-dark text-white d-flex justify-content-between align-items-center flex-wrap py-2">
+            <h6 class="mb-0"><i class="bi bi-shield-check"></i> AITER's own SGLang CI</h6>
+            <small class="opacity-75" id="aiter-sglang-ci-meta"></small>
+        </div>
+        <div id="aiter-sglang-ci-signals" class="px-3 pt-2" style="font-size: 0.85rem;"></div>
+        <div class="card-body py-2" style="font-size: 0.85rem;">
+            <div class="row g-3 mb-3" id="aiter-sglang-ci-summary"></div>
+            <div class="fw-bold mb-1">Nightly suites <span class="text-muted fw-normal small"><span data-utc-clock="17:00">17:00 UTC</span>, newest first</span></div>
+            <div class="table-responsive">
+                <table class="table table-sm mb-0">
+                    <thead class="table-light"><tr id="aiter-sglang-ci-nightly-head"></tr></thead>
+                    <tbody id="aiter-sglang-ci-nightly-rows"></tbody>
+                </table>
+            </div>
+            <div class="fw-bold mt-3 mb-1">AITER main commits <span class="text-muted fw-normal small" id="aiter-sglang-ci-commits-meta"></span></div>
+            <div class="table-responsive" style="max-height: 360px; overflow-y: auto;">
+                <table class="table table-sm table-hover table-wrap mb-0">
+                    <thead class="table-light" style="position: sticky; top: 0;">
+                        <tr>
+                            <th style="width: 130px;">Pushed</th>
+                            <th style="width: 110px;">Commit</th>
+                            <th>Title</th>
+                            <th style="width: 280px;">SGLang suites</th>
+                        </tr>
+                    </thead>
+                    <tbody id="aiter-sglang-ci-commits"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-body py-2 text-muted" style="font-size: 0.8rem;" id="aiter-footnote">
+            CI does not rebuild AITER to the pin: <code>amd_ci_install_dependency.sh</code> keeps the AITER already
+            in the CI image whenever that image reports a dev build, so a new pin reaches tests only once CI picks
+            up the first nightly image built after the merge. "AITER tested" is read from the
+            <code>[CI-AITER-CHECK]</code> block in one job log per run and image. A cherry-pick keeps the base
+            commit, so a job log cannot tell which runs had one.
+            <div class="mt-1">
+                <code class="text-success fw-bold">green</code> the pin on main when the run started &nbsp;
+                <code class="text-warning fw-bold">amber</code> an older pin, from an image built before the bump &nbsp;
+                <code class="text-info fw-bold">blue</code> AITER Scout's override, AITER main at the time
+            </div>
+        </div>
+    </div>
+</div>
+
+    </main>
+
+    <!-- Footer -->
+    <footer class="bg-light text-center text-muted py-3 mt-5">
+        <div class="container">
+            <p class="mb-0">
+                SGLang Dashboard
+                <span class="ms-3"><a href="https://www.githubstatus.com/" target="_blank" rel="noopener" class="text-decoration-none"><i class="bi bi-broadcast-pin"></i> GitHub Status</a></span>
+                <span class="ms-3"><i class="bi bi-people-fill"></i> <span id="visitor-count">...</span> visitors</span>
+            </p>
+        </div>
+    </footer>
+
+    <script>
+        // Shared timestamp formatting and the "Last Updated" stamp. Defined
+        // before any page script runs so pages can use them as soon as their
+        // data lands.
+        (function () {
+            let pageReported = false;
+            let lastStamp = null;
+
+            // Times are shown in the zone picked in the select above every
+            // page: the viewer's own by default, or Beijing, Pacific or UTC,
+            // remembered across visits. The zone is always named, so a time
+            // copied into a chat still means the same thing to a reader
+            // elsewhere. Format every wall-clock time through these helpers
+            // (or zoneOptions) so it follows the choice.
+            const TIME_ZONE_KEY = 'display_time_zone';
+            const TIME_ZONES = {
+                local: undefined,
+                beijing: 'Asia/Shanghai',
+                pt: 'America/Los_Angeles',
+                utc: 'UTC',
+            };
+            let zoneChoice = 'local';
+            try {
+                const saved = localStorage.getItem(TIME_ZONE_KEY);
+                if (saved in TIME_ZONES) zoneChoice = saved;
+            } catch (e) { /* private mode */ }
+
+            window.getDisplayTimeZone = () => zoneChoice;
+            // The IANA zone to pass as `timeZone`, or undefined for the viewer's.
+            window.displayTimeZoneId = () => TIME_ZONES[zoneChoice];
+
+            // A page that can redraw its times in place registers here; one
+            // that doesn't is reloaded, so nothing is left in the old zone.
+            const zoneHandlers = [];
+            window.onTimeZoneChange = fn => { zoneHandlers.push(fn); };
+
+            window.setDisplayTimeZone = function (choice) {
+                if (!(choice in TIME_ZONES) || choice === zoneChoice) return;
+                zoneChoice = choice;
+                try { localStorage.setItem(TIME_ZONE_KEY, choice); } catch (e) { /* private mode */ }
+                const select = document.getElementById('timeZoneSelect');
+                if (select) select.value = choice;
+                if (!zoneHandlers.length) { location.reload(); return; }
+                if (lastStamp) render(lastStamp);
+                localizeClocks();
+                zoneHandlers.forEach(fn => fn(choice));
+            };
+
+            // `toLocaleString` options with the chosen zone applied and named.
+            window.zoneOptions = function (options) {
+                return { ...options, timeZone: TIME_ZONES[zoneChoice], timeZoneName: 'short' };
+            };
+
+            // Single definition of how an absolute moment is shown, so a new
+            // one can't be added without the zone. Values that aren't dates are
+            // passed through untouched.
+            window.formatTimestamp = function (value) {
+                const parsed = new Date(value);
+                return isNaN(parsed.getTime())
+                    ? String(value)
+                    : parsed.toLocaleString(undefined, window.zoneOptions({}));
+            };
+
+            // The compact form for table cells, e.g. "Oct 8, 14:02 PDT"; put
+            // formatTimestamp in the tooltip when the full one matters.
+            window.formatShortTime = function (value) {
+                const parsed = value ? new Date(value) : null;
+                if (!parsed || isNaN(parsed.getTime())) return '';
+                return parsed.toLocaleString(undefined, window.zoneOptions({
+                    month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', hourCycle: 'h23',
+                }));
+            };
+
+            // The calendar date of a moment in the chosen zone, in the viewer's
+            // locale (formatDate) or as YYYY-MM-DD (formatIsoDate). No zone
+            // name: it is a day, not a clock time. A bare "2026-11-03" is a
+            // day already and is not shifted.
+            const BARE_DATE = /^\d{4}-\d{2}-\d{2}$/;
+            function zonedDate(value, locale) {
+                if (!value) return '';
+                const parsed = new Date(BARE_DATE.test(value) ? `${value}T12:00:00Z` : value);
+                if (isNaN(parsed.getTime())) return String(value);
+                const timeZone = BARE_DATE.test(value) ? 'UTC' : TIME_ZONES[zoneChoice];
+                return parsed.toLocaleDateString(locale, { timeZone });
+            }
+            window.formatDate = value => zonedDate(value, undefined);
+            window.formatIsoDate = value => zonedDate(value, 'en-CA');
+
+            // A UTC clock time ("16:00") as the chosen zone reads it on `on`
+            // (default today, which decides DST): its clock, the zone's short
+            // name, and how many days it moved (-1, 0, +1).
+            window.zonedClock = function (hhmm, on) {
+                const [h, m] = String(hhmm).split(':').map(Number);
+                const ref = on ? new Date(on) : new Date();
+                const at = new Date(Date.UTC(ref.getUTCFullYear(), ref.getUTCMonth(), ref.getUTCDate(), h, m || 0));
+                const parts = {};
+                new Intl.DateTimeFormat('en-US', window.zoneOptions({
+                    year: 'numeric', month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit', hourCycle: 'h23',
+                })).formatToParts(at).forEach(p => { parts[p.type] = p.value; });
+                const zonedDay = Date.UTC(Number(parts.year), Number(parts.month) - 1, Number(parts.day));
+                const utcDay = Date.UTC(at.getUTCFullYear(), at.getUTCMonth(), at.getUTCDate());
+                return {
+                    clock: `${parts.hour}:${parts.minute}`,
+                    zone: parts.timeZoneName,
+                    dayShift: Math.round((zonedDay - utcDay) / 86400000),
+                };
+            };
+
+            // Cron summaries are written in UTC ("16:00 UTC daily", "01:00 &
+            // 13:00 UTC daily", "20:00 UTC Sat", "21:00 UTC odd days", joined
+            // with " + "). Each clock time is shown in the chosen zone. A time
+            // that lands on another date moves its weekdays with it; odd/even
+            // and every-N-days counts are UTC dates and can't move, so those
+            // keep the UTC schedule and give the zone's time beside it.
+            const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+            const WEEKDAY_LIST = /^ ((?:Sun|Mon|Tue|Wed|Thu|Fri|Sat)(?:, (?:Sun|Mon|Tue|Wed|Thu|Fri|Sat))*(?: & (?:Sun|Mon|Tue|Wed|Thu|Fri|Sat))?)$/;
+            window.localizeSchedule = function (text) {
+                if (!text || zoneChoice === 'utc') return text;
+                return String(text).split(' + ').map(segment => {
+                    const match = /^(\d{1,2}:\d{2}(?: & \d{1,2}:\d{2})*) UTC(.*)$/.exec(segment);
+                    if (!match) return segment;
+                    const clocks = match[1].split(' & ').map(c => window.zonedClock(c));
+                    const times = `${clocks.map(c => c.clock).join(' & ')} ${clocks[0].zone}`;
+                    const suffix = match[2];
+                    const shifts = new Set(clocks.map(c => c.dayShift));
+                    const shift = shifts.size === 1 ? [...shifts][0] : null;
+                    if (shift === 0 || suffix.trim() === 'daily') return times + suffix;
+                    if (shift !== null && WEEKDAY_LIST.test(suffix)) {
+                        return times + suffix.replace(/Sun|Mon|Tue|Wed|Thu|Fri|Sat/g,
+                            d => WEEKDAYS[(WEEKDAYS.indexOf(d) + shift + 7) % 7]);
+                    }
+                    const when = shift === 1 ? ' next day' : shift === -1 ? ' previous day' : '';
+                    return `${segment} (${times}${when})`;
+                }).join(' + ');
+            };
+
+            // Static markup names a time that recurs every day as
+            // <span data-utc-clock="16:00">16:00 UTC</span>; it is rewritten
+            // here, on load and on every change. (Prose that ties a time to
+            // UTC dates, like "even dates", should stay in UTC.)
+            function localizeClocks() {
+                document.querySelectorAll('[data-utc-clock]').forEach(el => {
+                    el.textContent = window.localizeSchedule(`${el.dataset.utcClock} UTC daily`).replace(/ daily$/, '');
+                });
+            }
+
+            function render(value) {
+                const bar = document.getElementById('page-updated-stamp');
+                const out = document.getElementById('page-last-updated');
+                if (!bar || !out || !value) return;
+                lastStamp = value;
+                out.textContent = window.formatTimestamp(value);
+                bar.style.display = '';
+            }
+
+            // "Local time" names the viewer's zone so it can be told apart
+            // from the others.
+            const select = document.getElementById('timeZoneSelect');
+            if (select) {
+                select.value = zoneChoice;
+                const local = new Intl.DateTimeFormat('en-US', { timeZoneName: 'short' })
+                    .formatToParts(new Date()).find(p => p.type === 'timeZoneName');
+                if (local) select.querySelector('option[value="local"]').textContent = `Local time (${local.value})`;
+            }
+            localizeClocks();
+
+            window.setPageLastUpdated = function (value) {
+                if (!value) return;
+                pageReported = true;
+                render(value);
+            };
+
+            fetch('/api/build-info')
+                .then(response => response.json())
+                .then(data => { if (!pageReported) render(data.generated_at); })
+                .catch(() => {});
+        })();
+
+        // Shared "Copy as image" button: a picture of part of a page, as it is
+        // shown now, for a chat or an email. Copied to the clipboard where the
+        // browser allows images there (a secure page and ClipboardItem),
+        // downloaded as a PNG otherwise. html2canvas (~45 KB) is loaded from the
+        // CDN on the first click, so a page pays nothing for it until then.
+        // Anything tagged data-no-capture (the button itself, selects, show/hide
+        // toggles) is left out of the image.
+        (function () {
+            let html2canvasLoad = null;
+            function loadHtml2canvas() {
+                if (window.html2canvas) return Promise.resolve(window.html2canvas);
+                if (!html2canvasLoad) {
+                    html2canvasLoad = new Promise((resolve, reject) => {
+                        const s = document.createElement('script');
+                        s.src = 'https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js';
+                        s.onload = () => resolve(window.html2canvas);
+                        s.onerror = () => { html2canvasLoad = null; reject(new Error('could not load html2canvas')); };
+                        document.head.appendChild(s);
+                    });
+                }
+                return html2canvasLoad;
+            }
+
+            function downloadBlob(blob, fileName) {
+                const a = document.createElement('a');
+                a.href = URL.createObjectURL(blob);
+                a.download = fileName;
+                document.body.appendChild(a);
+                a.click();
+                setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1000);
+            }
+
+            // `region` is one element, or [first, last] for everything from the
+            // top of `first` to the bottom of `last` -- for a section that is not
+            // one element, like a page header plus the cards below it. `name` is
+            // the file name, without .png, used when the image is downloaded.
+            // `ready`, if given, is a promise the picture waits for, so a page
+            // still loading its data is pictured once it has finished.
+            // The button's <span> (or the button) reports how it went.
+            window.copyScreenshot = function (btn, region, name, ready) {
+                const [first, last] = Array.isArray(region) ? region : [region, region];
+                const opts = {
+                    backgroundColor: '#ffffff',
+                    scale: Math.min(2, window.devicePixelRatio || 1),
+                    ignoreElements: el => el.hasAttribute && el.hasAttribute('data-no-capture'),
+                    windowWidth: document.documentElement.scrollWidth,
+                };
+                let target = first;
+                if (last !== first) {
+                    // Their common parent, cropped to the span between them.
+                    // The crop is measured on the copy html2canvas renders, not
+                    // at the click: anything that finishes loading in between
+                    // (the library itself is fetched on the first click) grows
+                    // the page, and a crop measured earlier cut off its bottom.
+                    // html2canvas measures the crop from the captured element's
+                    // own top, not the page's.
+                    while (!target.contains(last)) target = target.parentElement;
+                    opts.onclone = (doc, clonedTarget) => {
+                        const f = doc.querySelector('[data-shot-first]');
+                        const l = doc.querySelector('[data-shot-last]');
+                        const top = f.getBoundingClientRect().top;
+                        // `last` not rendered yet (page still loading): just `first`.
+                        opts.y = top - clonedTarget.getBoundingClientRect().top;
+                        opts.height = (l.getClientRects().length ? l : f).getBoundingClientRect().bottom - top;
+                    };
+                }
+
+                const label = btn.querySelector('span') || btn;
+                const idle = label.textContent;
+                btn.disabled = true;
+                label.textContent = 'Rendering…';
+
+                const png = Promise.all([loadHtml2canvas(), ready])
+                    .then(([h2c]) => {
+                        // The clone is taken when html2canvas starts, so the
+                        // markers only need to outlive that call.
+                        first.setAttribute('data-shot-first', '');
+                        last.setAttribute('data-shot-last', '');
+                        const shot = h2c(target, opts);
+                        first.removeAttribute('data-shot-first');
+                        last.removeAttribute('data-shot-last');
+                        return shot;
+                    })
+                    .then(canvas => new Promise((resolve, reject) =>
+                        canvas.toBlob(b => (b ? resolve(b) : reject(new Error('empty image'))), 'image/png')));
+                const download = () => png.then(blob => { downloadBlob(blob, `${name}.png`); return 'Downloaded PNG'; });
+                let done;
+                try {
+                    // The clipboard write starts now, inside the click, with the
+                    // image still rendering: a browser that only lets a page write
+                    // the clipboard straight after a click (Safari, and Chrome
+                    // once a render runs long) would refuse a write made later.
+                    if (!(window.isSecureContext && navigator.clipboard && window.ClipboardItem)) throw 0;
+                    done = navigator.clipboard.write([new ClipboardItem({'image/png': png})])
+                        .then(() => 'Copied image', download);
+                } catch (e) {
+                    done = download();
+                }
+                done.then(text => text, () => 'Image failed').then(text => {
+                    label.textContent = text;
+                    btn.disabled = false;
+                    setTimeout(() => { label.textContent = idle; }, 2500);
+                });
+            };
+        })();
+
+        // GitHub's own incident status, read straight from its public Statuspage
+        // in the browser: no backend involved, so the live server and the
+        // static snapshot both show a current value. The dot next to the
+        // GitHub menu is what makes an ongoing incident visible without
+        // opening the menu -- a GitHub outage is a common reason for the CI
+        // results on these pages to look broken.
+        (function () {
+            // Muted enough to sit on the navbar, bright enough to read on it.
+            const DOT_COLORS = {
+                none: '#5cd97b',
+                minor: '#ffd43b',
+                major: '#ff922b',
+                critical: '#ff6b6b',
+            };
+
+            const text = document.getElementById('github-status-text');
+            const dot = document.getElementById('github-status-dot');
+            const link = document.getElementById('github-status-link');
+
+            fetch('https://www.githubstatus.com/api/v2/status.json')
+                .then(response => response.ok ? response.json() : Promise.reject())
+                .then(data => {
+                    const status = data.status || {};
+                    const description = status.description || 'Status unknown';
+                    if (text) text.textContent = description;
+                    if (link) link.title = 'GitHub Status: ' + description;
+                    const color = DOT_COLORS[status.indicator];
+                    if (dot && color) {
+                        dot.style.color = color;
+                        dot.classList.remove('d-none');
+                    }
+                })
+                .catch(() => {
+                    // Ignore: the link itself still works, and a failed check
+                    // here says nothing about GitHub (it is just as likely to
+                    // be the viewer's network).
+                    if (text) text.textContent = 'check on githubstatus.com';
+                });
+        })();
+
+        // Load visitor count
+        fetch('/api/visitor-count')
+            .then(response => response.json())
+            .then(data => {
+                document.getElementById('visitor-count').textContent = data.count.toLocaleString();
+            })
+            .catch(() => {
+                document.getElementById('visitor-count').textContent = '-';
+            });
+    </script>
+
+    <!-- Bootstrap JS Bundle -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+    <!-- Custom JS -->
+    <script src="/sglang-ci/static/js/dashboard.js"></script>
+
+    
+<script>
+    // A picture of the top of the page — title, links and the three summary
+    // cards (copyScreenshot, in base.html). The signals below the cards are
+    // left out.
+    function copySummaryImage() {
+        copyScreenshot(
+            document.getElementById('aiter-shot'),
+            [document.getElementById('aiter-header'), document.getElementById('aiter-summary-cards')],
+            `aiter-pin-${new Date().toISOString().slice(0, 10)}`,
+        );
+    }
+
+    const VERDICTS = {
+        gate_blocked: ['text-danger', 'bi-slash-circle', 'did not run'],
+        not_run: ['text-danger', 'bi-slash-circle', 'no AMD run'],
+        skipped: ['text-warning', 'bi-dash-circle', 'every AMD job skipped'],
+        running: ['text-warning', 'bi-hourglass-split', 'running'],
+        passed: ['text-success', 'bi-check-circle-fill', 'passed'],
+        failed: ['text-danger', 'bi-x-circle-fill', 'failed'],
+        cancelled: ['text-muted', 'bi-slash-circle', 'cancelled'],
+    };
+    const RELATIONS = {
+        on_pin: ['text-success', 'the pin on main when the run started'],
+        behind: ['text-warning', 'an older pin: the image predates the bump'],
+        candidate: ['text-info', 'AITER Scout override, AITER main at the time'],
+        other: ['text-muted', 'not a pin in the history on this page'],
+        unknown: ['text-muted', 'no [CI-AITER-CHECK] block read for this run yet'],
+    };
+    const DECISIONS = {
+        kept_image: "image's AITER",
+        rebuilt: 'rebuilt to the pin',
+        matched: 'image matches the pin',
+        override: 'Scout override',
+    };
+    const TRACK_LABELS = { rocm10: 'ROCm 10', rocm724: 'ROCm 7.2.4', rocm720: 'ROCm 7.2.0' };
+    const READINESS = {
+        ready: ['bg-success', 'ready to merge', 'The SGLang PR is still open and every AITER change it waits on is already in the pinned commit'],
+        waiting_bump: ['bg-warning text-dark', 'needs the next bump', 'The AITER change merged upstream but is not in the pinned commit'],
+        waiting_aiter: ['bg-secondary', 'waiting on AITER', 'The AITER PR has not merged'],
+        merged: ['bg-light text-dark border', 'AITER merged', 'Whether the pinned commit has it is not checked yet'],
+        in_pin: ['bg-light text-success border border-success', 'in the pin', 'The AITER change is in the pinned commit; the tracker names no SGLang PR for it'],
+        landed: ['bg-info text-dark', 'SGLang PR merged', 'The SGLang PR merged while the tracker still lists the item as open'],
+        dropped: ['bg-danger', 'SGLang PR closed', 'The SGLang PR was closed without merging while the tracker still lists the item'],
+        unknown: ['bg-light text-muted border', 'unknown', 'No PR state to go on'],
+    };
+    const READINESS_ORDER = ['ready', 'waiting_bump', 'waiting_aiter', 'merged', 'in_pin', 'landed', 'dropped', 'unknown'];
+    const SCOUT_STATUS = { accepted: 'bg-success', rejected: 'bg-danger', tbd: 'bg-secondary', other: 'bg-secondary' };
+    // A verdict read from the CI Monitor's analysis, not logged by hand yet.
+    const SCOUT_AUTO_STATUS = {
+        accepted: 'bg-light text-success border border-success',
+        rejected: 'bg-light text-danger border border-danger',
+        tbd: 'bg-light text-muted border',
+    };
+    const SCOUT_AUTO_TITLE = 'Read from the CI Monitor triage of this run until a verdict is logged by hand';
+    const REF_STATE = {
+        merged: 'text-success', open: 'text-primary', closed: 'text-danger', commit: 'text-muted', missing: 'text-muted',
+    };
+    const SCOUT_ROWS_SHOWN = 10;
+    // Pin changes listed, counted back from the payload's own time so a
+    // snapshot always shows the same rows.
+    const PIN_HISTORY_DAYS = 30;
+
+    let aiterData = null;
+
+    document.addEventListener('DOMContentLoaded', loadAiter);
+
+    function escapeHtml(value) {
+        return String(value == null ? '' : value).replace(/[&<>"']/g, c =>
+            ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+    }
+
+    function link(url, html, cls) {
+        if (!/^https:\/\//.test(url || '')) return html;
+        return `<a href="${escapeHtml(url)}" target="_blank" rel="noopener" class="${cls || 'text-decoration-none'}">${html}</a>`;
+    }
+
+    function shortRef(ref) {
+        return /^[0-9a-f]{7,40}$/.test(ref || '') ? ref.substring(0, 8) : (ref || '');
+    }
+
+    function shortUrl(url) {
+        const m = url.match(/^https:\/\/github\.com\/([\w.-]+\/[\w.-]+)\/(pull|issues|commit|actions\/runs)\/([0-9a-fA-F]+)/);
+        if (!m) return url;
+        const repo = m[1].toLowerCase() === 'sgl-project/sglang' ? 'sglang' : m[1];
+        if (m[2] === 'commit') return `${repo}@${m[3].substring(0, 8)}`;
+        if (m[2] === 'actions/runs') return `run ${m[3]}`;
+        return `${repo}#${m[3]}`;
+    }
+
+    // The trackers are markdown kept by hand, so their text is escaped whole
+    // and only links, inline code and strikethrough are put back; link() makes
+    // an href of nothing but an https URL. A bare URL ends before trailing
+    // punctuation, which is the sentence's, not the link's.
+    const MD_TOKEN = /\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)|(https?:\/\/[^\s)<>|]*[^\s)<>|.,;:!?'"])|`([^`]+)`|~~([^~]+)~~/g;
+    function mdLite(text) {
+        const s = String(text == null ? '' : text);
+        let out = '';
+        let last = 0;
+        for (const m of s.matchAll(MD_TOKEN)) {
+            out += escapeHtml(s.slice(last, m.index));
+            if (m[1] !== undefined) out += link(m[2], escapeHtml(m[1]));
+            else if (m[3] !== undefined) out += link(m[3], escapeHtml(shortUrl(m[3])));
+            else if (m[4] !== undefined) out += `<code>${escapeHtml(m[4])}</code>`;
+            else out += `<del>${escapeHtml(m[5])}</del>`;
+            last = m.index + m[0].length;
+        }
+        return out + escapeHtml(s.slice(last));
+    }
+
+    // A ref key is ``repo#N`` or ``repo@sha``; its live state comes from the
+    // payload's trackers.refs.
+    function refHtml(key, pin) {
+        const sep = key.includes('#') ? '#' : '@';
+        const [repo, id] = key.split(sep);
+        const state = (((aiterData || {}).trackers || {}).refs || {})[key] || {};
+        const url = sep === '#'
+            ? `https://github.com/${repo}/${state.type === 'pull' ? 'pull' : 'issues'}/${id}`
+            : `https://github.com/${repo}/commit/${id}`;
+        const label = (repo === 'sgl-project/sglang' ? 'sglang' : repo) + sep + (sep === '@' ? id.substring(0, 8) : id);
+        let html = link(url, escapeHtml(label));
+        if (state.state && state.state !== 'commit') {
+            const when = state.merged_at || (state.state === 'closed' ? state.closed_at : null);
+            html += ` <span class="${REF_STATE[state.state] || 'text-muted'} small">${escapeHtml(state.state)}${when ? ' ' + escapeHtml(when.substring(5, 10)) : ''}</span>`;
+        }
+        if (pin && state.in_pin_of === pin) {
+            html += state.in_pin
+                ? ` <span class="text-success small" title="The pinned commit contains it">in pin</span>`
+                : ` <span class="text-warning small" title="The pinned commit does not contain it">not in pin</span>`;
+        }
+        return html;
+    }
+
+    // A ref with its title, author and draft state under it, where a table
+    // has room for them.
+    function refBlock(key, pin) {
+        const state = (((aiterData || {}).trackers || {}).refs || {})[key] || {};
+        const draft = state.draft && state.state === 'open'
+            ? ' <span class="badge bg-light text-muted border">draft</span>'
+            : '';
+        const meta = [
+            state.title ? escapeHtml(state.title) : '',
+            state.author ? `<span class="text-muted">by ${link(`https://github.com/${encodeURIComponent(state.author)}`, escapeHtml(state.author), 'text-muted')}</span>` : '',
+        ].filter(Boolean).join(' ');
+        return `<div class="mb-1">${refHtml(key, pin)}${draft}${meta ? `<div class="small">${meta}</div>` : ''}</div>`;
+    }
+
+    function scoutStatusBadge(verdict) {
+        if (verdict.auto) {
+            return `<span class="badge ${SCOUT_AUTO_STATUS[verdict.status] || SCOUT_AUTO_STATUS.tbd}" title="${escapeHtml(SCOUT_AUTO_TITLE)}">${escapeHtml(verdict.status_text || verdict.status)}</span>`;
+        }
+        return `<span class="badge ${SCOUT_STATUS[verdict.status] || 'bg-secondary'}">${escapeHtml(verdict.status_text || verdict.status)}</span>`;
+    }
+
+    function scoutBadge(verdict) {
+        if (!verdict) return '';
+        const by = verdict.auto ? ', CI Monitor' : '';
+        return `${link(verdict.analysis_url || verdict.run_url, scoutStatusBadge(verdict))} <span class="text-muted small">Scout ${escapeHtml(verdict.label)}${by}</span>`;
+    }
+
+    // The CI Monitor's origins for a failure, in the order they matter to a
+    // pin: an AITER-caused one is what rejects a commit.
+    const FAILURE_ORIGINS = [
+        ['aiter_caused', 'AITER-caused', 'text-danger'],
+        ['pre_existing', 'Pre-existing', 'text-secondary'],
+        ['unclear', 'Unclear', 'text-warning'],
+        ['other', 'Other', 'text-muted'],
+    ];
+
+    // Every cell is the bot's LLM-written markdown, so it goes through mdLite.
+    function scoutFailureList(failures) {
+        return FAILURE_ORIGINS.map(([key, label, cls]) => {
+            const list = failures.filter(f => (f.origin || 'other') === key);
+            if (!list.length) return '';
+            return `<div class="mt-1"><div class="${cls} fw-bold">${escapeHtml(label)} (${list.length})</div><ul class="mb-1 ps-3">${list.map(f => {
+                const test = [f.test_file, f.test].filter(Boolean).map(mdLite).join(' ');
+                const origin = f.origin_text && f.origin_text.toLowerCase() !== label.toLowerCase() ? f.origin_text : '';
+                const meta = [f.cluster, origin, f.status].filter(Boolean).map(mdLite).join(' &middot; ');
+                return `<li class="mb-1">${link(f.url, escapeHtml(f.job || 'job'))}${test ? ` ${test}` : ''}`
+                    + (meta ? `<div class="text-muted">${meta}</div>` : '')
+                    + (f.hypothesis ? `<div>${mdLite(f.hypothesis)}</div>` : '')
+                    + '</li>';
+            }).join('')}</ul></div>`;
+        }).join('');
+    }
+
+    // What the CI Monitor sorted the run's failures into: an auto verdict
+    // carries the counts itself, a hand-logged one under ci_monitor. With the
+    // failures read too, the counts open onto them.
+    function scoutCounts(verdict) {
+        const counts = verdict.auto ? verdict : verdict.ci_monitor;
+        if (!counts || counts.aiter_caused == null) return '';
+        const caused = counts.aiter_caused
+            ? `<span class="text-danger fw-bold">${escapeHtml(counts.aiter_caused)} AITER-caused</span>`
+            : '<span class="text-success">0 AITER-caused</span>';
+        const rest = [
+            counts.pre_existing != null ? `${escapeHtml(counts.pre_existing)} pre-existing` : '',
+            counts.unclear != null ? `${escapeHtml(counts.unclear)} unclear` : '',
+        ].filter(Boolean).join(', ');
+        const by = link(verdict.analysis_url || counts.url, 'CI Monitor', 'text-muted');
+        const line = `${by}: ${caused}${rest ? `, ${rest}` : ''}`;
+        const failures = counts.failures || [];
+        if (!failures.length) return `<div class="small">${line}</div>`;
+        return `<details class="small scout-failures"><summary>${line}</summary>${scoutFailureList(failures)}</details>`;
+    }
+
+    // An auto verdict's memo is the same counts in words, so only a
+    // hand-written memo is shown next to them.
+    function scoutDetails(verdict) {
+        const memo = verdict.memo && !verdict.auto ? `<div class="small">${mdLite(verdict.memo)}</div>` : '';
+        return `${scoutBadge(verdict)}${memo}${scoutCounts(verdict)}`;
+    }
+
+    function aiterRef(ref, url, cls) {
+        if (!ref) return '<span class="text-muted">--</span>';
+        return link(url || `https://github.com/ROCm/aiter/commit/${ref}`,
+            `<code class="${cls || ''}">${escapeHtml(shortRef(ref))}</code>`);
+    }
+
+    // Cells are in the zone picked at the top of the page (UTC when two
+    // readers in different zones need to quote the same time); the title has
+    // the full timestamp.
+    function zoneDate(iso) {
+        return iso ? `<span title="${escapeHtml(formatTimestamp(iso))}">${escapeHtml(formatIsoDate(iso))}</span>` : '';
+    }
+
+    function zoneShort(iso) {
+        if (!iso) return '';
+        return `<span title="${escapeHtml(formatTimestamp(iso))}">${escapeHtml(formatShortTime(iso))}</span>`;
+    }
+
+    // A history entry's own url is its commit; an open PR's is the PR.
+    function prLink(entry) {
+        const pr = entry.pr || {};
+        const number = pr.number || entry.pr_number || entry.number;
+        if (!number) return '';
+        const fallback = entry.pr_number
+            ? `https://github.com/sgl-project/sglang/pull/${entry.pr_number}`
+            : entry.url;
+        return link(pr.url || fallback, `#${escapeHtml(number)}`, 'fw-bold text-decoration-none');
+    }
+
+    function jobsCell(jobs, conclusion) {
+        jobs = jobs || {};
+        if (jobs.pending && !jobs.total) {
+            return '<i class="bi bi-hourglass-split text-warning" title="still running"></i>';
+        }
+        if (!jobs.total) return '<span class="text-muted">--</span>';
+        const cls = jobs.failed ? 'text-danger' : 'text-success';
+        const pending = jobs.pending ? ` <i class="bi bi-hourglass-split text-warning" title="${escapeHtml(jobs.pending)} still running"></i>` : '';
+        return `<span class="${cls} fw-bold" title="${escapeHtml(jobs.failed)} failed">${escapeHtml(jobs.passed)}/${escapeHtml(jobs.total)}</span>${pending}`;
+    }
+
+    function verdictHtml(ci) {
+        if (!ci) return '<span class="text-muted">not looked up yet</span>';
+        const [cls, icon, text] = VERDICTS[ci.verdict] || ['text-muted', 'bi-question-circle', ci.verdict || 'unknown'];
+        let html = `<span class="${cls}"><i class="bi ${icon}"></i> ${escapeHtml(text)}</span>`;
+        if (ci.verdict === 'gate_blocked' && ci.gate_reason) {
+            html += ` <span class="text-muted">&mdash; pr-gate: ${escapeHtml(ci.gate_reason)}</span>`;
+        }
+        const totals = (ci.runs || []).reduce((acc, run) => {
+            acc.passed += (run.jobs || {}).passed || 0;
+            acc.total += (run.jobs || {}).total || 0;
+            return acc;
+        }, { passed: 0, total: 0 });
+        if (totals.total) html += ` <span class="text-muted">(${totals.passed}/${totals.total} jobs passed)</span>`;
+        const runs = (ci.runs || []).map(run => link(run.url, escapeHtml(run.name || 'run'), 'text-muted')).join(', ');
+        if (runs) html += `<div class="small">${runs}</div>`;
+        const tested = Object.entries(ci.aiter || {}).map(([track, a]) =>
+            `${escapeHtml(TRACK_LABELS[track] || track)} tested ${aiterRef(a.tested)} (${escapeHtml(DECISIONS[a.decision] || a.decision)})`);
+        if (tested.length) html += `<div class="small">${tested.join('; ')}</div>`;
+        return html;
+    }
+
+    function changeHtml(change, compare) {
+        const parts = [];
+        if (change.baseline) {
+            let html = `${aiterRef(change.baseline.from)} &rarr; ${aiterRef(change.baseline.to)}`;
+            if (compare) {
+                const ahead = compare.ahead_by || 0;
+                const behind = compare.behind_by || 0;
+                const delta = behind && !ahead ? `${behind} commits back` : `+${ahead} commits`;
+                html += ` ${link(compare.url, `<span class="${behind && !ahead ? 'text-warning' : 'text-muted'}">${escapeHtml(delta)}</span>`)}`;
+            }
+            parts.push(html);
+        }
+        for (const stage of change.stages || []) {
+            const target = stage.to ? aiterRef(stage.to) : '<span class="text-muted">removed</span>';
+            parts.push(`<span class="text-muted">${escapeHtml(stage.label || stage.stage)}:</span> ${stage.from ? aiterRef(stage.from) : '<span class="text-muted">new stage</span>'} &rarr; ${target}`);
+        }
+        const picks = change.cherry_picks || {};
+        const pickParts = [
+            ...(picks.added || []).map(c => `+${aiterRef(c)}`),
+            ...(picks.removed || []).map(c => `<span class="text-muted">&minus;</span>${aiterRef(c, null, 'text-muted text-decoration-line-through')}`),
+        ];
+        if (pickParts.length) parts.push(`<span class="text-muted">cherry-pick</span> ${pickParts.join(' ')}`);
+        const reverts = change.reverts || {};
+        const added = (reverts.added || []).length;
+        const removed = (reverts.removed || []).length;
+        if (added || removed) {
+            const arch = [...(reverts.added || []), ...(reverts.removed || [])].map(r => r.arch).find(Boolean);
+            const text = [added ? `+${added}` : '', removed ? `&minus;${removed}` : ''].filter(Boolean).join(' ');
+            parts.push(`<span class="text-muted">${text} ${escapeHtml(arch || '')} reverts</span>`);
+        }
+        const pins = change.pins || {};
+        if ((pins.to || []).length) {
+            parts.push(`${(pins.from || []).map(r => aiterRef(r)).join(', ') || '?'} &rarr; ${(pins.to || []).map(r => aiterRef(r)).join(', ')}`);
+        }
+        return parts.join('<br>') || '<span class="text-muted">--</span>';
+    }
+
+    function runRef(run) {
+        if (!run) return '';
+        const track = TRACK_LABELS[run.track] || run.track || '';
+        return `${link(run.url, zoneShort(run.created_at))} <span class="text-muted">${escapeHtml(run.label || '')} ${escapeHtml(track)}</span> &middot; ${jobsCell(run.jobs, run.conclusion)}`;
+    }
+
+    function firstTestedHtml(entry, days) {
+        if (!entry.change.baseline) {
+            return '<span class="text-muted" title="A cherry-pick or a stage of its own keeps the base commit the job logs report">--</span>';
+        }
+        const first = entry.first_tested;
+        if (first) {
+            const tracks = (first.tracks || [first]).map(t =>
+                `${escapeHtml(TRACK_LABELS[t.track] || t.track)} ${jobsCell(t.jobs, t.conclusion)}`).join(' &middot; ');
+            return `${link(first.url, zoneShort(first.created_at))} <span class="text-muted">${escapeHtml(first.label || '')}</span><div class="small">${tracks}</div>`;
+        }
+        if (entry.first_pending) {
+            return '<span class="text-muted"><i class="bi bi-hourglass-split"></i> still reading CI logs</span>';
+        }
+        if (entry.before_window) {
+            return `<span class="text-muted">before the ${escapeHtml(days)}-day run window</span>`;
+        }
+        return '<span class="text-warning">no CI run on it yet</span>';
+    }
+
+    function loadAiter() {
+        fetch('/api/aiter/status')
+            .then(r => {
+                if (!r.ok) throw new Error(`HTTP ${r.status}`);
+                return r.json();
+            })
+            .then(renderAiter)
+            .catch(err => showError(err.message === 'HTTP 404'
+                ? 'Not published yet: the next data refresh writes this page\'s data.'
+                : `Could not load the AITER pin: ${err.message}`));
+    }
+
+    function showError(message) {
+        document.getElementById('aiter-loading').style.display = 'none';
+        const el = document.getElementById('aiter-error');
+        el.innerHTML = `<i class="bi bi-exclamation-triangle"></i> ${escapeHtml(message)}`;
+        el.style.display = 'block';
+    }
+
+    function renderAiter(data) {
+        if (!data || !data.available) {
+            showError(`AITER data unavailable: ${(data && (data.reason || data.error)) || 'unknown reason'}`);
+            return;
+        }
+        aiterData = data;
+        setPageLastUpdated(data.generated_at);
+        renderSignals(data.signals || []);
+        renderPinned(data);
+        renderCiNow(data);
+        renderBumpTests(data);
+        renderHistory(data);
+        renderScoutLog(data);
+        renderReadiness(data);
+        populateRunFilters(data);
+        renderRuns();
+        renderOpenPrs(data);
+        document.getElementById('aiter-loading').style.display = 'none';
+        document.getElementById('aiter-content').style.display = '';
+    }
+
+    // Collapsed under the summary cards, so the top of the page is the pin itself.
+    function renderSignals(signals) {
+        const box = document.getElementById('aiter-signals');
+        box.style.display = signals.length ? '' : 'none';
+        if (!signals.length) return;
+        const cls = { warning: 'alert-warning', error: 'alert-danger', info: 'alert-info' };
+        document.getElementById('aiter-signals-list').innerHTML = signals.map(s => {
+            const icon = s.severity === 'info' ? 'bi-info-circle' : 'bi-exclamation-triangle-fill';
+            const more = s.url ? ` ${link(s.url, '<i class="bi bi-box-arrow-up-right"></i>')}` : '';
+            return `<div class="alert ${cls[s.severity] || 'alert-secondary'} py-1 px-2 mb-1"><i class="bi ${icon}"></i> ${escapeHtml(s.message)}${more}</div>`;
+        }).join('');
+
+        const count = sev => signals.filter(s => s.severity === sev).length;
+        const parts = [[count('error'), 'error'], [count('warning'), 'warning'], [count('info'), 'note']]
+            .filter(([n]) => n).map(([n, word]) => `${n} ${word}${n === 1 ? '' : 's'}`);
+        const top = count('error') ? 'text-danger' : count('warning') ? 'text-warning' : 'text-info';
+        const icon = count('error') || count('warning') ? 'bi-exclamation-triangle-fill' : 'bi-info-circle';
+        document.getElementById('aiter-signals-summary').innerHTML =
+            `<i class="bi ${icon} ${top}"></i> ${signals.length} to check <span class="text-muted">(${parts.join(', ')})</span>`;
+    }
+
+    function renderPinned(data) {
+        const cur = data.current || {};
+        const base = cur.baseline || {};
+        const parts = [];
+        parts.push(`<div class="d-flex align-items-baseline gap-2 flex-wrap">
+            ${link(base.url, `<span class="fs-4 fw-bold font-monospace">${escapeHtml(base.short)}</span>`)}
+            <span>${escapeHtml(base.title || '')}</span>
+        </div>`);
+        if (base.committed_at) parts.push(`<div class="text-muted small">AITER commit of ${zoneDate(base.committed_at)}</div>`);
+
+        const setBy = cur.set_by;
+        if (setBy) {
+            const pr = setBy.pr || {};
+            const who = pr.author ? ` by ${escapeHtml(pr.author)}` : '';
+            parts.push(`<div class="mt-2"><i class="bi bi-git"></i> Set by ${prLink(setBy)} ${escapeHtml(pr.title || setBy.title || '')}${who}, merged ${zoneDate(pr.merged_at || setBy.committed_at)}</div>`);
+            if (setBy.compare) {
+                parts.push(`<div class="text-muted small">+${escapeHtml(setBy.compare.ahead_by)} AITER commits over ${aiterRef(setBy.change.baseline.from)} (${link(setBy.compare.url, 'compare')})</div>`);
+            }
+        }
+        const behind = cur.behind_main;
+        if (behind) {
+            const text = behind.ahead_by ? `${behind.ahead_by} commits behind AITER main` : 'at AITER main';
+            parts.push(`<div class="mt-1"><i class="bi bi-arrow-down-up"></i> ${link(behind.url, escapeHtml(text))}</div>`);
+        }
+        const scoutLog = (data.trackers || {}).scout;
+        if (scoutLog) {
+            const unlogged = cur.scout && cur.scout.auto
+                ? ` <span class="text-warning small">not logged in ${link(scoutLog.issue.url, `#${escapeHtml(scoutLog.issue.number)}`)}</span>`
+                : '';
+            parts.push(cur.scout
+                ? `<div class="mt-1"><i class="bi bi-binoculars"></i> ${scoutBadge(cur.scout)}${unlogged}</div>`
+                : `<div class="mt-1 text-warning"><i class="bi bi-binoculars"></i> No AITER Scout verdict in ${link(scoutLog.issue.url, `#${escapeHtml(scoutLog.issue.number)}`)}</div>`);
+        }
+        if ((cur.cherry_picks || []).length) {
+            parts.push(`<div class="mt-2"><strong>Cherry-picked on top</strong><ul class="mb-0 ps-3">${cur.cherry_picks.map(c => {
+                const inPin = c.in_pin
+                    ? ` <span class="badge bg-light text-success border border-success" title="The pinned commit already contains this change, so the cherry-pick can be dropped">already in ${escapeHtml(base.short)}</span>`
+                    : '';
+                return `<li>${aiterRef(c.ref, c.url)} ${escapeHtml(c.title || '')}${inPin}</li>`;
+            }).join('')}</ul></div>`);
+        }
+        for (const o of cur.overrides || []) {
+            const reverts = (cur.reverts || []).filter(r => r.arch && (o.stage || '').startsWith(r.arch)).length;
+            const note = reverts ? `, with ${reverts} commits reverted` : '';
+            parts.push(`<div class="mt-2"><strong>${escapeHtml(o.label || o.stage)}</strong> builds its own pin ${aiterRef(o.ref, o.url)}${note} <span class="text-muted">${escapeHtml(o.title || '')}</span></div>`);
+        }
+        const onBase = (cur.stages || []).filter(s => s.on_baseline).map(s => s.label || s.stage);
+        if (onBase.length) {
+            parts.push(`<div class="text-muted small mt-2">On this pin: ${escapeHtml(onBase.join(', '))}</div>`);
+        }
+        document.getElementById('aiter-pinned').innerHTML = parts.join('');
+    }
+
+    function renderCiNow(data) {
+        const items = data.ci_now || [];
+        const parts = items.map(item => {
+            const cls = item.on_pin ? 'text-success' : 'text-warning';
+            const tag = (item.image || '').split(':').pop();
+            const verdict = item.on_pin ? 'the pin on main' : `not the pin (${escapeHtml(shortRef(item.pin))})`;
+            return `<div class="d-flex justify-content-between border-bottom py-1 gap-2">
+                <div><strong>${escapeHtml(item.label)}</strong><div class="text-muted small">${escapeHtml(tag || 'image unknown')}</div></div>
+                <div class="text-end">${link(item.run.url, `<code class="${cls} fw-bold">${escapeHtml(item.tested_short)}</code>`)}
+                    <div class="small ${cls}">${verdict}</div>
+                    <div class="text-muted small">${escapeHtml(item.run.label)}, ${zoneShort(item.run.created_at)}</div></div>
+            </div>`;
+        });
+        const scout = (data.runs || []).find(r => r.relation === 'candidate');
+        if (scout) {
+            parts.push(`<div class="mt-2 small"><i class="bi bi-binoculars"></i> AITER Scout last tested AITER main at ${aiterRef(scout.aiter.tested)}: ${runRef(scout)}</div>`);
+        }
+        document.getElementById('aiter-ci-now').innerHTML = parts.join('')
+            || '<span class="text-muted">No CI run\'s AITER check has been read yet.</span>';
+    }
+
+    function renderBumpTests(data) {
+        const entry = (data.current || {}).set_by;
+        const el = document.getElementById('aiter-bump-tests');
+        if (!entry) {
+            el.innerHTML = '<span class="text-muted">The change that set this pin is older than the history on this page.</span>';
+            return;
+        }
+        const target = entry.change.baseline.to;
+        const first = `<div class="mt-2"><strong>First CI run on ${escapeHtml(shortRef(target))}</strong><div>${firstTestedHtml(entry, data.days)}</div></div>`;
+        el.innerHTML = `<div><strong>AMD CI on ${prLink(entry)}</strong></div><div>${verdictHtml(entry.pr_ci)}</div>${first}`;
+    }
+
+    function renderHistory(data) {
+        const all = data.history || [];
+        const now = Date.parse(data.generated_at || '') || Date.now();
+        const since = new Date(now - PIN_HISTORY_DAYS * 86400000).toISOString();
+        const history = all.filter(entry => ((entry.pr || {}).merged_at || entry.committed_at || '') >= since);
+        const older = all.length - history.length;
+        document.getElementById('aiter-history-meta').textContent =
+            `${history.length} change${history.length === 1 ? '' : 's'} to the AITER the images build in the last ${PIN_HISTORY_DAYS} days`
+            + (older ? `, ${older} older not shown` : '')
+            + (data.history_complete === false ? ' (history partly unread this refresh)' : '');
+        const scoutLog = data.trackers && data.trackers.scout;
+        document.getElementById('aiter-history-rows').innerHTML = history.map(entry => {
+            const pr = entry.pr || {};
+            let scout = '<span class="text-muted">--</span>';
+            if (scoutLog && !entry.change.baseline) {
+                scout = '<span class="text-muted" title="A cherry-pick or a stage of its own leaves the base commit as it was">--</span>';
+            } else if (scoutLog) {
+                scout = entry.scout ? scoutDetails(entry.scout) : '<span class="text-muted small">no Scout verdict logged</span>';
+            }
+            return `<tr>
+                <td>${zoneDate(pr.merged_at || entry.committed_at)}</td>
+                <td>${prLink(entry)} ${escapeHtml(pr.title || entry.title || '')}<div class="text-muted small">${escapeHtml(pr.author || '')}</div></td>
+                <td>${changeHtml(entry.change, entry.compare)}</td>
+                <td>${scout}</td>
+                <td>${verdictHtml(entry.pr_ci)}</td>
+                <td>${firstTestedHtml(entry, data.days)}</td>
+            </tr>`;
+        }).join('') || `<tr><td colspan="6" class="text-muted">No pin changes in the last ${PIN_HISTORY_DAYS} days.</td></tr>`;
+    }
+
+    function sameCommit(a, b) {
+        if (!a || !b) return false;
+        const hex = /^[0-9a-f]{7,40}$/;
+        if (!hex.test(a) || !hex.test(b)) return a === b;
+        const n = Math.min(a.length, b.length);
+        return a.substring(0, n) === b.substring(0, n);
+    }
+
+    function renderScoutLog(data) {
+        const scout = (data.trackers || {}).scout;
+        const section = document.getElementById('aiter-scout-section');
+        if (!scout) {
+            section.style.display = 'none';
+            return;
+        }
+        const issue = scout.issue || {};
+        const issueLink = link(issue.url, `#${escapeHtml(issue.number)}`);
+        // A run #26890 has not logged yet takes the CI Monitor's verdict, in
+        // date order among the logged ones, until someone logs it.
+        const auto = (scout.unlogged_runs || []).filter(u => u.verdict).map(u => ({ ...u.verdict, commit: u.tested }));
+        const pinnedBy = commit => (data.history || []).find(e => e.change.baseline && sameCommit(e.change.baseline.to, commit));
+        const row = r => {
+            const entry = pinnedBy(r.commit);
+            const pinned = entry ? ` <span class="badge bg-light text-dark border">pinned by ${prLink(entry)}</span>` : '';
+            const date = escapeHtml(r.date || r.label);
+            const by = r.auto ? `<div class="text-muted small">not in ${issueLink} yet</div>` : '';
+            // An auto verdict's memo is its counts in words; the counts
+            // themselves open onto the failures.
+            return `<tr>
+                <td>${r.run_url ? link(r.run_url, date) : date}</td>
+                <td>${aiterRef(r.commit)}${pinned}</td>
+                <td>${scoutStatusBadge(r)}${by}</td>
+                <td>${r.auto ? '' : mdLite(r.memo)}${scoutCounts(r) || (r.auto ? mdLite(r.memo) : '')}</td>
+            </tr>`;
+        };
+        const rows = [...(scout.rows || [])];
+        for (const a of auto) {
+            const at = rows.findIndex(r => !r.auto && (r.date || '') < a.date);
+            rows.splice(at < 0 ? rows.length : at, 0, a);
+        }
+
+        // By default, the runs since the pin last moved, and any run on the
+        // pinned commit itself -- the verdict that let it in. Without the
+        // change that set the pin, the newest few.
+        const cur = data.current || {};
+        const pin = (cur.baseline || {}).ref;
+        const setBy = cur.set_by;
+        const since = setBy ? ((setBy.pr || {}).merged_at || setBy.committed_at || '').substring(0, 10) : '';
+        let recent, older;
+        if (since) {
+            const isRecent = r => (r.date || '') >= since || sameCommit(r.commit, pin);
+            recent = rows.filter(isRecent);
+            older = rows.filter(r => !isRecent(r));
+        } else {
+            recent = rows.slice(0, SCOUT_ROWS_SHOWN);
+            older = rows.slice(SCOUT_ROWS_SHOWN);
+        }
+        const shown = since
+            ? `; showing runs since the pin moved to ${escapeHtml(shortRef(pin))} on ${zoneDate(since)}`
+            : '';
+        document.getElementById('aiter-scout-meta').innerHTML =
+            `logged by hand in ${issueLink}, updated ${zoneDate(issue.updated_at)}`
+            + (auto.length ? `; ${escapeHtml(auto.length)} read from the CI Monitor, not logged yet` : '')
+            + shown;
+        const empty = since
+            ? `No Scout run since the pin was updated on ${escapeHtml(since)}.`
+            : 'No verdicts logged.';
+        document.getElementById('aiter-scout-rows').innerHTML = recent.map(row).join('')
+            || `<tr><td colspan="4" class="text-muted">${empty}</td></tr>`;
+        document.getElementById('aiter-scout-older').style.display = older.length ? '' : 'none';
+        document.getElementById('aiter-scout-older-summary').textContent =
+            `Older verdicts (${older.length})`;
+        document.getElementById('aiter-scout-older-rows').innerHTML = older.map(row).join('');
+
+        const unlogged = (scout.unlogged_runs || []).filter(u => !u.verdict);
+        const strip = document.getElementById('aiter-scout-unlogged');
+        strip.innerHTML = unlogged.length
+            ? `<i class="bi bi-exclamation-triangle-fill text-warning"></i> Scout runs with no verdict in #${escapeHtml(issue.number)} or from the CI Monitor: ` + unlogged.map(u =>
+                `${link(u.url, zoneShort(u.created_at))} ${u.tested ? `tested ${aiterRef(u.tested)}` : 'AITER not read'} (${escapeHtml(u.jobs.passed)}/${escapeHtml(u.jobs.total)} jobs passed)`).join(' &middot; ')
+            : '';
+        strip.style.display = unlogged.length ? '' : 'none';
+        section.style.display = '';
+    }
+
+    function renderReadiness(data) {
+        const readiness = (data.trackers || {}).readiness;
+        const section = document.getElementById('aiter-readiness-section');
+        if (!readiness) {
+            section.style.display = 'none';
+            return;
+        }
+        const pin = ((data.current || {}).baseline || {}).ref;
+        const issue = readiness.issue || {};
+        const sections = readiness.sections || [];
+        document.getElementById('aiter-readiness-meta').innerHTML =
+            `kept by hand in ${link(issue.url, `#${escapeHtml(issue.number)}`)}, updated ${zoneDate(issue.updated_at)}; PR states are live`;
+
+        const newest = sections[0];
+        document.getElementById('aiter-readiness-note').innerHTML = readiness.current_section == null
+            ? `<div class="alert alert-info py-1 px-2 mb-0"><i class="bi bi-info-circle"></i> The tracker has no section for the pinned ${escapeHtml(shortRef(pin))} yet${newest ? `; its newest covers ${aiterRef(newest.ref)}${newest.since ? `, in main from ${escapeHtml(newest.since)}` : ''}` : ''}.</div>`
+            : '';
+
+        const summary = readiness.summary || {};
+        document.getElementById('aiter-readiness-summary').innerHTML = READINESS_ORDER.filter(k => summary[k]).map(k => {
+            const [cls, label, why] = READINESS[k];
+            return `<span class="badge ${cls} me-1" title="${escapeHtml(why)}">${escapeHtml(summary[k])} ${escapeHtml(label)}</span>`;
+        }).join('') || '<span class="text-muted">Every tracked item is done.</span>';
+
+        const items = [];
+        sections.forEach((s, index) => (s.features || []).forEach(item => {
+            if (item.readiness && item.readiness !== 'done') items.push({ item, section: s, index });
+        }));
+        items.sort((a, b) => READINESS_ORDER.indexOf(a.item.readiness) - READINESS_ORDER.indexOf(b.item.readiness) || a.index - b.index);
+        document.getElementById('aiter-readiness-rows').innerHTML = items.map(({ item, section: s }) => {
+            const [cls, label, why] = READINESS[item.readiness] || READINESS.unknown;
+            const none = '<span class="text-muted">none named</span>';
+            return `<tr>
+                <td><span class="badge ${cls}" title="${escapeHtml(why)}">${escapeHtml(label)}</span></td>
+                <td>${(item.sglang_refs || []).map(k => refBlock(k)).join('') || none}</td>
+                <td>${(item.aiter_refs || []).map(k => refBlock(k, pin)).join('') || none}</td>
+                <td>${mdLite(item.cells[1] || '') || '<span class="text-muted">--</span>'}</td>
+                <td>${aiterRef(s.ref)}</td>
+            </tr>`;
+        }).join('') || '<tr><td colspan="5" class="text-muted">No open items.</td></tr>';
+
+        const pending = readiness.pending_comments || [];
+        const pendingEl = document.getElementById('aiter-readiness-pending');
+        pendingEl.innerHTML = pending.length
+            ? `<strong>Posted in the thread, not in the tracker yet</strong><ul class="mb-0 ps-3">${pending.map(c =>
+                `<li>${link(c.url, zoneDate(c.created_at))} ${escapeHtml(c.author || '')}: ${c.refs.map(k => refHtml(k, pin)).join(', ')}</li>`).join('')}</ul>`
+            : '';
+        pendingEl.style.display = pending.length ? '' : 'none';
+
+        const table = (rows, heads) => rows.length
+            ? `<table class="table table-sm table-wrap mb-2"><thead class="table-light"><tr>${heads.map(h => `<th>${escapeHtml(h)}</th>`).join('')}</tr></thead><tbody>${rows.map(r =>
+                `<tr class="${r.done ? 'text-muted text-decoration-line-through' : ''}">${r.cells.map(c => `<td>${mdLite(c)}</td>`).join('')}</tr>`).join('')}</tbody></table>`
+            : '';
+        document.getElementById('aiter-readiness-sections').innerHTML = sections.map(s => {
+            const when = [s.since && `in main from ${s.since}`, s.ref_date && `AITER commit of ${s.ref_date}`].filter(Boolean).join(', ');
+            return `<div class="mb-3">
+                <div class="fw-bold">${aiterRef(s.ref)}${s.current ? ' <span class="badge bg-primary">pinned now</span>' : ''} <span class="text-muted fw-normal small">${escapeHtml(when)}</span></div>
+                ${(s.notes || []).map(n => `<div class="text-muted small">${mdLite(n)}</div>`).join('')}
+                ${table(s.features || [], ['AITER PR/commit', 'Feature', 'AITER status', 'SGLang status'])}
+                ${table(s.issues || [], ['Area / issue', 'AITER status', 'Next action'])}
+            </div>`;
+        }).join('');
+        section.style.display = '';
+    }
+
+    function populateRunFilters(data) {
+        const rows = data.runs || [];
+        const workflows = [...new Map(rows.map(r => [r.workflow, r.label])).entries()];
+        document.getElementById('aiter-runs-workflow').innerHTML = '<option value="">All workflows</option>'
+            + workflows.map(([key, label]) => `<option value="${escapeHtml(key)}">${escapeHtml(label)}</option>`).join('');
+        const tracks = Object.keys(TRACK_LABELS).filter(t => rows.some(r => r.track === t));
+        document.getElementById('aiter-runs-track').innerHTML = '<option value="">All images</option>'
+            + tracks.map(t => `<option value="${t}">${TRACK_LABELS[t]}</option>`).join('');
+    }
+
+    function renderRuns() {
+        if (!aiterData) return;
+        const workflow = document.getElementById('aiter-runs-workflow').value;
+        const track = document.getElementById('aiter-runs-track').value;
+        const rows = (aiterData.runs || []).filter(r => r.track
+            && (!workflow || r.workflow === workflow)
+            && (!track || r.track === track));
+        const read = rows.filter(r => r.aiter).length;
+        const unread = aiterData.runs_unread ? `, ${aiterData.runs_unread} runs not listed yet` : '';
+        document.getElementById('aiter-runs-meta').textContent =
+            `last ${aiterData.days} days, AITER read for ${read}/${rows.length}${unread}`;
+
+        // A pin change is drawn between the runs on either side of it, so the
+        // switch from one tested commit to the next reads as a line on the table.
+        const markers = (aiterData.history || [])
+            .filter(e => e.change.baseline && rows.length && e.committed_at >= rows[rows.length - 1].created_at)
+            .map(e => ({ marker: true, created_at: e.committed_at, entry: e }));
+        const items = [...rows, ...markers].sort((a, b) => b.created_at.localeCompare(a.created_at));
+
+        document.getElementById('aiter-runs-rows').innerHTML = items.map(item => {
+            if (item.marker) {
+                const e = item.entry;
+                return `<tr class="table-info"><td colspan="6" class="small"><i class="bi bi-pin-angle"></i> ${zoneShort(e.committed_at)}: ${aiterRef(e.change.baseline.to)} pinned on main by ${prLink(e)}</td></tr>`;
+            }
+            const a = item.aiter || {};
+            const [cls, why] = RELATIONS[item.relation] || RELATIONS.unknown;
+            const tested = a.tested
+                ? `${link((item.aiter_job || {}).url || item.url, `<code class="${cls} fw-bold" title="${escapeHtml(why)}">${escapeHtml(shortRef(a.tested))}</code>`)} <span class="text-muted small">${escapeHtml(DECISIONS[a.decision] || a.decision || '')}</span>`
+                : `<span class="text-muted" title="${escapeHtml(why)}">--</span>`;
+            const image = (a.image || '').split(':').pop();
+            return `<tr>
+                <td>${link(item.url, zoneShort(item.created_at))}</td>
+                <td>${escapeHtml(item.label)}${item.event === 'workflow_dispatch' ? ' <i class="bi bi-person-fill text-warning" title="dispatched by hand"></i>' : ''}</td>
+                <td>${escapeHtml(TRACK_LABELS[item.track] || item.track)}${image ? `<div class="text-muted small">${escapeHtml(image)}</div>` : ''}</td>
+                <td>${tested}</td>
+                <td>${aiterRef(item.pin_on_main, null, 'text-muted')}</td>
+                <td class="text-center">${jobsCell(item.jobs, item.conclusion)}</td>
+            </tr>`;
+        }).join('') || '<tr><td colspan="6" class="text-muted">No CI runs in the window.</td></tr>';
+    }
+
+    function renderOpenPrs(data) {
+        const prs = data.open_prs || [];
+        const section = document.getElementById('aiter-open-section');
+        if (!prs.length) {
+            section.style.display = 'none';
+            return;
+        }
+        document.getElementById('aiter-open-rows').innerHTML = prs.map(pr => `<tr>
+            <td>${prLink(pr)} ${escapeHtml(pr.title)}<div class="text-muted small">${escapeHtml(pr.author || '')}</div></td>
+            <td>${changeHtml(pr.change, null)}</td>
+            <td>${verdictHtml(pr.pr_ci)}</td>
+            <td>${zoneDate(pr.updated_at)}</td>
+        </tr>`).join('');
+        section.style.display = '';
+    }
+
+    // ROCm/aiter's own SGLang CI is a payload of its own, so its card shows
+    // whenever that file is published, whatever state the rest is in.
+    document.addEventListener('DOMContentLoaded', loadSglangCi);
+
+    const CI_VERDICT = {
+        passed: ['text-success', 'bi-check-circle-fill', 'passed'],
+        failed: ['text-danger', 'bi-x-circle-fill', 'failed'],
+        superseded: ['text-muted', 'bi-skip-forward-circle', 'superseded'],
+        running: ['text-warning', 'bi-hourglass-split', 'running'],
+        cancelled: ['text-muted', 'bi-slash-circle', 'cancelled'],
+        not_tested: ['text-muted', 'bi-dash-circle', 'no finished run'],
+    };
+
+    function loadSglangCi() {
+        // A code-only deploy can ship this page before the file exists; the
+        // card then stays hidden until the next refresh writes it.
+        fetch('/api/aiter/sglang-ci')
+            .then(r => {
+                if (!r.ok) throw new Error(`HTTP ${r.status}`);
+                return r.json();
+            })
+            .then(renderSglangCi)
+            .catch(() => {});
+    }
+
+    function ciVerdict(verdict) {
+        const [cls, icon, text] = CI_VERDICT[verdict] || ['text-muted', 'bi-question-circle', verdict || 'unknown'];
+        return `<span class="${cls}"><i class="bi ${icon}"></i> ${escapeHtml(text)}</span>`;
+    }
+
+    function suiteMark(suite) {
+        if (!suite) return '<span class="text-muted" title="not run">--</span>';
+        const failed = suite.conclusion === 'failure' || suite.conclusion === 'timed_out';
+        const mark = suite.conclusion === 'success'
+            ? '<span class="text-success">&#10003;</span>'
+            : failed
+                ? '<span class="text-danger fw-bold">&#10007;</span>'
+                : '<span class="text-muted">&#9675;</span>';
+        const title = `${suite.conclusion || suite.status || ''}${suite.minutes != null ? `, ${suite.minutes} min` : ''}`;
+        return link(suite.url, `<span title="${escapeHtml(title)}">${mark}</span>`);
+    }
+
+    function ciRunLine(run) {
+        const failed = (run.failed || []).length ? `: ${escapeHtml(run.failed.join(', '))}` : '';
+        return `${link(run.url, zoneShort(run.created_at))} <span class="text-muted">${escapeHtml(run.event)}</span> ${ciVerdict(run.verdict)}${failed}`;
+    }
+
+    function renderSglangCi(data) {
+        if (!data || !data.available) return;
+        const workflow = data.workflow || {};
+        document.getElementById('aiter-sglang-ci-meta').innerHTML =
+            `${link(workflow.url, escapeHtml(workflow.file || 'workflow'))} in ROCm/aiter runs SGLang ${escapeHtml(workflow.sglang_branch || '')} suites on AITER commits, MI35x 8-GPU`;
+
+        const alertClass = { warning: 'alert-warning', error: 'alert-danger', info: 'alert-info' };
+        document.getElementById('aiter-sglang-ci-signals').innerHTML = (data.signals || []).map(s =>
+            `<div class="alert ${alertClass[s.severity] || 'alert-secondary'} py-1 px-2 mb-1">${escapeHtml(s.message)}${s.url ? ` ${link(s.url, '<i class="bi bi-box-arrow-up-right"></i>')}` : ''}</div>`).join('');
+
+        const pin = data.pin || {};
+        const green = data.last_green;
+        const cov = data.coverage || {};
+        document.getElementById('aiter-sglang-ci-summary').innerHTML = `
+            <div class="col-md-4">
+                <div class="fw-bold">On the pinned ${aiterRef(pin.commit)}</div>
+                <div>${ciVerdict(pin.verdict)}</div>
+                ${(pin.runs || []).map(r => `<div class="small">${ciRunLine(r)}</div>`).join('')}
+            </div>
+            <div class="col-md-4">
+                <div class="fw-bold">Newest commit that passed</div>
+                <div>${green ? `${aiterRef(green.commit)} ${link(green.url, zoneShort(green.created_at))} <span class="text-muted small">${escapeHtml(green.event)}</span>` : '<span class="text-muted">none in the window</span>'}</div>
+                ${green && green.title ? `<div class="text-muted small">${escapeHtml(green.title)}</div>` : ''}
+            </div>
+            <div class="col-md-4">
+                <div class="fw-bold">Since ${escapeHtml((cov.since || '').substring(5, 10))}</div>
+                <div class="small">${escapeHtml(cov.tested)} of ${escapeHtml(cov.pushes)} main pushes tested, ${escapeHtml(cov.failed)} failed; ${escapeHtml(cov.superseded)} were superseded by a newer push before any suite ran</div>
+                <div class="small">${escapeHtml(cov.nightlies)} nightlies, ${escapeHtml(cov.nightlies_superseded)} superseded the same way</div>
+            </div>`;
+
+        const nightly = (data.nightly || {}).runs || [];
+        const suites = (data.nightly || {}).suites || [];
+        document.getElementById('aiter-sglang-ci-nightly-head').innerHTML = '<th>Suite</th>' + nightly.map(r => {
+            const pinned = !!pin.commit && r.commit === pin.commit;
+            return `<th class="text-center text-nowrap">${link(r.url, escapeHtml((r.created_at || '').substring(5, 10)))}<div class="fw-normal">${aiterRef(r.commit, null, 'small')}${pinned ? ' <span class="badge bg-primary">pin</span>' : ''}</div></th>`;
+        }).join('');
+        document.getElementById('aiter-sglang-ci-nightly-rows').innerHTML = suites.map(s => `<tr>
+            <td class="text-nowrap">${escapeHtml(s.name)}</td>
+            ${nightly.map(r => `<td class="text-center">${r.verdict === 'superseded'
+                ? '<span class="text-muted" title="superseded by a newer push before any suite ran">&middot;</span>'
+                : suiteMark((r.suites || {})[s.name])}</td>`).join('')}
+        </tr>`).join('') || '<tr><td class="text-muted">No nightly suites read yet.</td></tr>';
+
+        const commits = data.commits || [];
+        document.getElementById('aiter-sglang-ci-commits-meta').textContent = `newest ${commits.length}`;
+        document.getElementById('aiter-sglang-ci-commits').innerHTML = commits.map(r => {
+            const pinned = !!pin.commit && r.commit === pin.commit;
+            const failed = (r.failed || []).length ? `<div class="small text-danger">${escapeHtml(r.failed.join(', '))}</div>` : '';
+            return `<tr${pinned ? ' class="table-info"' : ''}>
+                <td>${link(r.url, zoneShort(r.created_at))}</td>
+                <td>${aiterRef(r.commit)}${pinned ? ' <span class="badge bg-primary">pinned</span>' : ''}</td>
+                <td>${escapeHtml(r.title || '')}</td>
+                <td>${ciVerdict(r.verdict)}${failed}</td>
+            </tr>`;
+        }).join('') || '<tr><td colspan="4" class="text-muted">No main pushes in the window.</td></tr>';
+        document.getElementById('aiter-sglang-ci-section').style.display = '';
+    }
+</script>
+
+<script>
+document.addEventListener('DOMContentLoaded',function(){
+  // Hide refresh buttons that need a backend
+  document.querySelectorAll('[onclick*="loadStatus"],[onclick*="refreshAllPRs"]').forEach(function(el){el.classList.add('static-hidden')});
+  // Hide refresh buttons next to cache status on nightly/pr-test
+  document.querySelectorAll('[onclick*="loadData(true)"]').forEach(function(el){el.classList.add('static-hidden')});
+  // Replace visitor count with dash
+  var vc=document.getElementById('visitor-count');if(vc)vc.textContent='-';
+});
+</script>
+</body>
+</html>

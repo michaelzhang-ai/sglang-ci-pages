@@ -1,0 +1,1473 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Day-0 Models - SGLang CI</title>
+
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+
+    <!-- Bootstrap Icons -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
+
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+
+    <!-- Flatpickr Date Picker -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr@4.6.13/dist/flatpickr.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr@4.6.13/dist/flatpickr.min.js"></script>
+
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="/sglang-ci/static/css/style.css">
+
+    
+<style>
+    .day0-clamp { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; line-height: 1.3; }
+    .day0-table th { white-space: nowrap; }
+    /* Cause & fix PR badges, as the Nightly CI page draws them. */
+    .pr-badge { text-decoration: none; font-weight: 600; border: 1px solid transparent; }
+    .pr-badge:hover { text-decoration: underline; }
+    .pr-badge.cause { background: #f8d7da; color: #842029; border-color: #f1aeb5; }
+    .pr-badge.fix { background: #d1e7dd; color: #0f5132; border-color: #a3cfbb; }
+    .pr-badge.fix-candidate { background: #fff3cd; color: #664d03; border-color: #ffe69c; }
+    .pr-state { font-size: 0.68rem; font-weight: 600; padding: 0 4px; border-radius: 3px; border: 1px solid; white-space: nowrap; }
+    .pr-state.draft { color: #6c757d; border-color: #ced4da; background: #f8f9fa; }
+    .pr-state.open { color: #0a58ca; border-color: #9ec5fe; background: #f0f6ff; }
+    .pr-state.merged { color: #6f42c1; border-color: #c5b3e6; background: #f5f0fc; }
+</style>
+
+<script>
+(function(){
+var B='/sglang-ci/';
+var _f=window.fetch;
+window.fetch=function(u,o){
+if(typeof u!=='string')return _f.apply(this,arguments);
+if(o&&o.method&&o.method.toUpperCase()==='POST')
+  return Promise.resolve(new Response(
+    JSON.stringify({error:'Not available in static mode',success:false}),
+    {status:405,headers:{'Content-Type':'application/json'}}));
+if(u.startsWith('/api/')){
+  var p=u.substring(1),q=p.indexOf('?');
+  if(q>=0){var sp=new URLSearchParams(p.substring(q));p=p.substring(0,q);
+    Array.from(sp.entries()).sort(function(a,b){return a[0].localeCompare(b[0])})
+    .forEach(function(e){p+='-'+e[0]+'-'+e[1];});}
+  p+='.json';
+  return _f.call(this,B+p,o);}
+return _f.apply(this,arguments);
+};
+})();
+</script>
+<style>
+.static-hidden{display:none!important}
+.static-banner{background:#e8f4fd;border-bottom:1px solid #bee5eb;padding:0.35rem 1rem;text-align:center;font-size:0.82rem;color:#0c5460}
+@media(max-width:768px){.static-banner{font-size:0.75rem;padding:0.3rem 0.5rem}}
+</style>
+</head>
+<body>
+    <!-- Navigation Bar -->
+    <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="/sglang-ci/summary/">
+                <i class="bi bi-graph-up"></i> SGLang Dashboard
+            </a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav me-auto">
+                    <li class="nav-item">
+                        <a class="nav-link " href="/sglang-ci/summary/">
+                            <i class="bi bi-grid-1x2"></i> Summary
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link " href="/sglang-ci/coverage/">
+                            <i class="bi bi-bar-chart-steps"></i> Coverage
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link " href="/sglang-ci/benchmark-dashboard/">
+                            <i class="bi bi-speedometer2"></i> Benchmarks
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link " href="/sglang-ci/nightly-ci/">
+                            <i class="bi bi-moon-stars"></i> Nightly CI
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link active" href="/sglang-ci/day0/">
+                            <i class="bi bi-rocket-takeoff"></i> <span class="text-nowrap">Day-0</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link " href="/sglang-ci/docker-images/">
+                            <i class="bi bi-box-seam"></i> Docker Images
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link " href="/sglang-ci/aiter/">
+                            <i class="bi bi-cpu"></i> AITER
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link " href="/sglang-ci/rocm-versions/">
+                            <i class="bi bi-layers"></i> <span class="text-nowrap">ROCm</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link " href="/sglang-ci/miles/">
+                            <i class="bi bi-signpost-split"></i> MILES
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link " href="/sglang-ci/runner-health/">
+                            <i class="bi bi-heart-pulse"></i> Runner Health
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link " href="/sglang-ci/amd-pr-tracker/">
+                            <i class="bi bi-git"></i> AMD PRs
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link " href="/sglang-ci/amd-bot/">
+                            <i class="bi bi-robot"></i> AMD Bot
+                        </a>
+                    </li>
+                </ul>
+                <ul class="navbar-nav">
+                    
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle " href="#" id="githubDropdown" role="button" data-bs-toggle="dropdown">
+                            <i class="bi bi-github"></i> GitHub
+                            <i class="bi bi-circle-fill d-none" id="github-status-dot" style="font-size:0.5rem;vertical-align:middle"></i>
+                        </a>
+                        <ul class="dropdown-menu dropdown-menu-end">
+                            <li><a class="dropdown-item " href="/sglang-ci/pr-test/">
+                                <i class="bi bi-check2-square"></i> PR Test (AMD)
+                            </a></li>
+                            
+                            <li><hr class="dropdown-divider"></li>
+                            <li><a class="dropdown-item " href="/sglang-ci/sglang-info/">
+                                <i class="bi bi-info-circle"></i> SGLang Info
+                            </a></li>
+                            <li><a class="dropdown-item" href="https://github.com/sgl-project/sglang" target="_blank" rel="noopener">
+                                <i class="bi bi-git"></i> SGLang Repo
+                            </a></li>
+                            <li><hr class="dropdown-divider"></li>
+                            
+                            <li><a class="dropdown-item" href="https://grafana.aws-usea1-eks-pvt-prd.k8s.external.platform-stg.amd.com/d/ci-tenant-cluster-detail-read-only/ci-tenant-cluster-detail?orgId=1&amp;from=now-7d&amp;to=now&amp;timezone=browser&amp;var-datasource=amp-prometheus&amp;var-cluster=$__all&amp;var-tenant=sglang&amp;var-gpu_type=$__all" target="_blank" rel="noopener"
+                                   title="CI tenant cluster telemetry in Grafana (Okta sign-in required)">
+                                <i class="bi bi-activity"></i> Grafana
+                            </a></li>
+                            
+                            <li><a class="dropdown-item" href="https://www.githubstatus.com/" target="_blank" rel="noopener" id="github-status-link">
+                                <i class="bi bi-broadcast-pin"></i> GitHub Status
+                                <span class="d-block small text-muted" id="github-status-text">checking...</span>
+                            </a></li>
+                        </ul>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Internal-only banner: live dashboard link. Rendered only when
+         DASHBOARD_URL is configured, and stripped from the public GitHub Pages
+         static build so the internal address is never published. -->
+    
+
+    <!-- Main Content -->
+    <div class="static-banner"><i class="bi bi-clock-history"></i> This is a static snapshot. Data auto-updates every 20 minutes. Please reach out to CI dashboard owner Zhang, Michael, Chen, Bingxu or Tseng, YC for any question.</div>
+    <main class="container-fluid py-4">
+        <!-- Shared data-freshness stamp and time zone choice, in the same spot
+             on every page. Pages report the timestamp of the data they render
+             via setPageLastUpdated(); the rest fall back to the site-wide
+             refresh time from /api/build-info. -->
+        <div class="d-flex justify-content-end align-items-center gap-2 mb-2" id="page-updated-bar">
+            <small class="text-muted" id="page-updated-stamp" style="display:none">
+                <i class="bi bi-clock-history"></i> Last Updated: <span id="page-last-updated"></span>
+            </small>
+            <select class="form-select form-select-sm py-0" id="timeZoneSelect" style="width: auto;"
+                onchange="setDisplayTimeZone(this.value)" data-no-capture aria-label="Time zone"
+                title="Time zone for every time on the site. Remembered for your next visit.">
+                <option value="local">Local time</option>
+                <option value="beijing">Beijing time</option>
+                <option value="pt">Pacific time</option>
+                <option value="utc">UTC</option>
+            </select>
+        </div>
+        
+<div class="row mb-3">
+    <div class="col">
+        <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+            <div>
+                <h1 class="display-5 mb-1">
+                    <i class="bi bi-rocket-takeoff"></i> Day-0 Models
+                </h1>
+                <p class="text-muted mb-0">AMD coverage for mainstream DeepSeek, Kimi, GLM, Qwen, MiniMax and Meta models, and any new one <a href="https://inferencex.semianalysis.com/inference" target="_blank" rel="noopener">InferenceX</a> starts benchmarking: model CI, registered tests, PRs, checkpoints, recipe GPUs and deploy images.</p>
+            </div>
+            <div class="btn-group btn-group-sm" role="group">
+                <a href="https://docs.sglang.io/cookbook/autoregressive/" target="_blank" rel="noopener" class="btn btn-outline-primary">
+                    <i class="bi bi-book"></i> Cookbook
+                </a>
+                <a href="https://huggingface.co/amd" target="_blank" rel="noopener" class="btn btn-outline-secondary">
+                    <i class="bi bi-box"></i> AMD on Hugging Face
+                </a>
+                <a href="/sglang-ci/amd-pr-tracker/#section=day0" class="btn btn-outline-secondary" title="The AMD PR Tracker's Day-0 | SA | Community section">
+                    <i class="bi bi-git"></i> Day-0 PRs
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div id="day0-loading" class="text-center py-5">
+    <div class="spinner-border text-primary" role="status"></div>
+    <p class="mt-2 text-muted">Loading the day-0 models...</p>
+</div>
+<div id="day0-error" class="alert alert-warning" style="display: none;"></div>
+
+<div id="day0-content" style="display: none;">
+    <div id="day0-signals" class="mb-3" style="font-size: 0.85rem;"></div>
+
+    <div class="row g-3 mb-3" id="day0-summary"></div>
+
+    <div class="card mb-3">
+        <div class="card-header bg-dark text-white d-flex justify-content-between align-items-center flex-wrap gap-2 py-2">
+            <h6 class="mb-0"><i class="bi bi-grid-3x3-gap"></i> Models</h6>
+            <div class="d-flex gap-2 align-items-center flex-wrap">
+                <div class="btn-group btn-group-sm" role="group" id="day0-families"></div>
+                <select class="form-select form-select-sm" id="day0-status" style="width: auto;" onchange="renderTable()">
+                    <option value="">All statuses</option>
+                </select>
+            </div>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-sm table-hover align-middle mb-0 day0-table" style="font-size: 0.85rem;">
+                    <thead class="table-light">
+                        <tr>
+                            <th style="min-width: 190px;">Model</th>
+                            <th style="width: 190px;" title="Pass rate across CI jobs that run only this model's tests; disaggregation (DI) configs are left out">CI pass rate</th>
+                            <th style="min-width: 260px;" title="Model CI jobs, shared suites, and registered test counts">CI coverage</th>
+                            <th style="width: 170px;" title="The Docker image the recipe tells AMD users to run">Recipe image</th>
+                            <th style="width: 150px;" title="GPUs listed by the recipe; these are not CI runners">Recipe GPUs</th>
+                            <th style="width: 170px;">AMD PRs</th>
+                            <th style="width: 32px;"></th>
+                        </tr>
+                    </thead>
+                    <tbody id="day0-rows"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-body py-2 text-muted" style="font-size: 0.8rem;" id="day0-footnote">
+            <div class="row g-2">
+                <div class="col-lg-4"><strong>CI pass rate</strong> is the fraction of this model's CI jobs whose newest current result passes. A model CI job runs only this model's tests. A job with no finished run in the window has no result and is left out of the rate; a result more than <span id="day0-stale-days">3</span> days older than the newest nightly is stale and does not pass. Disaggregation (DI) nightly configs are left out of this rate.</div>
+                <div class="col-lg-4"><strong>CI coverage</strong> tracks every recipe-required MI30x / MI35x × FP4 / FP8 cell. FP4 includes MXFP4; FP8 includes MXFP8. Model and shared jobs both count as coverage; only model CI jobs decide pass rate.</div>
+                <div class="col-lg-4"><strong>Recipe GPUs</strong> are the AMD GPUs listed in the cookbook recipe. They are documentation claims, <em>not</em> the machines CI ran on; CI runner families appear in the CI job details.</div>
+                <div class="col-lg-4"><strong>Recipe image</strong> is the Docker image the recipe tells AMD users to run: a tagged <strong>release</strong>, a dated <strong>nightly</strong>, or a <strong>model-specific build</strong>. Docker Hub is checked for the exact tag.</div>
+                <div class="col-lg-4"><strong>AMD PRs</strong> name the model and have an AMD title tag, known AMD author, or AMD-only vendor label. The PR-series badge follows upstream naming; it is not a timing metric.</div>
+                <div class="col-lg-4"><strong>AMD checkpoints</strong> are <code>huggingface.co/amd</code> repos for the model, excluding client (Ryzen AI, ONNX, GGUF) and NVIDIA-format builds.</div>
+            </div>
+            <div class="mt-1"><span class="badge pr-badge cause">Cause</span> and <span class="badge pr-badge fix">Fix</span> PRs under a failing model come from the CI monitor's daily report for the failing run, as on the Nightly CI page. A cause is the bot's hypothesis, not a verified bisect.</div>
+            <div class="mt-1">Warnings are collapsed under <strong>Signals</strong>; open it to inspect and jump to affected models.</div>
+            <div class="mt-1" id="day0-legend"></div>
+        </div>
+    </div>
+</div>
+
+    </main>
+
+    <!-- Footer -->
+    <footer class="bg-light text-center text-muted py-3 mt-5">
+        <div class="container">
+            <p class="mb-0">
+                SGLang Dashboard
+                <span class="ms-3"><a href="https://www.githubstatus.com/" target="_blank" rel="noopener" class="text-decoration-none"><i class="bi bi-broadcast-pin"></i> GitHub Status</a></span>
+                <span class="ms-3"><i class="bi bi-people-fill"></i> <span id="visitor-count">...</span> visitors</span>
+            </p>
+        </div>
+    </footer>
+
+    <script>
+        // Shared timestamp formatting and the "Last Updated" stamp. Defined
+        // before any page script runs so pages can use them as soon as their
+        // data lands.
+        (function () {
+            let pageReported = false;
+            let lastStamp = null;
+
+            // Times are shown in the zone picked in the select above every
+            // page: the viewer's own by default, or Beijing, Pacific or UTC,
+            // remembered across visits. The zone is always named, so a time
+            // copied into a chat still means the same thing to a reader
+            // elsewhere. Format every wall-clock time through these helpers
+            // (or zoneOptions) so it follows the choice.
+            const TIME_ZONE_KEY = 'display_time_zone';
+            const TIME_ZONES = {
+                local: undefined,
+                beijing: 'Asia/Shanghai',
+                pt: 'America/Los_Angeles',
+                utc: 'UTC',
+            };
+            let zoneChoice = 'local';
+            try {
+                const saved = localStorage.getItem(TIME_ZONE_KEY);
+                if (saved in TIME_ZONES) zoneChoice = saved;
+            } catch (e) { /* private mode */ }
+
+            window.getDisplayTimeZone = () => zoneChoice;
+            // The IANA zone to pass as `timeZone`, or undefined for the viewer's.
+            window.displayTimeZoneId = () => TIME_ZONES[zoneChoice];
+
+            // A page that can redraw its times in place registers here; one
+            // that doesn't is reloaded, so nothing is left in the old zone.
+            const zoneHandlers = [];
+            window.onTimeZoneChange = fn => { zoneHandlers.push(fn); };
+
+            window.setDisplayTimeZone = function (choice) {
+                if (!(choice in TIME_ZONES) || choice === zoneChoice) return;
+                zoneChoice = choice;
+                try { localStorage.setItem(TIME_ZONE_KEY, choice); } catch (e) { /* private mode */ }
+                const select = document.getElementById('timeZoneSelect');
+                if (select) select.value = choice;
+                if (!zoneHandlers.length) { location.reload(); return; }
+                if (lastStamp) render(lastStamp);
+                localizeClocks();
+                zoneHandlers.forEach(fn => fn(choice));
+            };
+
+            // `toLocaleString` options with the chosen zone applied and named.
+            window.zoneOptions = function (options) {
+                return { ...options, timeZone: TIME_ZONES[zoneChoice], timeZoneName: 'short' };
+            };
+
+            // Single definition of how an absolute moment is shown, so a new
+            // one can't be added without the zone. Values that aren't dates are
+            // passed through untouched.
+            window.formatTimestamp = function (value) {
+                const parsed = new Date(value);
+                return isNaN(parsed.getTime())
+                    ? String(value)
+                    : parsed.toLocaleString(undefined, window.zoneOptions({}));
+            };
+
+            // The compact form for table cells, e.g. "Oct 8, 14:02 PDT"; put
+            // formatTimestamp in the tooltip when the full one matters.
+            window.formatShortTime = function (value) {
+                const parsed = value ? new Date(value) : null;
+                if (!parsed || isNaN(parsed.getTime())) return '';
+                return parsed.toLocaleString(undefined, window.zoneOptions({
+                    month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', hourCycle: 'h23',
+                }));
+            };
+
+            // The calendar date of a moment in the chosen zone, in the viewer's
+            // locale (formatDate) or as YYYY-MM-DD (formatIsoDate). No zone
+            // name: it is a day, not a clock time. A bare "2026-11-03" is a
+            // day already and is not shifted.
+            const BARE_DATE = /^\d{4}-\d{2}-\d{2}$/;
+            function zonedDate(value, locale) {
+                if (!value) return '';
+                const parsed = new Date(BARE_DATE.test(value) ? `${value}T12:00:00Z` : value);
+                if (isNaN(parsed.getTime())) return String(value);
+                const timeZone = BARE_DATE.test(value) ? 'UTC' : TIME_ZONES[zoneChoice];
+                return parsed.toLocaleDateString(locale, { timeZone });
+            }
+            window.formatDate = value => zonedDate(value, undefined);
+            window.formatIsoDate = value => zonedDate(value, 'en-CA');
+
+            // A UTC clock time ("16:00") as the chosen zone reads it on `on`
+            // (default today, which decides DST): its clock, the zone's short
+            // name, and how many days it moved (-1, 0, +1).
+            window.zonedClock = function (hhmm, on) {
+                const [h, m] = String(hhmm).split(':').map(Number);
+                const ref = on ? new Date(on) : new Date();
+                const at = new Date(Date.UTC(ref.getUTCFullYear(), ref.getUTCMonth(), ref.getUTCDate(), h, m || 0));
+                const parts = {};
+                new Intl.DateTimeFormat('en-US', window.zoneOptions({
+                    year: 'numeric', month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit', hourCycle: 'h23',
+                })).formatToParts(at).forEach(p => { parts[p.type] = p.value; });
+                const zonedDay = Date.UTC(Number(parts.year), Number(parts.month) - 1, Number(parts.day));
+                const utcDay = Date.UTC(at.getUTCFullYear(), at.getUTCMonth(), at.getUTCDate());
+                return {
+                    clock: `${parts.hour}:${parts.minute}`,
+                    zone: parts.timeZoneName,
+                    dayShift: Math.round((zonedDay - utcDay) / 86400000),
+                };
+            };
+
+            // Cron summaries are written in UTC ("16:00 UTC daily", "01:00 &
+            // 13:00 UTC daily", "20:00 UTC Sat", "21:00 UTC odd days", joined
+            // with " + "). Each clock time is shown in the chosen zone. A time
+            // that lands on another date moves its weekdays with it; odd/even
+            // and every-N-days counts are UTC dates and can't move, so those
+            // keep the UTC schedule and give the zone's time beside it.
+            const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+            const WEEKDAY_LIST = /^ ((?:Sun|Mon|Tue|Wed|Thu|Fri|Sat)(?:, (?:Sun|Mon|Tue|Wed|Thu|Fri|Sat))*(?: & (?:Sun|Mon|Tue|Wed|Thu|Fri|Sat))?)$/;
+            window.localizeSchedule = function (text) {
+                if (!text || zoneChoice === 'utc') return text;
+                return String(text).split(' + ').map(segment => {
+                    const match = /^(\d{1,2}:\d{2}(?: & \d{1,2}:\d{2})*) UTC(.*)$/.exec(segment);
+                    if (!match) return segment;
+                    const clocks = match[1].split(' & ').map(c => window.zonedClock(c));
+                    const times = `${clocks.map(c => c.clock).join(' & ')} ${clocks[0].zone}`;
+                    const suffix = match[2];
+                    const shifts = new Set(clocks.map(c => c.dayShift));
+                    const shift = shifts.size === 1 ? [...shifts][0] : null;
+                    if (shift === 0 || suffix.trim() === 'daily') return times + suffix;
+                    if (shift !== null && WEEKDAY_LIST.test(suffix)) {
+                        return times + suffix.replace(/Sun|Mon|Tue|Wed|Thu|Fri|Sat/g,
+                            d => WEEKDAYS[(WEEKDAYS.indexOf(d) + shift + 7) % 7]);
+                    }
+                    const when = shift === 1 ? ' next day' : shift === -1 ? ' previous day' : '';
+                    return `${segment} (${times}${when})`;
+                }).join(' + ');
+            };
+
+            // Static markup names a time that recurs every day as
+            // <span data-utc-clock="16:00">16:00 UTC</span>; it is rewritten
+            // here, on load and on every change. (Prose that ties a time to
+            // UTC dates, like "even dates", should stay in UTC.)
+            function localizeClocks() {
+                document.querySelectorAll('[data-utc-clock]').forEach(el => {
+                    el.textContent = window.localizeSchedule(`${el.dataset.utcClock} UTC daily`).replace(/ daily$/, '');
+                });
+            }
+
+            function render(value) {
+                const bar = document.getElementById('page-updated-stamp');
+                const out = document.getElementById('page-last-updated');
+                if (!bar || !out || !value) return;
+                lastStamp = value;
+                out.textContent = window.formatTimestamp(value);
+                bar.style.display = '';
+            }
+
+            // "Local time" names the viewer's zone so it can be told apart
+            // from the others.
+            const select = document.getElementById('timeZoneSelect');
+            if (select) {
+                select.value = zoneChoice;
+                const local = new Intl.DateTimeFormat('en-US', { timeZoneName: 'short' })
+                    .formatToParts(new Date()).find(p => p.type === 'timeZoneName');
+                if (local) select.querySelector('option[value="local"]').textContent = `Local time (${local.value})`;
+            }
+            localizeClocks();
+
+            window.setPageLastUpdated = function (value) {
+                if (!value) return;
+                pageReported = true;
+                render(value);
+            };
+
+            fetch('/api/build-info')
+                .then(response => response.json())
+                .then(data => { if (!pageReported) render(data.generated_at); })
+                .catch(() => {});
+        })();
+
+        // Shared "Copy as image" button: a picture of part of a page, as it is
+        // shown now, for a chat or an email. Copied to the clipboard where the
+        // browser allows images there (a secure page and ClipboardItem),
+        // downloaded as a PNG otherwise. html2canvas (~45 KB) is loaded from the
+        // CDN on the first click, so a page pays nothing for it until then.
+        // Anything tagged data-no-capture (the button itself, selects, show/hide
+        // toggles) is left out of the image.
+        (function () {
+            let html2canvasLoad = null;
+            function loadHtml2canvas() {
+                if (window.html2canvas) return Promise.resolve(window.html2canvas);
+                if (!html2canvasLoad) {
+                    html2canvasLoad = new Promise((resolve, reject) => {
+                        const s = document.createElement('script');
+                        s.src = 'https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js';
+                        s.onload = () => resolve(window.html2canvas);
+                        s.onerror = () => { html2canvasLoad = null; reject(new Error('could not load html2canvas')); };
+                        document.head.appendChild(s);
+                    });
+                }
+                return html2canvasLoad;
+            }
+
+            function downloadBlob(blob, fileName) {
+                const a = document.createElement('a');
+                a.href = URL.createObjectURL(blob);
+                a.download = fileName;
+                document.body.appendChild(a);
+                a.click();
+                setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1000);
+            }
+
+            // `region` is one element, or [first, last] for everything from the
+            // top of `first` to the bottom of `last` -- for a section that is not
+            // one element, like a page header plus the cards below it. `name` is
+            // the file name, without .png, used when the image is downloaded.
+            // `ready`, if given, is a promise the picture waits for, so a page
+            // still loading its data is pictured once it has finished.
+            // The button's <span> (or the button) reports how it went.
+            window.copyScreenshot = function (btn, region, name, ready) {
+                const [first, last] = Array.isArray(region) ? region : [region, region];
+                const opts = {
+                    backgroundColor: '#ffffff',
+                    scale: Math.min(2, window.devicePixelRatio || 1),
+                    ignoreElements: el => el.hasAttribute && el.hasAttribute('data-no-capture'),
+                    windowWidth: document.documentElement.scrollWidth,
+                };
+                let target = first;
+                if (last !== first) {
+                    // Their common parent, cropped to the span between them.
+                    // The crop is measured on the copy html2canvas renders, not
+                    // at the click: anything that finishes loading in between
+                    // (the library itself is fetched on the first click) grows
+                    // the page, and a crop measured earlier cut off its bottom.
+                    // html2canvas measures the crop from the captured element's
+                    // own top, not the page's.
+                    while (!target.contains(last)) target = target.parentElement;
+                    opts.onclone = (doc, clonedTarget) => {
+                        const f = doc.querySelector('[data-shot-first]');
+                        const l = doc.querySelector('[data-shot-last]');
+                        const top = f.getBoundingClientRect().top;
+                        // `last` not rendered yet (page still loading): just `first`.
+                        opts.y = top - clonedTarget.getBoundingClientRect().top;
+                        opts.height = (l.getClientRects().length ? l : f).getBoundingClientRect().bottom - top;
+                    };
+                }
+
+                const label = btn.querySelector('span') || btn;
+                const idle = label.textContent;
+                btn.disabled = true;
+                label.textContent = 'Rendering…';
+
+                const png = Promise.all([loadHtml2canvas(), ready])
+                    .then(([h2c]) => {
+                        // The clone is taken when html2canvas starts, so the
+                        // markers only need to outlive that call.
+                        first.setAttribute('data-shot-first', '');
+                        last.setAttribute('data-shot-last', '');
+                        const shot = h2c(target, opts);
+                        first.removeAttribute('data-shot-first');
+                        last.removeAttribute('data-shot-last');
+                        return shot;
+                    })
+                    .then(canvas => new Promise((resolve, reject) =>
+                        canvas.toBlob(b => (b ? resolve(b) : reject(new Error('empty image'))), 'image/png')));
+                const download = () => png.then(blob => { downloadBlob(blob, `${name}.png`); return 'Downloaded PNG'; });
+                let done;
+                try {
+                    // The clipboard write starts now, inside the click, with the
+                    // image still rendering: a browser that only lets a page write
+                    // the clipboard straight after a click (Safari, and Chrome
+                    // once a render runs long) would refuse a write made later.
+                    if (!(window.isSecureContext && navigator.clipboard && window.ClipboardItem)) throw 0;
+                    done = navigator.clipboard.write([new ClipboardItem({'image/png': png})])
+                        .then(() => 'Copied image', download);
+                } catch (e) {
+                    done = download();
+                }
+                done.then(text => text, () => 'Image failed').then(text => {
+                    label.textContent = text;
+                    btn.disabled = false;
+                    setTimeout(() => { label.textContent = idle; }, 2500);
+                });
+            };
+        })();
+
+        // GitHub's own incident status, read straight from its public Statuspage
+        // in the browser: no backend involved, so the live server and the
+        // static snapshot both show a current value. The dot next to the
+        // GitHub menu is what makes an ongoing incident visible without
+        // opening the menu -- a GitHub outage is a common reason for the CI
+        // results on these pages to look broken.
+        (function () {
+            // Muted enough to sit on the navbar, bright enough to read on it.
+            const DOT_COLORS = {
+                none: '#5cd97b',
+                minor: '#ffd43b',
+                major: '#ff922b',
+                critical: '#ff6b6b',
+            };
+
+            const text = document.getElementById('github-status-text');
+            const dot = document.getElementById('github-status-dot');
+            const link = document.getElementById('github-status-link');
+
+            fetch('https://www.githubstatus.com/api/v2/status.json')
+                .then(response => response.ok ? response.json() : Promise.reject())
+                .then(data => {
+                    const status = data.status || {};
+                    const description = status.description || 'Status unknown';
+                    if (text) text.textContent = description;
+                    if (link) link.title = 'GitHub Status: ' + description;
+                    const color = DOT_COLORS[status.indicator];
+                    if (dot && color) {
+                        dot.style.color = color;
+                        dot.classList.remove('d-none');
+                    }
+                })
+                .catch(() => {
+                    // Ignore: the link itself still works, and a failed check
+                    // here says nothing about GitHub (it is just as likely to
+                    // be the viewer's network).
+                    if (text) text.textContent = 'check on githubstatus.com';
+                });
+        })();
+
+        // Load visitor count
+        fetch('/api/visitor-count')
+            .then(response => response.json())
+            .then(data => {
+                document.getElementById('visitor-count').textContent = data.count.toLocaleString();
+            })
+            .catch(() => {
+                document.getElementById('visitor-count').textContent = '-';
+            });
+    </script>
+
+    <!-- Bootstrap JS Bundle -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+    <!-- Custom JS -->
+    <script src="/sglang-ci/static/js/dashboard.js"></script>
+
+    
+<script>
+    const STATUS = {
+        failing: ['bg-danger', 'bi-x-circle-fill', 'CI failing'],
+        passing: ['bg-success', 'bi-check-circle-fill', 'CI passing'],
+        no_result: ['bg-secondary', 'bi-hourglass', 'CI without a result'],
+        shared_only: ['bg-info text-dark', 'bi-diagram-3', 'Shared suites only'],
+        not_scheduled: ['bg-warning text-dark', 'bi-pause-circle', 'Tests not scheduled'],
+        untested: ['bg-warning text-dark', 'bi-exclamation-circle', 'No AMD test'],
+        in_progress: ['bg-primary', 'bi-hourglass-split', 'AMD PRs open'],
+        none: ['bg-light text-dark border', 'bi-dash-circle', 'No AMD evidence'],
+    };
+    // The deployment ladder, most settled first; a model's status is its best
+    // image that Docker Hub has.
+    const DEPLOY = {
+        release: ['bg-success', 'bi-box-seam', 'Release image'],
+        nightly: ['bg-info text-dark', 'bi-moon-stars', 'Nightly build'],
+        preview: ['bg-warning text-dark', 'bi-box', 'Model-specific build'],
+        missing: ['bg-danger', 'bi-x-octagon', 'Image missing'],
+        unknown: ['bg-secondary', 'bi-question-circle', 'Not checked'],
+        none: ['bg-light text-dark border', 'bi-dash-circle', 'No AMD image'],
+    };
+    const JOB_VERDICT = {
+        passing: ['text-success', 'passing'],
+        failing: ['text-danger', 'failing'],
+        stale: ['text-muted', 'stale'],
+        no_result: ['text-muted', 'no result'],
+    };
+    const MATRIX_STATUS = {
+        passing: ['bg-success', 'CI passing'],
+        failing: ['bg-danger', 'CI failing'],
+        no_result: ['bg-secondary', 'No result'],
+        stale: ['bg-secondary', 'Stale'],
+        shared_only: ['bg-info text-dark', 'Shared CI'],
+        not_scheduled: ['bg-warning text-dark', 'Not scheduled'],
+        disabled: ['bg-light text-muted border', 'Disabled'],
+        missing: ['bg-danger', 'No registered test'],
+        not_required: ['bg-light text-muted border', 'Not in recipe'],
+    };
+    const PR_STATE = {
+        merged: 'bg-success',
+        open: 'bg-primary',
+        closed: 'bg-secondary',
+    };
+    const REASON = {
+        title: 'AMD tag in the title',
+        author: 'known AMD author',
+        label: 'amd label, no other vendor label',
+    };
+    const GPU_LABELS = {
+        mi30x: 'MI30x', mi35x: 'MI35x', mi45x: 'MI45x',
+        mi300x: 'MI300X', mi325x: 'MI325X', mi350x: 'MI350X', mi355x: 'MI355X', mi450x: 'MI450X', mi455x: 'MI455X',
+    };
+    const JOBS_INLINE = 3;
+
+    let day0Data = null;
+    let familyFilter = '';
+    const opened = new Set();
+
+    document.addEventListener('DOMContentLoaded', loadDay0);
+
+    function escapeHtml(value) {
+        return String(value == null ? '' : value).replace(/[&<>"']/g, c =>
+            ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+    }
+
+    function link(url, html, cls) {
+        if (!/^https:\/\//.test(url || '')) return html;
+        return `<a href="${escapeHtml(url)}" target="_blank" rel="noopener" class="${cls || 'text-decoration-none'}">${html}</a>`;
+    }
+
+    // Cells carry the date in the zone picked at the top of the page (UTC
+    // when two readers in different zones need to quote the same day); the
+    // title has the full timestamp.
+    function zoneDate(iso) {
+        return iso ? `<span title="${escapeHtml(formatTimestamp(iso))}">${escapeHtml(formatIsoDate(iso))}</span>` : '';
+    }
+
+    function gpuLabel(gpu) {
+        return GPU_LABELS[gpu] || String(gpu || '').toUpperCase();
+    }
+
+    // Ordered [{key, label}]; an object of labels is read too, so a payload
+    // written before a template change still renders.
+    function images() {
+        const listed = (day0Data && day0Data.ci && day0Data.ci.images) || [];
+        return Array.isArray(listed)
+            ? listed
+            : Object.entries(listed).map(([key, label]) => ({ key, label }));
+    }
+
+    function imageLabels() {
+        return Object.fromEntries(images().map(i => [i.key, i.label]));
+    }
+
+    function jobName(job) {
+        // A disaggregation config is the job; the shared job name is noise.
+        return job.group === 'disagg' ? job.name.replace(/^[^(]*\(\s*|\)\s*$/g, '') : job.name;
+    }
+
+    function imageOrder(job) {
+        const known = images().map(i => i.key);
+        return Object.keys(job.images || {}).sort((a, b) =>
+            (known.indexOf(a) + 1 || 99) - (known.indexOf(b) + 1 || 99));
+    }
+
+    function resultDot(conclusion, stale) {
+        if (conclusion === 'success') return `<span class="${stale ? 'text-muted' : 'text-success'}">&#9679;</span>`;
+        if (conclusion === 'failure' || conclusion === 'timed_out') return `<span class="${stale ? 'text-muted' : 'text-danger'}">&#9679;</span>`;
+        return '<span class="text-muted">&#9675;</span>';
+    }
+
+    // One dot per image: its newest decisive result, grey once stale.
+    function imageDots(job) {
+        const labels = imageLabels();
+        return imageOrder(job).map(image => {
+            const s = job.images[image];
+            const latest = s.latest;
+            const label = labels[image] || image || 'result';
+            const tally = `${s.passed}/${s.passed + s.failed} passed in the window`;
+            const title = latest
+                ? `${label}: ${latest.conclusion} ${latest.date}${s.stale ? ' (stale)' : ''}; ${tally}`
+                : `${label}: no finished run in the window`;
+            const dot = `<span title="${escapeHtml(title)}">${latest ? resultDot(latest.conclusion, s.stale) : resultDot(null)}</span>`;
+            return latest ? link(latest.url, dot) : dot;
+        }).join(' ');
+    }
+
+    // ── Cause & fix PRs ──────────────────────────────────────────────────
+    // A model job's current failure carries what the CI monitor's report says
+    // about it (`cause_fix`), read the way the Nightly CI page's job table
+    // reads it, and drawn with that page's badges.
+    function mergePrs(...lists) {
+        const out = [];
+        for (const pr of lists.flat()) {
+            if (pr && !out.some(p => p.repo === pr.repo && p.number === pr.number)) out.push(pr);
+        }
+        return out;
+    }
+
+    // Every failing image of the job, newest image first; null when the
+    // report names none of them.
+    function jobCauseFix(job) {
+        const found = imageOrder(job).map(i => (job.images[i] || {}).cause_fix).filter(Boolean);
+        if (!found.length) return null;
+        const clusters = [];
+        for (const c of found.flatMap(f => f.clusters || [])) {
+            if (!clusters.some(x => x.id === c.id)) clusters.push(c);
+        }
+        return {
+            cause: mergePrs(...found.map(f => f.cause_prs || [])),
+            fix: mergePrs(...found.map(f => f.fix_prs || [])),
+            clusters,
+            report: found[0],
+        };
+    }
+
+    function prBadge(pr, kind, label, title) {
+        const repo = pr.repo && pr.repo !== 'sgl-project/sglang' ? pr.repo.split('/')[1] : '';
+        const badge = `<span class="badge pr-badge ${kind}" title="${escapeHtml(`${title} — ${pr.repo || ''}#${pr.number}`)}">${label} ${escapeHtml(repo)}#${escapeHtml(Number(pr.number))}</span>`;
+        return link(pr.url, badge, 'text-decoration-none');
+    }
+
+    function prAuthor(pr, title) {
+        if (!pr.author) return '';
+        const url = pr.author_url || `https://github.com/${encodeURIComponent(pr.author)}`;
+        return ` <span class="text-nowrap small" title="${escapeHtml(title)}">by ${link(url, `@${escapeHtml(pr.author)}`, 'text-decoration-none')}</span>`;
+    }
+
+    function prStatePill(pr) {
+        return pr.pr_state ? ` <span class="pr-state ${escapeHtml(pr.pr_state)}">${escapeHtml(pr.pr_state)}</span>` : '';
+    }
+
+    function causeBadges(prs, authors) {
+        return (prs || []).map(pr => {
+            const exposed = pr.role === 'exposed';
+            const why = exposed
+                ? 'CI first saw the failure when this PR landed — it added the test that reaches the broken code'
+                : 'Likely introduced by this PR';
+            const what = pr.title ? `: "${pr.title}"` : '';
+            const sure = pr.confidence ? ` (${String(pr.confidence).toUpperCase()} confidence)` : '';
+            const merged = pr.merged_by ? `, merged by @${pr.merged_by}` : '';
+            return prBadge(pr, 'cause', exposed ? 'Exposed' : 'Cause', `${why}${what}${sure}${merged}`)
+                + (authors ? prAuthor(pr, 'Author of the PR that likely introduced this failure') : '');
+        }).join(' ');
+    }
+
+    // A fix closed without merging will never land.
+    function fixBadges(prs, authors) {
+        return (prs || []).filter(pr => pr.pr_state !== 'closed').map(pr => {
+            const what = pr.title ? `: "${pr.title}"` : '';
+            return (pr.state === 'candidate'
+                ? prBadge(pr, 'fix-candidate', 'Fix?', `Candidate fix — the bot has not confirmed it covers this cluster${what}`)
+                : prBadge(pr, 'fix', 'Fix', `In-flight fix${what}`))
+                + prStatePill(pr) + (authors ? prAuthor(pr, 'Owner of this fix PR') : '');
+        }).join(' ');
+    }
+
+    function clusterNote(cf) {
+        const ids = cf.clusters.map(c => c.id).join(', ');
+        const title = `${ids ? `Cluster ${ids} in` : 'Named in'} the ${cf.report.report_date} CI monitor report`
+            + cf.clusters.filter(c => c.title).map(c => `\n${c.id}: ${c.title}`).join('');
+        return link(cf.report.report_url, `<span class="small text-muted" title="${escapeHtml(title)}">${escapeHtml(ids || 'report')}</span>`);
+    }
+
+    // The model row's failing jobs, their cause and fix PRs pooled. DI configs
+    // stay out, as they stay out of the pass rate this sits under; the
+    // details list theirs.
+    function modelCauseFix(m) {
+        const found = (m.jobs || [])
+            .filter(j => j.dedicated && j.group !== 'disagg' && j.verdict === 'failing')
+            .map(jobCauseFix).filter(Boolean);
+        if (!found.length) return '';
+        const cause = causeBadges(mergePrs(...found.map(f => f.cause)));
+        const fix = fixBadges(mergePrs(...found.map(f => f.fix)));
+        if (!cause && !fix) {
+            return '<div class="small text-muted mt-1" title="The CI monitor report names this failure but no PR for it">No cause or fix PR named yet</div>';
+        }
+        return `<div class="mt-1 d-flex flex-wrap gap-1 align-items-center">${[cause, fix].filter(Boolean).join(' ')}</div>`;
+    }
+
+    function loadDay0() {
+        fetch('/api/day0/status')
+            .then(r => {
+                if (!r.ok) throw new Error(`HTTP ${r.status}`);
+                return r.json();
+            })
+            .then(renderDay0)
+            .catch(err => showError(err.message === 'HTTP 404'
+                ? 'Not published yet: the next data refresh writes this page\'s data.'
+                : `Could not load the day-0 models: ${err.message}`));
+    }
+
+    function showError(message) {
+        document.getElementById('day0-loading').style.display = 'none';
+        const el = document.getElementById('day0-error');
+        el.innerHTML = `<i class="bi bi-exclamation-triangle"></i> ${escapeHtml(message)}`;
+        el.style.display = 'block';
+    }
+
+    function renderDay0(data) {
+        if (!data || !data.available) {
+            showError(`Day-0 data unavailable: ${(data && (data.reason || data.error)) || 'unknown reason'}`);
+            return;
+        }
+        day0Data = data;
+        setPageLastUpdated(data.generated_at);
+        renderSignals(data);
+        renderSummary(data);
+        renderFilters(data);
+        renderTable();
+        renderLegend(data);
+        document.getElementById('day0-loading').style.display = 'none';
+        document.getElementById('day0-content').style.display = '';
+    }
+
+    // The table already carries every model's state, so signals are grouped
+    // by kind into one line each; a model's chip carries its own message and
+    // opens its row.
+    function signalGroups() {
+        return [
+            ['ci_failing', 'alert-warning', 'bi-x-circle-fill', 'Model CI jobs failing on their newest run'],
+            ['coverage_gap', 'alert-warning', 'bi-grid-3x3-gap', 'Recipe combinations without CI coverage'],
+            ['image_missing', 'alert-warning', 'bi-x-octagon', 'Recipe image missing from Docker Hub'],
+            ['not_scheduled', 'alert-light border', 'bi-pause-circle', 'Registered AMD tests not scheduled'],
+            ['preview_only', 'alert-light border', 'bi-box', 'Recipe uses a model-specific build'],
+            ['cookbook_without_amd', 'alert-light border', 'bi-book', 'Recipe lists no AMD GPU'],
+            ['auto_tracked', 'alert-light border', 'bi-stars', 'Tracked automatically from InferenceX'],
+        ];
+    }
+
+    function renderSignals(data) {
+        const signals = data.signals || [];
+        const names = Object.fromEntries((data.models || []).map(m => [m.key, m.name]));
+        const lines = signalGroups().map(([type, cls, icon, label]) => {
+            // One chip per model: a recipe can name several missing images.
+            const byModel = new Map();
+            for (const s of signals.filter(s => s.type === type)) {
+                if (!byModel.has(s.model)) byModel.set(s.model, []);
+                byModel.get(s.model).push(s);
+            }
+            if (!byModel.size) return '';
+            const chips = [...byModel.entries()].map(([key, members]) => {
+                const n = members[0].count || (members.length > 1 ? members.length : 0);
+                const count = n ? ` (${escapeHtml(n)})` : '';
+                const warn = type === 'not_scheduled' && members[0].severity !== 'info' ? ' text-danger' : '';
+                const title = members.map(s => s.message).join('\n');
+                return `<a href="#day0-row-${escapeHtml(key)}" class="badge bg-white text-dark border text-decoration-none fw-normal${warn}" title="${escapeHtml(title)}" data-key="${escapeHtml(key)}" onclick="focusModel(event, this.dataset.key)">${escapeHtml(names[key] || key)}${count}</a>`;
+            }).join(' ');
+            return `<div class="alert ${cls} py-1 px-2 mb-1"><i class="bi ${icon}"></i> <strong>${escapeHtml(label)}:</strong> ${chips}</div>`;
+        });
+        for (const s of signals.filter(s => !s.model)) {
+            const cls = s.severity === 'info' ? 'alert-info' : 'alert-warning';
+            lines.unshift(`<div class="alert ${cls} py-1 px-2 mb-1"><i class="bi bi-exclamation-triangle-fill"></i> ${escapeHtml(s.message)}</div>`);
+        }
+        const alerts = lines.filter(Boolean);
+        const box = document.getElementById('day0-signals');
+        if (!alerts.length) {
+            box.innerHTML = '';
+            return;
+        }
+        const warnings = alerts.filter(line => line.includes('alert-warning')).length;
+        const notes = alerts.length - warnings;
+        const counts = [
+            warnings ? `${warnings} warning${warnings === 1 ? '' : 's'}` : '',
+            notes ? `${notes} note${notes === 1 ? '' : 's'}` : '',
+        ].filter(Boolean).join(', ');
+        // Collapsed: the table already shows each of these per model.
+        box.innerHTML = `<details><summary class="small text-muted mb-1" style="cursor: pointer;"><strong>Signals</strong> <span class="text-muted">${escapeHtml(counts)}</span></summary>${alerts.join('')}</details>`;
+    }
+
+    function focusModel(event, key) {
+        if (event) event.preventDefault();
+        familyFilter = '';
+        document.getElementById('day0-status').value = '';
+        opened.add(key);
+        renderFilters(day0Data);
+        renderTable();
+        const row = document.getElementById(`day0-row-${key}`);
+        if (row && row.scrollIntoView) row.scrollIntoView({ block: 'start', behavior: 'smooth' });
+    }
+
+    function statCard(value, label, detail, cls) {
+        return `<div class="col-6 col-md-4 col-xl">
+            <div class="card h-100"><div class="card-body py-2">
+                <div class="fs-4 fw-bold ${cls || ''}">${value}</div>
+                <div class="small fw-bold">${escapeHtml(label)}</div>
+                <div class="small text-muted">${detail}</div>
+            </div></div>
+        </div>`;
+    }
+
+    function renderSummary(data) {
+        const s = data.summary || {};
+        const by = s.by_status || {};
+        const families = (data.families || []).map(f =>
+            `${escapeHtml(f)} ${escapeHtml(data.models.filter(m => m.family === f).length)}`).join(' &middot; ');
+        document.getElementById('day0-summary').innerHTML = [
+            statCard(escapeHtml(s.models || 0), 'models tracked', families),
+            ciPassCard(s.ci_jobs && jobTally(data.models || []), by),
+            deployCard(s.deployment),
+            coverageCard(s),
+            matrixCard(s.ci_matrix),
+        ].join('');
+    }
+
+    // Counted here from each model's jobs rather than read from the payload,
+    // so a payload written before disaggregation configs left ci_jobs (DeepSeek
+    // V4's 24 made the card 14/44 when its model jobs are 14/20) still leaves
+    // them out.
+    function jobTally(models) {
+        const jobs = models.flatMap(m => (m.jobs || []).filter(job =>
+            job.dedicated && job.group !== 'disagg'));
+        const count = verdict => jobs.filter(job => job.verdict === verdict).length;
+        return {
+            total: jobs.length,
+            passing: count('passing'),
+            failing: count('failing'),
+            stale: count('stale'),
+            no_result: count('no_result'),
+        };
+    }
+
+    function ciPassCard(jobs, byStatus) {
+        // A payload written before job totals still gets its old model count.
+        if (!jobs) {
+            const failing = byStatus.failing
+                ? `<span class="text-danger">${escapeHtml(byStatus.failing)} failing</span> on the newest run`
+                : 'none failing on the newest run';
+            return statCard(escapeHtml(byStatus.passing || 0), 'models with all CI passing',
+                `all model CI jobs green; ${failing}`, 'text-success');
+        }
+        const total = jobs.total || 0;
+        const passing = jobs.passing || 0;
+        const rated = total - (jobs.no_result || 0);
+        if (!rated) {
+            return statCard('&mdash;', 'model CI jobs passing',
+                total ? `pass rate unavailable; ${escapeHtml(total)} with no result` : 'no model CI jobs');
+        }
+        const percent = Math.round(100 * passing / rated);
+        const cls = passing === rated ? 'text-success' : passing ? 'text-warning' : 'text-danger';
+        const details = [
+            jobs.failing ? `${escapeHtml(jobs.failing)} failing` : '',
+            jobs.stale ? `${escapeHtml(jobs.stale)} stale` : '',
+        ].filter(Boolean).join(' &middot; ') || 'all current results pass';
+        const unrated = jobs.no_result ? `; ${escapeHtml(jobs.no_result)} with no result, not counted` : '';
+        return statCard(`${escapeHtml(passing)}/${escapeHtml(rated)}`,
+            'model CI jobs passing', `${escapeHtml(percent)}% pass rate; ${details}${unrated}`, cls);
+    }
+
+    // A payload written before these counts has none; the card then says so
+    // rather than claiming zero.
+    function coverageCard(s) {
+        if (s.with_amd_checkpoint == null) return statCard('&mdash;', 'models with AMD checkpoint', 'not in this payload');
+        return statCard(escapeHtml(s.with_amd_checkpoint), 'models with AMD checkpoint',
+            `on huggingface.co/amd; ${escapeHtml(s.with_amd_merged || 0)} with a merged AMD PR`);
+    }
+
+    // A payload written before deployment was tracked has no counts; the card
+    // then says so rather than claiming zero.
+    function deployCard(counts) {
+        if (!counts) return statCard('&mdash;', 'deployable on AMD', 'not in this payload');
+        const deployable = (counts.release || 0) + (counts.nightly || 0) + (counts.preview || 0);
+        const labels = { release: 'release', nightly: 'nightly', preview: 'model-specific' };
+        const parts = ['release', 'nightly', 'preview'].filter(k => counts[k]).map(k =>
+            `${escapeHtml(counts[k])} ${escapeHtml(labels[k])}`);
+        const gaps = [];
+        if (counts.none) gaps.push(`${escapeHtml(counts.none)} model${counts.none === 1 ? ' names' : 's name'} no AMD image`);
+        if (counts.missing) gaps.push(`<span class="text-danger">${escapeHtml(counts.missing)} image${counts.missing === 1 ? '' : 's'} missing</span>`);
+        return statCard(escapeHtml(deployable), 'deployable on AMD',
+            `${parts.join(' &middot; ') || 'no image'}${gaps.length ? '; ' + gaps.join(', ') : ''}`,
+            counts.missing ? 'text-danger' : '');
+    }
+
+    function matrixCard(matrix) {
+        if (!matrix) return statCard('&mdash;', 'recipe cells with CI', 'not in this payload');
+        const coveredCount = matrix.covered == null ? (matrix.dedicated || 0) : matrix.covered;
+        const covered = `${escapeHtml(coveredCount)}/${escapeHtml(matrix.required || 0)}`;
+        const gaps = matrix.gaps
+            ? `<span class="text-danger">${escapeHtml(matrix.gaps)} gap${matrix.gaps === 1 ? '' : 's'}</span>`
+            : 'no gaps';
+        return statCard(covered, 'recipe cells with CI',
+            `${escapeHtml(matrix.dedicated || 0)} model CI &middot; ${escapeHtml(matrix.shared || 0)} shared CI &middot; ${gaps}`,
+            matrix.gaps ? 'text-warning' : 'text-success');
+    }
+
+    function renderFilters(data) {
+        const families = ['', ...(data.families || [])];
+        document.getElementById('day0-families').innerHTML = families.map(f =>
+            `<button type="button" class="btn ${f === familyFilter ? 'btn-light' : 'btn-outline-light'}" data-family="${escapeHtml(f)}" onclick="setFamily(this.dataset.family)">${escapeHtml(f || 'All')}</button>`).join('');
+        const counts = (data.summary || {}).by_status || {};
+        document.getElementById('day0-status').innerHTML = '<option value="">All statuses</option>'
+            + (data.statuses || []).filter(s => counts[s]).map(s =>
+                `<option value="${escapeHtml(s)}">${escapeHtml((STATUS[s] || [])[2] || s)} (${escapeHtml(counts[s])})</option>`).join('');
+    }
+
+    function setFamily(family) {
+        familyFilter = family;
+        renderFilters(day0Data);
+        renderTable();
+    }
+
+    function modelCell(m) {
+        const main = (m.hf || [])[0];
+        const name = main ? link(main.url, escapeHtml(m.name), 'fw-bold text-decoration-none') : `<span class="fw-bold">${escapeHtml(m.name)}</span>`;
+        const variants = m.variants ? ` <span class="text-muted small">${escapeHtml(m.variants)}</span>` : '';
+        const added = (m.inferencex || {}).added;
+        const auto = m.auto
+            ? ` <span class="badge bg-light text-dark border fw-normal" title="${escapeHtml(`Tracked automatically: InferenceX added it${added ? ' on ' + added : ''}. Its pattern and recipe matrix are derived, not hand-kept.`)}">auto</span>`
+            : '';
+        return `${name}${variants}${auto}`;
+    }
+
+    function statusCell(m) {
+        // Disaggregation configs are many per model (DeepSeek V4 has 24) and
+        // stay out of the rate rather than swamping the model jobs'.
+        const jobs = (m.jobs || []).filter(job => job.dedicated && job.group !== 'disagg');
+        const detail = escapeHtml(m.status_detail || '');
+        if (!jobs.length) {
+            return `<span class="badge bg-light text-dark border" title="${detail}"><i class="bi bi-dash-circle"></i> No model CI jobs</span><div class="small text-muted mt-1">Pass rate unavailable</div>`;
+        }
+        // A job with no finished run has neither passed nor failed.
+        const rated = jobs.filter(job => job.verdict !== 'no_result');
+        if (!rated.length) {
+            const [cls, icon] = STATUS.no_result;
+            return `<span class="badge ${cls}" title="${detail}"><i class="bi ${icon}"></i> No result</span><div class="small text-muted mt-1">Pass rate unavailable</div>`;
+        }
+        const unrated = jobs.length - rated.length;
+        const passing = rated.filter(job => job.verdict === 'passing').length;
+        const percent = Math.round(100 * passing / rated.length);
+        const cls = passing === rated.length ? 'bg-success' : passing ? 'bg-warning text-dark' : 'bg-danger';
+        return `<span class="badge ${cls}" title="${detail}">${escapeHtml(percent)}% pass</span><div class="small text-muted mt-1">${escapeHtml(passing)} of ${escapeHtml(rated.length)} model job${rated.length === 1 ? '' : 's'} pass${unrated ? ` &middot; ${escapeHtml(unrated)} with no result` : ''}</div>${modelCauseFix(m)}`;
+    }
+
+    function ciCell(m) {
+        const own = (m.jobs || []).filter(j => j.dedicated);
+        const shared = (m.jobs || []).filter(j => !j.dedicated);
+        const tests = (m.tests || {});
+        const parts = [];
+        const matrix = (m.ci_matrix || {}).summary;
+        if (matrix && matrix.required) {
+            const cls = matrix.gaps ? 'text-warning' : 'text-success';
+            const covered = matrix.covered == null ? matrix.dedicated : matrix.covered;
+            parts.push(`<div class="small fw-bold ${cls}">${escapeHtml(covered)}/${escapeHtml(matrix.required)} required cells covered <span class="fw-normal">(${escapeHtml(matrix.dedicated)} model${matrix.shared ? `, ${escapeHtml(matrix.shared)} shared` : ''})</span>${matrix.gaps ? ` &middot; ${escapeHtml(matrix.gaps)} gap${matrix.gaps === 1 ? '' : 's'}` : ''}</div>`);
+        }
+        if (own.length <= JOBS_INLINE) {
+            parts.push(...own.map(j => {
+                const [cls, verdict] = JOB_VERDICT[j.verdict] || JOB_VERDICT.no_result;
+                return `<div class="d-flex justify-content-between gap-2"><span class="text-truncate" title="${escapeHtml(j.label + ': ' + j.name + ' (' + verdict + ')')}"><span class="${cls}">${escapeHtml(jobName(j))}</span></span><span class="text-nowrap">${imageDots(j)}</span></div>`;
+            }));
+        } else {
+            // DI configs are tallied apart, as the pass rate counts them apart.
+            const groups = [
+                [own.filter(j => j.group !== 'disagg'), 'model CI job'],
+                [own.filter(j => j.group === 'disagg'), 'DI config'],
+            ];
+            for (const [jobs, noun] of groups.filter(([jobs]) => jobs.length)) {
+                const count = v => jobs.filter(j => j.verdict === v).length;
+                const tally = ['passing', 'failing', 'stale', 'no_result'].filter(count).map(v =>
+                    `<span class="${JOB_VERDICT[v][0]}">${escapeHtml(count(v))} ${escapeHtml(JOB_VERDICT[v][1])}</span>`).join(', ');
+                parts.push(`<div>${escapeHtml(jobs.length)} ${noun}${jobs.length === 1 ? '' : 's'}: ${tally}</div>`);
+            }
+            parts.push(...own.filter(j => j.verdict === 'failing').slice(0, 2).map(j =>
+                `<div class="d-flex justify-content-between gap-2"><span class="text-danger text-truncate">${escapeHtml(jobName(j))}</span><span class="text-nowrap">${imageDots(j)}</span></div>`));
+        }
+        if (shared.length) {
+            parts.push(`<div class="small text-muted" title="${escapeHtml(shared.map(j => j.name).join(', '))}">${escapeHtml(shared.length)} shared suite job${shared.length === 1 ? '' : 's'}</div>`);
+        }
+        const amd = (tests.amd || []).length;
+        const notes = [];
+        if (tests.amd_unscheduled) notes.push(`<span class="text-warning">${escapeHtml(tests.amd_unscheduled)} not scheduled</span>`);
+        if (tests.amd_disabled) notes.push(`${escapeHtml(tests.amd_disabled)} disabled`);
+        const cuda = (tests.cuda || []).length;
+        parts.push(`<div class="small text-muted">${escapeHtml(amd)} AMD test${amd === 1 ? '' : 's'}${notes.length ? ' (' + notes.join(', ') + ')' : ''} &middot; ${escapeHtml(cuda)} NVIDIA test${cuda === 1 ? '' : 's'}</div>`);
+        return parts.join('');
+    }
+
+    function hubUrl(row) {
+        if (!row.tag) return `https://hub.docker.com/r/${row.repo}`;
+        return `https://hub.docker.com/r/${row.repo}/tags?name=${encodeURIComponent(row.tag)}`;
+    }
+
+    function imageShort(row) {
+        if (row.kind === 'release') return `v${row.version}`;
+        if (row.kind === 'nightly') return `v${row.version} \u00b7 ${(row.built || '').substring(5)}`;
+        return row.tag && row.tag !== 'latest' ? row.tag : row.repo.split('/').pop();
+    }
+
+    // A nightly's tag already carries its build date.
+    function pushedHtml(row) {
+        if (!row.pushed_at || row.kind === 'nightly') return '';
+        return ` <span class="text-muted small" title="Pushed to Docker Hub">${escapeHtml(row.pushed_at.substring(0, 10))}</span>`;
+    }
+
+    function recipeGpus(m) {
+        const c = m.cookbook;
+        if (!c) return '<span class="text-muted small">No recipe</span>';
+        const gpus = (c.amd || []).map(g => `<span class="badge bg-danger-subtle text-danger-emphasis border me-1" title="Listed by the recipe; not a CI runner">${escapeHtml(gpuLabel(g))}</span>`).join('');
+        return link(c.url, gpus || '<span class="text-warning small">No AMD GPU listed</span>');
+    }
+
+    function deployCell(m) {
+        const d = m.deployment;
+        if (!d) return '<span class="text-muted small">Not in this payload</span>';
+        const [cls, icon, label] = DEPLOY[d.status] || DEPLOY.unknown;
+        const best = (d.images || []).find(r => r.image === d.image);
+        const what = best
+            ? `<div class="small text-nowrap">${link(hubUrl(best), `<code title="${escapeHtml(best.image)}">${escapeHtml(imageShort(best))}</code>`)}${pushedHtml(best)}</div>`
+            : '';
+        return `<span class="badge ${cls}" title="${escapeHtml(d.detail || '')}"><i class="bi ${icon}"></i> ${escapeHtml(label)}</span>${what}`;
+    }
+
+    function deploymentList(m) {
+        const d = m.deployment;
+        if (!d) return '<span class="text-muted">not in this payload</span>';
+        const rows = d.images || [];
+        if (!rows.length) return `<span class="text-muted">${escapeHtml(d.detail || '')}</span>`;
+        return `<ul class="list-unstyled mb-0">${rows.map(r => {
+            const [cls, , label] = DEPLOY[r.kind] || DEPLOY.unknown;
+            let state;
+            if (r.published === false) state = '<span class="badge bg-danger">not on Docker Hub</span>';
+            else if (r.published == null) state = '<span class="text-muted">not checked on Docker Hub</span>';
+            else if (!r.pushed_at) state = 'on Docker Hub';
+            else state = `pushed ${zoneDate(r.pushed_at)}`;
+            if (r.published && r.size) state += ` &middot; ${escapeHtml((r.size / 2 ** 30).toFixed(1))} GiB`;
+            const gpus = (r.hardware || []).map(gpuLabel).join(', ') || 'AMD';
+            const variants = (r.variants || []).length
+                ? ` <span class="text-muted">${escapeHtml(r.variants.map(v => v.replace(/\|/g, ' \u00b7 ')).join(', '))}</span>`
+                : '';
+            return `<li class="mb-1"><span class="badge ${cls}">${escapeHtml(label)}</span> ${escapeHtml(gpus)}${variants} &middot; ${state}
+                <div><code class="small">docker pull ${escapeHtml(r.image)}</code> ${link(hubUrl(r), '<i class="bi bi-box-arrow-up-right"></i>')}</div></li>`;
+        }).join('')}</ul>`;
+    }
+
+    function matrixCell(cell) {
+        if (!cell || (!cell.required && cell.status === 'not_required')) {
+            return '<span class="text-muted">&mdash;</span>';
+        }
+        const [cls, label] = MATRIX_STATUS[cell.status] || MATRIX_STATUS.missing;
+        const recipe = cell.recipe
+            ? `<span class="badge bg-light text-dark border">Recipe ${escapeHtml(cell.recipe)}</span>`
+            : '<span class="badge bg-light text-muted border">Not in recipe</span>';
+        const claims = (cell.claims || []).map(claim =>
+            link(claim.url, `#${escapeHtml(claim.number)} ${escapeHtml(claim.state || '')}`, 'small text-decoration-none')).join(' ');
+        const tests = (cell.tests || []).length
+            ? `<span class="text-muted small">${escapeHtml(cell.tests.length)} test${cell.tests.length === 1 ? '' : 's'}</span>`
+            : '';
+        return `<div>${recipe}</div><div class="mt-1"><span class="badge ${cls}">${escapeHtml(label)}</span>${tests ? ` ${tests}` : ''}</div>${claims ? `<div class="mt-1">${claims}</div>` : ''}`;
+    }
+
+    function coverageMatrix(m) {
+        const matrix = m.ci_matrix;
+        if (!matrix || !(matrix.profiles || []).length) {
+            return '<span class="text-muted">No FP4 / FP8 recipe matrix in this payload.</span>';
+        }
+        const hardware = matrix.hardware || ['mi30x', 'mi35x'];
+        const profileRows = (matrix.profiles || []).map(profile => {
+            const quantizations = (matrix.quantizations || ['fp4', 'fp8']).filter(
+                quant => hardware.some(gpu => {
+                    const cell = (profile.cells || {})[`${gpu}:${quant}`];
+                    return cell && cell.required;
+                })
+            );
+            return quantizations.map((quant, index) => {
+                const cells = hardware.map(gpu =>
+                    `<td>${matrixCell((profile.cells || {})[`${gpu}:${quant}`])}</td>`).join('');
+                return `<tr>${index === 0 ? `<th rowspan="${escapeHtml(quantizations.length)}" class="align-middle">${escapeHtml(profile.name)}</th>` : ''}<th>${escapeHtml(quant.toUpperCase())}</th>${cells}</tr>`;
+            });
+        });
+        const rows = profileRows.flat().join('');
+        if (!rows) {
+            return '<span class="text-muted">The recipe lists no MI30x / MI35x FP4 or FP8 combination.</span>';
+        }
+        const head = hardware.map(gpu => `<th>${escapeHtml(gpuLabel(gpu))}</th>`).join('');
+        return `<div class="table-responsive"><table class="table table-sm table-bordered align-middle mb-1">
+            <thead class="table-light"><tr><th>Submodel</th><th>Quant</th>${head}</tr></thead>
+            <tbody>${rows}</tbody></table></div>
+            <div class="small text-muted">A recipe badge makes the cell required. Model and shared jobs count as coverage; only model CI jobs decide pass rate. Merged PR links are support evidence, not CI.</div>`;
+    }
+
+    function prCell(m) {
+        const p = m.prs || {};
+        const day0 = p.day0 ? ` <span class="badge bg-light text-dark border" title="AMD PRs titled Day 0">${escapeHtml(p.day0)} day-0</span>` : '';
+        return `<div><span class="text-success">${escapeHtml(p.amd_merged || 0)} merged</span> &middot; <span class="text-primary">${escapeHtml(p.amd_open || 0)} open</span>${day0}</div>
+            <div class="small text-muted">${escapeHtml(p.amd || 0)} AMD of ${escapeHtml(p.total || 0)} naming it</div>`;
+    }
+
+    function visibleModels() {
+        const status = document.getElementById('day0-status').value;
+        return (day0Data.models || []).filter(m =>
+            (!familyFilter || m.family === familyFilter) && (!status || m.status === status));
+    }
+
+    function renderTable() {
+        if (!day0Data) return;
+        const models = visibleModels();
+        const rows = [];
+        for (const family of day0Data.families || []) {
+            const members = models.filter(m => m.family === family);
+            if (!members.length) continue;
+            rows.push(`<tr class="table-light"><td colspan="7" class="fw-bold">${escapeHtml(family)} <span class="text-muted fw-normal small">${escapeHtml(members.length)} model${members.length === 1 ? '' : 's'}</span></td></tr>`);
+            for (const m of members) {
+                const open = opened.has(m.key);
+                rows.push(`<tr id="day0-row-${escapeHtml(m.key)}" style="cursor: pointer;" data-key="${escapeHtml(m.key)}" onclick="rowClick(event, this.dataset.key)">
+                    <td>${modelCell(m)}</td>
+                    <td>${statusCell(m)}</td>
+                    <td>${ciCell(m)}</td>
+                    <td>${deployCell(m)}</td>
+                    <td>${recipeGpus(m)}</td>
+                    <td>${prCell(m)}</td>
+                    <td><i class="bi ${open ? 'bi-chevron-up' : 'bi-chevron-down'} text-muted"></i></td>
+                </tr>`);
+                if (open) rows.push(`<tr class="day0-detail"><td colspan="7" class="bg-light">${detailHtml(m)}</td></tr>`);
+            }
+        }
+        document.getElementById('day0-rows').innerHTML = rows.join('')
+            || '<tr><td colspan="7" class="text-muted">No model matches the filters.</td></tr>';
+    }
+
+    // A link in the row opens its target; anywhere else opens the details.
+    function rowClick(event, key) {
+        if (event && event.target && event.target.closest && event.target.closest('a')) return;
+        toggleModel(key);
+    }
+
+    function toggleModel(key) {
+        if (opened.has(key)) opened.delete(key); else opened.add(key);
+        renderTable();
+    }
+
+    function historyStrip(s) {
+        const entries = (s.history || []).slice().reverse();
+        return entries.map(e => link(e.url, `<span title="${escapeHtml(e.date + ': ' + (e.conclusion || 'unknown'))}">${resultDot(e.conclusion, false)}</span>`)).join('');
+    }
+
+    function jobsTable(m) {
+        const jobs = m.jobs || [];
+        if (!jobs.length) return '<div class="text-muted">No AMD CI job runs a test of this model.</div>';
+        const labels = imageLabels();
+        const images = [...new Set(jobs.flatMap(j => imageOrder(j)))];
+        const head = images.map(i => `<th class="text-nowrap">${escapeHtml(labels[i] || (i || 'result'))}</th>`).join('');
+        // Cause and fix columns only while one of the model's jobs is failing.
+        const failing = jobs.some(j => j.dedicated && j.verdict === 'failing');
+        const prHead = failing
+            ? '<th title="The PR the CI monitor thinks broke this job (or whose new test first caught it); hover for its cluster">Cause PR</th><th>In-flight fix</th>'
+            : '';
+        const prCells = j => {
+            if (!failing) return '';
+            if (!j.dedicated || j.verdict !== 'failing') return '<td></td><td></td>';
+            const cf = jobCauseFix(j);
+            if (!cf) {
+                return '<td colspan="2" class="small text-muted" title="No CI monitor report published for the failing run names this job">not in a CI monitor report</td>';
+            }
+            const dash = '<span class="text-muted">&mdash;</span>';
+            return `<td>${causeBadges(cf.cause, true) || dash} ${clusterNote(cf)}</td><td>${fixBadges(cf.fix, true) || dash}</td>`;
+        };
+        const rows = jobs.map(j => {
+            const [cls, verdict] = JOB_VERDICT[j.verdict] || JOB_VERDICT.no_result;
+            const scope = j.dedicated
+                ? `<span class="${cls}">${escapeHtml(verdict)}</span>`
+                : `<span class="text-muted" title="Runs ${escapeHtml(j.suite_files)} files; its result is not this model's">shared (${escapeHtml(j.tests)} of ${escapeHtml(j.suite_files)} files)</span>`;
+            const cells = images.map(i => {
+                const s = (j.images || {})[i];
+                if (!s) return '<td class="text-muted">&mdash;</td>';
+                if (!j.dedicated) {
+                    // Greyed: a shared suite's result is not this model's.
+                    const latest = s.latest;
+                    return `<td>${latest ? link(latest.url, resultDot(latest.conclusion, true)) + ' ' + zoneDate(latest.date) : '<span class="text-muted">no result</span>'}</td>`;
+                }
+                return `<td class="text-nowrap" style="letter-spacing: 1px;">${historyStrip(s) || '<span class="text-muted">no run</span>'}${s.stale ? ' <span class="badge bg-light text-muted border">stale</span>' : ''}</td>`;
+            }).join('');
+            return `<tr>
+                <td>${link(j.url, escapeHtml(jobName(j)))}<div class="small text-muted">${escapeHtml(j.label)}</div></td>
+                <td>${escapeHtml(gpuLabel(j.gpu))}</td>
+                <td>${scope}</td>
+                ${cells}
+                ${prCells(j)}
+            </tr>`;
+        }).join('');
+        const prNote = failing
+            ? ' A cause is the CI monitor bot\'s hypothesis, with the confidence it gave on hover, not a verified bisect; the same report drives the Nightly CI page\'s Cause &amp; Fix PRs.'
+            : '';
+        return `<div class="table-responsive"><table class="table table-sm mb-0"><thead class="table-light"><tr><th>Job</th><th>GPU</th><th>Result</th>${head}${prHead}</tr></thead><tbody>${rows}</tbody></table></div>
+            <div class="small text-muted">Oldest to newest, one dot per nightly day; hollow is cancelled or skipped.${prNote}</div>`;
+    }
+
+    function testsTable(m) {
+        const tests = (m.tests || {}).amd || [];
+        if (!tests.length) return '<div class="text-muted">No AMD registration names this model or loads its checkpoints.</div>';
+        const jobNames = Object.fromEntries((m.jobs || []).map(j => [j.key, jobName(j)]));
+        const rows = tests.map(t => {
+            const base = t.path.split('/').pop();
+            let runs;
+            if (t.disabled) runs = `<span class="text-muted" title="${escapeHtml(t.disabled)}">disabled</span>`;
+            else if (!t.scheduled) runs = '<span class="text-warning">not scheduled</span>';
+            else runs = t.jobs.map(k => escapeHtml(jobNames[k] || k.split(':').pop())).join('<br>');
+            return `<tr${t.scheduled || t.disabled ? '' : ' class="table-warning"'}>
+                <td>${link(t.url, escapeHtml(base))}<div class="small text-muted">${escapeHtml(t.path.replace(/\/[^/]*$/, ''))}</div></td>
+                <td>${escapeHtml(t.kind)}</td>
+                <td>${escapeHtml(gpuLabel(t.gpu))}</td>
+                <td><code class="small">${escapeHtml(t.suite)}</code><div class="small text-muted">${t.nightly ? 'nightly' : 'per PR'}</div></td>
+                <td class="small">${runs}</td>
+            </tr>`;
+        }).join('');
+        return `<div class="table-responsive" style="max-height: 360px; overflow-y: auto;"><table class="table table-sm mb-0"><thead class="table-light" style="position: sticky; top: 0;"><tr><th>AMD test</th><th>Kind</th><th>GPU</th><th>Suite</th><th>Run by</th></tr></thead><tbody>${rows}</tbody></table></div>`;
+    }
+
+    function prsTable(m) {
+        const items = (m.prs || {}).items || [];
+        if (!items.length) return '<div class="text-muted">No AMD PR names this model.</div>';
+        const rows = items.map(p => {
+            const state = p.draft && p.state === 'open' ? 'draft' : p.state;
+            const when = p.state === 'merged' ? p.merged_at : p.closed_at;
+            return `<tr${p.state === 'closed' ? ' class="text-muted"' : ''}>
+                <td><span class="badge ${PR_STATE[p.state] || 'bg-secondary'}">${escapeHtml(state)}</span></td>
+                <td class="text-nowrap">${link(p.url, '#' + escapeHtml(p.number), 'fw-bold text-decoration-none')}</td>
+                <td>${escapeHtml(p.title)}${p.day0 ? ' <span class="badge bg-light text-dark border">day 0</span>' : ''}${p.revert ? ' <span class="badge bg-light text-danger border">revert</span>' : ''}${p.reverted_by ? ` <span class="badge bg-light text-danger border">reverted by #${escapeHtml(p.reverted_by)}</span>` : ''}
+                    <div class="small text-muted">${escapeHtml(p.author || '')} &middot; ${escapeHtml(REASON[p.reason] || p.reason)}</div></td>
+                <td class="small text-nowrap">${zoneDate(p.created_at)}</td>
+                <td class="small text-nowrap">${when ? zoneDate(when) : ''}</td>
+            </tr>`;
+        }).join('');
+        return `<div class="table-responsive" style="max-height: 360px; overflow-y: auto;"><table class="table table-sm mb-0"><thead class="table-light" style="position: sticky; top: 0;"><tr><th></th><th>PR</th><th>Title</th><th>Opened</th><th>Merged / closed</th></tr></thead><tbody>${rows}</tbody></table></div>`;
+    }
+
+    function checkpointsList(m) {
+        const items = m.checkpoints || [];
+        if (!items.length) return '<span class="text-muted">none on huggingface.co/amd</span>';
+        return `<ul class="list-unstyled mb-0">${items.map(c => {
+            const facts = [];
+            if (c.created_at) facts.push(`created ${zoneDate(c.created_at)}`);
+            if (c.downloads != null) facts.push(`${escapeHtml(Number(c.downloads).toLocaleString())} downloads`);
+            return `<li>${link(c.url, `<code>${escapeHtml(c.id)}</code>`)}${facts.length ? ` <span class="text-muted small">${facts.join(' &middot; ')}</span>` : ''}</li>`;
+        }).join('')}</ul>`;
+    }
+
+    function cudaList(m) {
+        const tests = (m.tests || {}).cuda || [];
+        if (!tests.length) return '<span class="text-muted">none</span>';
+        return `<details><summary class="text-muted">${escapeHtml(tests.length)} NVIDIA test${tests.length === 1 ? '' : 's'}</summary><ul class="mb-0 ps-3 small">${tests.map(t =>
+            `<li>${link(t.url, escapeHtml(t.path.split('/').pop()))} <code>${escapeHtml(t.suite)}</code>${t.hardware ? ` <span class="text-muted">${escapeHtml(t.hardware)}</span>` : ''}${t.disabled ? ' <span class="text-muted">disabled</span>' : ''}</li>`).join('')}</ul></details>`;
+    }
+
+    function detailHtml(m) {
+        const c = m.cookbook;
+        const pages = (c && c.pages && c.pages.length)
+            ? c.pages.map(page => link(page.url, escapeHtml(page.name))).join(', ')
+            : c ? link(c.url, 'cookbook page') : '';
+        const recipe = c
+            ? `${pages} <span class="text-muted">&mdash; recipe lists:</span> ${(c.amd || []).map(g => escapeHtml(gpuLabel(g))).join(', ') || '<span class="text-warning">no AMD GPU</span>'}`
+            : '<span class="text-muted">no cookbook page</span>';
+        return `<div class="row g-3 py-2" style="font-size: 0.83rem;">
+            <div class="col-12">
+                <div class="fw-bold mb-1">MI30x / MI35x quantization coverage</div>${coverageMatrix(m)}
+            </div>
+            <div class="col-xl-4">
+                <div class="fw-bold mb-1">Recipe image <span class="text-muted fw-normal">${escapeHtml((m.deployment || {}).detail || '')}</span></div>${deploymentList(m)}
+                <div class="fw-bold mt-3 mb-1">AMD checkpoints</div>${checkpointsList(m)}
+                <div class="fw-bold mt-3 mb-1">Recipe GPUs <span class="text-muted fw-normal">(not CI runners)</span></div><div>${recipe}</div>
+                <div class="fw-bold mt-3 mb-1">NVIDIA CI</div>${cudaList(m)}
+            </div>
+            <div class="col-xl-8">
+                <div class="fw-bold mb-1">AMD CI jobs</div>${jobsTable(m)}
+            </div>
+            <div class="col-xl-6">
+                <div class="fw-bold mb-1">AMD tests <span class="text-muted fw-normal">${escapeHtml(((m.tests || {}).amd || []).length)}</span></div>${testsTable(m)}
+            </div>
+            <div class="col-xl-6">
+                <div class="fw-bold mb-1">AMD PRs <span class="text-muted fw-normal">${escapeHtml((m.prs || {}).amd || 0)} of ${escapeHtml((m.prs || {}).total || 0)} naming ${escapeHtml(m.name)}</span></div>${prsTable(m)}
+            </div>
+        </div>`;
+    }
+
+    function renderLegend(data) {
+        const ci = data.ci || {};
+        if (ci.stale_days != null) document.getElementById('day0-stale-days').textContent = ci.stale_days;
+        const when = ci.generated_at ? ` Job results are from the nightly CI payload of ${zoneDate(ci.generated_at)}.` : '';
+        document.getElementById('day0-legend').innerHTML = `
+            <span class="text-success">&#9679;</span> passed <span class="text-danger">&#9679;</span> failed
+            <span class="text-muted">&#9679;</span> stale <span class="text-muted">&#9675;</span> cancelled or skipped.${when}`;
+    }
+</script>
+
+<script>
+document.addEventListener('DOMContentLoaded',function(){
+  // Hide refresh buttons that need a backend
+  document.querySelectorAll('[onclick*="loadStatus"],[onclick*="refreshAllPRs"]').forEach(function(el){el.classList.add('static-hidden')});
+  // Hide refresh buttons next to cache status on nightly/pr-test
+  document.querySelectorAll('[onclick*="loadData(true)"]').forEach(function(el){el.classList.add('static-hidden')});
+  // Replace visitor count with dash
+  var vc=document.getElementById('visitor-count');if(vc)vc.textContent='-';
+});
+</script>
+</body>
+</html>

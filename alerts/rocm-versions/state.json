@@ -1,0 +1,21 @@
+{
+ "updated_at": "2026-11-02T16:16:58+00:00",
+ "versions": {
+  "10.1.0": {
+   "alerted_at": "2026-11-02T16:16:58+00:00",
+   "prs": {
+    "42699": "merged",
+    "44292": "merged",
+    "44534": "merged",
+    "44621": "merged",
+    "45269": "closed",
+    "45329": "merged",
+    "46741": "closed",
+    "46785": "merged",
+    "47362": "merged",
+    "47398": "open"
+   },
+   "verdict": "building"
+  }
+ }
+}

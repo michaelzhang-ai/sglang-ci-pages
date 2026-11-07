@@ -1,0 +1,855 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SGLang Info - SGLang Dashboard</title>
+
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+
+    <!-- Bootstrap Icons -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
+
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+
+    <!-- Flatpickr Date Picker -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr@4.6.13/dist/flatpickr.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr@4.6.13/dist/flatpickr.min.js"></script>
+
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="/sglang-ci/static/css/style.css">
+
+    
+<script>
+(function(){
+var B='/sglang-ci/';
+var _f=window.fetch;
+window.fetch=function(u,o){
+if(typeof u!=='string')return _f.apply(this,arguments);
+if(o&&o.method&&o.method.toUpperCase()==='POST')
+  return Promise.resolve(new Response(
+    JSON.stringify({error:'Not available in static mode',success:false}),
+    {status:405,headers:{'Content-Type':'application/json'}}));
+if(u.startsWith('/api/')){
+  var p=u.substring(1),q=p.indexOf('?');
+  if(q>=0){var sp=new URLSearchParams(p.substring(q));p=p.substring(0,q);
+    Array.from(sp.entries()).sort(function(a,b){return a[0].localeCompare(b[0])})
+    .forEach(function(e){p+='-'+e[0]+'-'+e[1];});}
+  p+='.json';
+  return _f.call(this,B+p,o);}
+return _f.apply(this,arguments);
+};
+})();
+</script>
+<style>
+.static-hidden{display:none!important}
+.static-banner{background:#e8f4fd;border-bottom:1px solid #bee5eb;padding:0.35rem 1rem;text-align:center;font-size:0.82rem;color:#0c5460}
+@media(max-width:768px){.static-banner{font-size:0.75rem;padding:0.3rem 0.5rem}}
+</style>
+</head>
+<body>
+    <!-- Navigation Bar -->
+    <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="/sglang-ci/summary/">
+                <i class="bi bi-graph-up"></i> SGLang Dashboard
+            </a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav me-auto">
+                    <li class="nav-item">
+                        <a class="nav-link " href="/sglang-ci/summary/">
+                            <i class="bi bi-grid-1x2"></i> Summary
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link " href="/sglang-ci/coverage/">
+                            <i class="bi bi-bar-chart-steps"></i> Coverage
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link " href="/sglang-ci/benchmark-dashboard/">
+                            <i class="bi bi-speedometer2"></i> Benchmarks
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link " href="/sglang-ci/nightly-ci/">
+                            <i class="bi bi-moon-stars"></i> Nightly CI
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link " href="/sglang-ci/day0/">
+                            <i class="bi bi-rocket-takeoff"></i> <span class="text-nowrap">Day-0</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link " href="/sglang-ci/docker-images/">
+                            <i class="bi bi-box-seam"></i> Docker Images
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link " href="/sglang-ci/aiter/">
+                            <i class="bi bi-cpu"></i> AITER
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link " href="/sglang-ci/rocm-versions/">
+                            <i class="bi bi-layers"></i> <span class="text-nowrap">ROCm</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link " href="/sglang-ci/miles/">
+                            <i class="bi bi-signpost-split"></i> MILES
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link " href="/sglang-ci/runner-health/">
+                            <i class="bi bi-heart-pulse"></i> Runner Health
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link " href="/sglang-ci/amd-pr-tracker/">
+                            <i class="bi bi-git"></i> AMD PRs
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link " href="/sglang-ci/amd-bot/">
+                            <i class="bi bi-robot"></i> AMD Bot
+                        </a>
+                    </li>
+                </ul>
+                <ul class="navbar-nav">
+                    
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle active" href="#" id="githubDropdown" role="button" data-bs-toggle="dropdown">
+                            <i class="bi bi-github"></i> GitHub
+                            <i class="bi bi-circle-fill d-none" id="github-status-dot" style="font-size:0.5rem;vertical-align:middle"></i>
+                        </a>
+                        <ul class="dropdown-menu dropdown-menu-end">
+                            <li><a class="dropdown-item " href="/sglang-ci/pr-test/">
+                                <i class="bi bi-check2-square"></i> PR Test (AMD)
+                            </a></li>
+                            
+                            <li><hr class="dropdown-divider"></li>
+                            <li><a class="dropdown-item active" href="/sglang-ci/sglang-info/">
+                                <i class="bi bi-info-circle"></i> SGLang Info
+                            </a></li>
+                            <li><a class="dropdown-item" href="https://github.com/sgl-project/sglang" target="_blank" rel="noopener">
+                                <i class="bi bi-git"></i> SGLang Repo
+                            </a></li>
+                            <li><hr class="dropdown-divider"></li>
+                            
+                            <li><a class="dropdown-item" href="https://grafana.aws-usea1-eks-pvt-prd.k8s.external.platform-stg.amd.com/d/ci-tenant-cluster-detail-read-only/ci-tenant-cluster-detail?orgId=1&amp;from=now-7d&amp;to=now&amp;timezone=browser&amp;var-datasource=amp-prometheus&amp;var-cluster=$__all&amp;var-tenant=sglang&amp;var-gpu_type=$__all" target="_blank" rel="noopener"
+                                   title="CI tenant cluster telemetry in Grafana (Okta sign-in required)">
+                                <i class="bi bi-activity"></i> Grafana
+                            </a></li>
+                            
+                            <li><a class="dropdown-item" href="https://www.githubstatus.com/" target="_blank" rel="noopener" id="github-status-link">
+                                <i class="bi bi-broadcast-pin"></i> GitHub Status
+                                <span class="d-block small text-muted" id="github-status-text">checking...</span>
+                            </a></li>
+                        </ul>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Internal-only banner: live dashboard link. Rendered only when
+         DASHBOARD_URL is configured, and stripped from the public GitHub Pages
+         static build so the internal address is never published. -->
+    
+
+    <!-- Main Content -->
+    <div class="static-banner"><i class="bi bi-clock-history"></i> This is a static snapshot. Data auto-updates every 20 minutes. Please reach out to CI dashboard owner Zhang, Michael, Chen, Bingxu or Tseng, YC for any question.</div>
+    <main class="container-fluid py-4">
+        <!-- Shared data-freshness stamp and time zone choice, in the same spot
+             on every page. Pages report the timestamp of the data they render
+             via setPageLastUpdated(); the rest fall back to the site-wide
+             refresh time from /api/build-info. -->
+        <div class="d-flex justify-content-end align-items-center gap-2 mb-2" id="page-updated-bar">
+            <small class="text-muted" id="page-updated-stamp" style="display:none">
+                <i class="bi bi-clock-history"></i> Last Updated: <span id="page-last-updated"></span>
+            </small>
+            <select class="form-select form-select-sm py-0" id="timeZoneSelect" style="width: auto;"
+                onchange="setDisplayTimeZone(this.value)" data-no-capture aria-label="Time zone"
+                title="Time zone for every time on the site. Remembered for your next visit.">
+                <option value="local">Local time</option>
+                <option value="beijing">Beijing time</option>
+                <option value="pt">Pacific time</option>
+                <option value="utc">UTC</option>
+            </select>
+        </div>
+        
+<div class="row mb-4">
+    <div class="col">
+        <h1 class="display-5 mb-1">
+            <i class="bi bi-info-circle"></i> SGLang Info
+        </h1>
+        <p class="text-muted mb-0">Overview of SGLang, CI infrastructure, and Docker images</p>
+    </div>
+</div>
+
+<!-- Docker Images Section -->
+<div class="row mb-4">
+    <div class="col-lg-6 mb-3 mb-lg-0">
+        <div class="card h-100 border-primary">
+            <div class="card-header bg-primary text-white py-2">
+                <h5 class="mb-0"><i class="bi bi-box-seam"></i> Stable Docker Image</h5>
+            </div>
+            <div class="card-body">
+                <p class="mb-2">Official SGLang release images for production use.</p>
+                <div class="d-flex align-items-center gap-2 mb-3">
+                    <code class="bg-light px-2 py-1 rounded flex-grow-1">lmsysorg/sglang</code>
+                    <a href="https://hub.docker.com/r/lmsysorg/sglang/tags" target="_blank" class="btn btn-sm btn-primary">
+                        <i class="bi bi-box-arrow-up-right"></i> Docker Hub
+                    </a>
+                </div>
+                <div class="text-muted small">
+                    <i class="bi bi-terminal"></i> <code>docker pull lmsysorg/sglang:latest</code><br>
+                    <span class="ms-3">CUDA 12 / CUDA 13 variants are <code>:dev-cu12</code> and <code>:dev-cu13</code>;
+                    the released version is on the
+                    <a href="https://github.com/sgl-project/sglang/releases" target="_blank">releases page</a>.</span>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-6">
+        <div class="card h-100 border-danger">
+            <div class="card-header bg-danger text-white py-2">
+                <h5 class="mb-0"><i class="bi bi-box-seam"></i> ROCm Nightly Image</h5>
+            </div>
+            <div class="card-body">
+                <p class="mb-2">AMD ROCm nightly builds for MI300X/MI325X/MI355X development — the same images AMD CI runs on.</p>
+                <div class="d-flex align-items-center gap-2 mb-3">
+                    <code class="bg-light px-2 py-1 rounded flex-grow-1">rocm/sgl-dev</code>
+                    <a href="https://hub.docker.com/r/rocm/sgl-dev/tags" target="_blank" class="btn btn-sm btn-danger">
+                        <i class="bi bi-box-arrow-up-right"></i> Docker Hub
+                    </a>
+                </div>
+                <div class="text-muted small">
+                    <strong>There is no <code>:latest</code> tag.</strong> Every build is dated:
+                    <code>&lt;version&gt;-&lt;rocm&gt;-&lt;gpu&gt;-&lt;YYYYMMDD&gt;</code>, eight a night —
+                    <code>rocm720</code> and <code>rocm724</code> &times; <code>mi30x</code> and
+                    <code>mi35x</code>, <code>rocm10</code> &times; <code>mi30x</code>,
+                    <code>mi35x</code> and <code>mi45x</code>, plus <code>rocm101</code> &times;
+                    <code>mi45x</code>.
+                    <div class="mt-1"><i class="bi bi-terminal"></i>
+                        e.g. <code>docker pull rocm/sgl-dev:v0.5.17-rocm724-mi35x-20260820</code></div>
+                    <div class="mt-1">Which of tonight's eight exist:
+                        <a href="/sglang-ci/docker-images/">Docker Images</a>.</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- SGLang Overview Section -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header bg-dark text-white py-2">
+                <h5 class="mb-0"><i class="bi bi-lightning-charge"></i> What is SGLang?</h5>
+            </div>
+            <div class="card-body">
+                <p>
+                    <a href="https://github.com/sgl-project/sglang" target="_blank" class="fw-bold text-decoration-none">SGLang</a>
+                    is a high-performance serving framework for large language models and multimodal models,
+                    from a single GPU up to large distributed clusters. It is hosted by
+                    <a href="https://lmsys.org/about/" target="_blank">LMSYS</a> and runs on more than 400,000 GPUs worldwide.
+                </p>
+                <p class="mb-3">
+                    Start with the <a href="https://docs.sglang.io/get_started/install.html" target="_blank">install guide</a>
+                    and the <a href="https://docs.sglang.io/platforms/amd_gpu.html" target="_blank">AMD GPU platform page</a>;
+                    for a worked introduction on AMD Instinct hardware see the
+                    <a href="https://rocm.blogs.amd.com/artificial-intelligence/sglang/README.html" target="_blank">ROCm blog post: SGLang on AMD Instinct GPUs</a>.
+                </p>
+                <h6 class="fw-bold">Key Capabilities</h6>
+                <div class="row">
+                    <div class="col-md-6">
+                        <ul class="mb-0">
+                            <li>RadixAttention prefix caching, zero-overhead CPU scheduler, continuous batching, chunked prefill</li>
+                            <li>Prefill-decode disaggregation and speculative decoding (MTP)</li>
+                            <li>Tensor, pipeline, expert and data parallelism; multi-LoRA batching</li>
+                        </ul>
+                    </div>
+                    <div class="col-md-6">
+                        <ul class="mb-0">
+                            <li>FP4/FP8/INT4/AWQ/GPTQ quantization; MXFP4 on MI355X</li>
+                            <li>LLMs, MoE, VLMs, embedding, reward and diffusion models</li>
+                            <li>NVIDIA GPUs, <strong>AMD Instinct (MI300X/MI325X/MI355X)</strong>, Intel Xeon, TPU, Ascend NPU</li>
+                        </ul>
+                    </div>
+                </div>
+                <p class="mb-0 mt-3 small text-muted">
+                    SGLang is also the rollout backend for RL post-training frameworks including
+                    <a href="https://github.com/radixark/miles" target="_blank">Miles</a>, slime, verl and AReaL —
+                    the Miles AMD nightlies have their own <a href="/sglang-ci/miles/">page here</a>.
+                </p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- SGLang CI Section -->
+<div class="row mb-4">
+    <div class="col-lg-6 mb-3 mb-lg-0">
+        <div class="card h-100">
+            <div class="card-header bg-secondary text-white py-2">
+                <h5 class="mb-0"><i class="bi bi-gear"></i> What is SGLang CI?</h5>
+            </div>
+            <div class="card-body">
+                <p>
+                    SGLang's upstream CI (<a href="https://github.com/sgl-project/sglang" target="_blank">sgl-project/sglang</a>)
+                    runs automated tests on every PR and nightly to validate correctness and performance across GPU platforms.
+                </p>
+                <h6 class="fw-bold">AMD CI Infrastructure</h6>
+                <table class="table table-sm table-bordered table-wrap mb-0">
+                    <tbody>
+                        <tr>
+                            <td class="fw-bold text-nowrap">Self-hosted runners</td>
+                            <td>
+                                <code>linux-mi300-{1,2,4,8}gpu-sglang</code> (MI300X/MI325X)<br>
+                                <code>linux-mi35x-gpu-{1,2,8}</code> (MI355X), plus
+                                <code>linux-mi35x-gpu-8.fabric</code> for the PR gate's 8-GPU disaggregation stage.<br>
+                                All are ephemeral ARC pods — see <a href="/sglang-ci/runner-health/">Runner Health</a>
+                                for the capacity split and queue. The exception is the MI355X disaggregation nightly's
+                                <code>linux-sglang-mi35x-di</code>, a login-node runner that allocates two or four MI355X nodes from Slurm.
+                            </td>
+                        </tr>
+                        <tr>
+                            <td class="fw-bold text-nowrap">ROCm tracks</td>
+                            <td>
+                                <code>pr-test-amd.yml</code> gates every AMD-touching PR on
+                                <strong>ROCm 10</strong>; its scheduled runs add ROCm 7.2.4 and 7.2.0.
+                                ROCm 7.0 was retired in
+                                <a href="https://github.com/sgl-project/sglang/pull/38632" target="_blank">sgl-project/sglang#38632</a>.
+                            </td>
+                        </tr>
+                        <tr>
+                            <td class="fw-bold text-nowrap">Execution</td>
+                            <td>
+                                Each job starts a container from that night's <code>rocm/sgl-dev</code> image
+                                (<code>scripts/ci/amd/amd_ci_start_container.sh --rocm-version &lt;flavor&gt;</code>),
+                                installs dependencies, then dispatches a suite with
+                                <code>run_suite.py --hw amd --suite &lt;suite&gt;</code>.
+                            </td>
+                        </tr>
+                        <tr>
+                            <td class="fw-bold text-nowrap">Test registration</td>
+                            <td>
+                                Tests live in <code>test/registered/amd/</code> and register via <code>register_amd_ci()</code>.
+                                What AMD runs against what NVIDIA runs is on the
+                                <a href="/sglang-ci/coverage/">Coverage</a> page.
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-6">
+        <div class="card h-100">
+            <div class="card-header bg-info text-white py-2">
+                <h5 class="mb-0"><i class="bi bi-moon-stars"></i> What is Nightly CI?</h5>
+            </div>
+            <div class="card-body">
+                <p>Nightly CI runs every night (not on every PR) to test things that are too expensive or slow for per-PR testing:</p>
+                <table class="table table-sm table-bordered table-wrap mb-2">
+                    <thead class="table-light">
+                        <tr><th>Type</th><th>What it tests</th><th>Example</th></tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td class="fw-bold">Accuracy</td>
+                            <td>Run models end-to-end, check output quality against benchmarks</td>
+                            <td><small>DeepSeek-V3.2, DeepSeek-V4 Pro, GLM-5.1, MiniMax-M3</small></td>
+                        </tr>
+                        <tr>
+                            <td class="fw-bold">Performance</td>
+                            <td>Measure throughput/latency, detect regressions</td>
+                            <td><small>DeepSeek-V3.2 MTP decode speed, GPT-OSS, Grok-2</small></td>
+                        </tr>
+                        <tr>
+                            <td class="fw-bold">Large models</td>
+                            <td>8-GPU models too big for per-PR runners</td>
+                            <td><small>Kimi-K2.6, Kimi-K3, Qwen3-235B</small></td>
+                        </tr>
+                        <tr>
+                            <td class="fw-bold">Quantization</td>
+                            <td>MXFP4 / FP8 / INT4 paths that only exist on some hardware</td>
+                            <td><small>DeepSeek-R1 MXFP4 on MI355X, Grok-1 INT4</small></td>
+                        </tr>
+                        <tr>
+                            <td class="fw-bold">Disaggregation</td>
+                            <td>Prefill/decode split across two MI355X nodes (1P1D) or four (2P1D), on ROCm 10</td>
+                            <td><small><code>nightly-amd-mi355x-disagg.yml</code></small></td>
+                        </tr>
+                    </tbody>
+                </table>
+                <div class="small text-muted">
+                    <strong>Workflow file:</strong> <code>nightly-test-amd.yml</code>, which runs every
+                    one of its jobs on ROCm 10 each night (16:00 UTC) and on that day's ROCm 7.2 image
+                    at 21:00 UTC &mdash; 7.2.4 on even dates, 7.2.0 on odd ones. A model registered for
+                    both GPU families therefore lands up to four nightly jobs a day.
+                    <a href="/sglang-ci/nightly-ci/">Nightly CI</a> shows how each of them did.
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- SGLang Cookbook Section -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header bg-success text-white py-2">
+                <h5 class="mb-0"><i class="bi bi-book"></i> Documentation &amp; Cookbook</h5>
+            </div>
+            <div class="card-body">
+                <p class="mb-2">
+                    <a href="https://docs.sglang.io" target="_blank" class="fw-bold text-decoration-none">docs.sglang.io</a>
+                    is the reference documentation — installation, server arguments, the OpenAI-compatible API, and a
+                    per-platform section that covers AMD Instinct.
+                </p>
+                <p class="mb-0">
+                    The <a href="https://cookbook.sglang.io" target="_blank" class="fw-bold text-decoration-none">SGLang Cookbook</a>
+                    is a community-maintained site with practical guides for deploying SGLang with various models on different hardware.
+                    Includes AMD-specific deployment guides.
+                </p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Quick Links -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header bg-warning text-dark py-2">
+                <h5 class="mb-0"><i class="bi bi-link-45deg"></i> Quick Links</h5>
+            </div>
+            <div class="card-body">
+                <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-2">
+                    <div class="col">
+                        <a href="https://github.com/sgl-project/sglang" target="_blank" class="btn btn-outline-dark w-100 text-start">
+                            <i class="bi bi-github"></i> SGLang (upstream)
+                        </a>
+                    </div>
+                    <div class="col">
+                        <a href="https://docs.sglang.io" target="_blank" class="btn btn-outline-success w-100 text-start">
+                            <i class="bi bi-journal-text"></i> SGLang Docs
+                        </a>
+                    </div>
+                    <div class="col">
+                        <a href="https://cookbook.sglang.io" target="_blank" class="btn btn-outline-success w-100 text-start">
+                            <i class="bi bi-book"></i> SGLang Cookbook
+                        </a>
+                    </div>
+                    <div class="col">
+                        <a href="https://docs.sglang.io/platforms/amd_gpu.html" target="_blank" class="btn btn-outline-danger w-100 text-start">
+                            <i class="bi bi-gpu-card"></i> AMD GPU Guide
+                        </a>
+                    </div>
+                    <div class="col">
+                        <a href="https://github.com/sgl-project/sglang/releases" target="_blank" class="btn btn-outline-dark w-100 text-start">
+                            <i class="bi bi-tag"></i> SGLang Releases
+                        </a>
+                    </div>
+                    <div class="col">
+                        <a href="https://rocm.blogs.amd.com/artificial-intelligence/sglang/README.html" target="_blank" class="btn btn-outline-danger w-100 text-start">
+                            <i class="bi bi-newspaper"></i> ROCm Blog Post
+                        </a>
+                    </div>
+                    <div class="col">
+                        <a href="https://hub.docker.com/r/lmsysorg/sglang/tags" target="_blank" class="btn btn-outline-primary w-100 text-start">
+                            <i class="bi bi-box-seam"></i> Stable Docker Images
+                        </a>
+                    </div>
+                    <div class="col">
+                        <a href="https://hub.docker.com/r/rocm/sgl-dev/tags" target="_blank" class="btn btn-outline-danger w-100 text-start">
+                            <i class="bi bi-box-seam"></i> ROCm Nightly Images
+                        </a>
+                    </div>
+                    <div class="col">
+                        <a href="https://www.githubstatus.com/" target="_blank" rel="noopener" class="btn btn-outline-secondary w-100 text-start">
+                            <i class="bi bi-broadcast-pin"></i> GitHub Status
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+    </main>
+
+    <!-- Footer -->
+    <footer class="bg-light text-center text-muted py-3 mt-5">
+        <div class="container">
+            <p class="mb-0">
+                SGLang Dashboard
+                <span class="ms-3"><a href="https://www.githubstatus.com/" target="_blank" rel="noopener" class="text-decoration-none"><i class="bi bi-broadcast-pin"></i> GitHub Status</a></span>
+                <span class="ms-3"><i class="bi bi-people-fill"></i> <span id="visitor-count">...</span> visitors</span>
+            </p>
+        </div>
+    </footer>
+
+    <script>
+        // Shared timestamp formatting and the "Last Updated" stamp. Defined
+        // before any page script runs so pages can use them as soon as their
+        // data lands.
+        (function () {
+            let pageReported = false;
+            let lastStamp = null;
+
+            // Times are shown in the zone picked in the select above every
+            // page: the viewer's own by default, or Beijing, Pacific or UTC,
+            // remembered across visits. The zone is always named, so a time
+            // copied into a chat still means the same thing to a reader
+            // elsewhere. Format every wall-clock time through these helpers
+            // (or zoneOptions) so it follows the choice.
+            const TIME_ZONE_KEY = 'display_time_zone';
+            const TIME_ZONES = {
+                local: undefined,
+                beijing: 'Asia/Shanghai',
+                pt: 'America/Los_Angeles',
+                utc: 'UTC',
+            };
+            let zoneChoice = 'local';
+            try {
+                const saved = localStorage.getItem(TIME_ZONE_KEY);
+                if (saved in TIME_ZONES) zoneChoice = saved;
+            } catch (e) { /* private mode */ }
+
+            window.getDisplayTimeZone = () => zoneChoice;
+            // The IANA zone to pass as `timeZone`, or undefined for the viewer's.
+            window.displayTimeZoneId = () => TIME_ZONES[zoneChoice];
+
+            // A page that can redraw its times in place registers here; one
+            // that doesn't is reloaded, so nothing is left in the old zone.
+            const zoneHandlers = [];
+            window.onTimeZoneChange = fn => { zoneHandlers.push(fn); };
+
+            window.setDisplayTimeZone = function (choice) {
+                if (!(choice in TIME_ZONES) || choice === zoneChoice) return;
+                zoneChoice = choice;
+                try { localStorage.setItem(TIME_ZONE_KEY, choice); } catch (e) { /* private mode */ }
+                const select = document.getElementById('timeZoneSelect');
+                if (select) select.value = choice;
+                if (!zoneHandlers.length) { location.reload(); return; }
+                if (lastStamp) render(lastStamp);
+                localizeClocks();
+                zoneHandlers.forEach(fn => fn(choice));
+            };
+
+            // `toLocaleString` options with the chosen zone applied and named.
+            window.zoneOptions = function (options) {
+                return { ...options, timeZone: TIME_ZONES[zoneChoice], timeZoneName: 'short' };
+            };
+
+            // Single definition of how an absolute moment is shown, so a new
+            // one can't be added without the zone. Values that aren't dates are
+            // passed through untouched.
+            window.formatTimestamp = function (value) {
+                const parsed = new Date(value);
+                return isNaN(parsed.getTime())
+                    ? String(value)
+                    : parsed.toLocaleString(undefined, window.zoneOptions({}));
+            };
+
+            // The compact form for table cells, e.g. "Oct 8, 14:02 PDT"; put
+            // formatTimestamp in the tooltip when the full one matters.
+            window.formatShortTime = function (value) {
+                const parsed = value ? new Date(value) : null;
+                if (!parsed || isNaN(parsed.getTime())) return '';
+                return parsed.toLocaleString(undefined, window.zoneOptions({
+                    month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', hourCycle: 'h23',
+                }));
+            };
+
+            // The calendar date of a moment in the chosen zone, in the viewer's
+            // locale (formatDate) or as YYYY-MM-DD (formatIsoDate). No zone
+            // name: it is a day, not a clock time. A bare "2026-11-03" is a
+            // day already and is not shifted.
+            const BARE_DATE = /^\d{4}-\d{2}-\d{2}$/;
+            function zonedDate(value, locale) {
+                if (!value) return '';
+                const parsed = new Date(BARE_DATE.test(value) ? `${value}T12:00:00Z` : value);
+                if (isNaN(parsed.getTime())) return String(value);
+                const timeZone = BARE_DATE.test(value) ? 'UTC' : TIME_ZONES[zoneChoice];
+                return parsed.toLocaleDateString(locale, { timeZone });
+            }
+            window.formatDate = value => zonedDate(value, undefined);
+            window.formatIsoDate = value => zonedDate(value, 'en-CA');
+
+            // A UTC clock time ("16:00") as the chosen zone reads it on `on`
+            // (default today, which decides DST): its clock, the zone's short
+            // name, and how many days it moved (-1, 0, +1).
+            window.zonedClock = function (hhmm, on) {
+                const [h, m] = String(hhmm).split(':').map(Number);
+                const ref = on ? new Date(on) : new Date();
+                const at = new Date(Date.UTC(ref.getUTCFullYear(), ref.getUTCMonth(), ref.getUTCDate(), h, m || 0));
+                const parts = {};
+                new Intl.DateTimeFormat('en-US', window.zoneOptions({
+                    year: 'numeric', month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit', hourCycle: 'h23',
+                })).formatToParts(at).forEach(p => { parts[p.type] = p.value; });
+                const zonedDay = Date.UTC(Number(parts.year), Number(parts.month) - 1, Number(parts.day));
+                const utcDay = Date.UTC(at.getUTCFullYear(), at.getUTCMonth(), at.getUTCDate());
+                return {
+                    clock: `${parts.hour}:${parts.minute}`,
+                    zone: parts.timeZoneName,
+                    dayShift: Math.round((zonedDay - utcDay) / 86400000),
+                };
+            };
+
+            // Cron summaries are written in UTC ("16:00 UTC daily", "01:00 &
+            // 13:00 UTC daily", "20:00 UTC Sat", "21:00 UTC odd days", joined
+            // with " + "). Each clock time is shown in the chosen zone. A time
+            // that lands on another date moves its weekdays with it; odd/even
+            // and every-N-days counts are UTC dates and can't move, so those
+            // keep the UTC schedule and give the zone's time beside it.
+            const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+            const WEEKDAY_LIST = /^ ((?:Sun|Mon|Tue|Wed|Thu|Fri|Sat)(?:, (?:Sun|Mon|Tue|Wed|Thu|Fri|Sat))*(?: & (?:Sun|Mon|Tue|Wed|Thu|Fri|Sat))?)$/;
+            window.localizeSchedule = function (text) {
+                if (!text || zoneChoice === 'utc') return text;
+                return String(text).split(' + ').map(segment => {
+                    const match = /^(\d{1,2}:\d{2}(?: & \d{1,2}:\d{2})*) UTC(.*)$/.exec(segment);
+                    if (!match) return segment;
+                    const clocks = match[1].split(' & ').map(c => window.zonedClock(c));
+                    const times = `${clocks.map(c => c.clock).join(' & ')} ${clocks[0].zone}`;
+                    const suffix = match[2];
+                    const shifts = new Set(clocks.map(c => c.dayShift));
+                    const shift = shifts.size === 1 ? [...shifts][0] : null;
+                    if (shift === 0 || suffix.trim() === 'daily') return times + suffix;
+                    if (shift !== null && WEEKDAY_LIST.test(suffix)) {
+                        return times + suffix.replace(/Sun|Mon|Tue|Wed|Thu|Fri|Sat/g,
+                            d => WEEKDAYS[(WEEKDAYS.indexOf(d) + shift + 7) % 7]);
+                    }
+                    const when = shift === 1 ? ' next day' : shift === -1 ? ' previous day' : '';
+                    return `${segment} (${times}${when})`;
+                }).join(' + ');
+            };
+
+            // Static markup names a time that recurs every day as
+            // <span data-utc-clock="16:00">16:00 UTC</span>; it is rewritten
+            // here, on load and on every change. (Prose that ties a time to
+            // UTC dates, like "even dates", should stay in UTC.)
+            function localizeClocks() {
+                document.querySelectorAll('[data-utc-clock]').forEach(el => {
+                    el.textContent = window.localizeSchedule(`${el.dataset.utcClock} UTC daily`).replace(/ daily$/, '');
+                });
+            }
+
+            function render(value) {
+                const bar = document.getElementById('page-updated-stamp');
+                const out = document.getElementById('page-last-updated');
+                if (!bar || !out || !value) return;
+                lastStamp = value;
+                out.textContent = window.formatTimestamp(value);
+                bar.style.display = '';
+            }
+
+            // "Local time" names the viewer's zone so it can be told apart
+            // from the others.
+            const select = document.getElementById('timeZoneSelect');
+            if (select) {
+                select.value = zoneChoice;
+                const local = new Intl.DateTimeFormat('en-US', { timeZoneName: 'short' })
+                    .formatToParts(new Date()).find(p => p.type === 'timeZoneName');
+                if (local) select.querySelector('option[value="local"]').textContent = `Local time (${local.value})`;
+            }
+            localizeClocks();
+
+            window.setPageLastUpdated = function (value) {
+                if (!value) return;
+                pageReported = true;
+                render(value);
+            };
+
+            fetch('/api/build-info')
+                .then(response => response.json())
+                .then(data => { if (!pageReported) render(data.generated_at); })
+                .catch(() => {});
+        })();
+
+        // Shared "Copy as image" button: a picture of part of a page, as it is
+        // shown now, for a chat or an email. Copied to the clipboard where the
+        // browser allows images there (a secure page and ClipboardItem),
+        // downloaded as a PNG otherwise. html2canvas (~45 KB) is loaded from the
+        // CDN on the first click, so a page pays nothing for it until then.
+        // Anything tagged data-no-capture (the button itself, selects, show/hide
+        // toggles) is left out of the image.
+        (function () {
+            let html2canvasLoad = null;
+            function loadHtml2canvas() {
+                if (window.html2canvas) return Promise.resolve(window.html2canvas);
+                if (!html2canvasLoad) {
+                    html2canvasLoad = new Promise((resolve, reject) => {
+                        const s = document.createElement('script');
+                        s.src = 'https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js';
+                        s.onload = () => resolve(window.html2canvas);
+                        s.onerror = () => { html2canvasLoad = null; reject(new Error('could not load html2canvas')); };
+                        document.head.appendChild(s);
+                    });
+                }
+                return html2canvasLoad;
+            }
+
+            function downloadBlob(blob, fileName) {
+                const a = document.createElement('a');
+                a.href = URL.createObjectURL(blob);
+                a.download = fileName;
+                document.body.appendChild(a);
+                a.click();
+                setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1000);
+            }
+
+            // `region` is one element, or [first, last] for everything from the
+            // top of `first` to the bottom of `last` -- for a section that is not
+            // one element, like a page header plus the cards below it. `name` is
+            // the file name, without .png, used when the image is downloaded.
+            // `ready`, if given, is a promise the picture waits for, so a page
+            // still loading its data is pictured once it has finished.
+            // The button's <span> (or the button) reports how it went.
+            window.copyScreenshot = function (btn, region, name, ready) {
+                const [first, last] = Array.isArray(region) ? region : [region, region];
+                const opts = {
+                    backgroundColor: '#ffffff',
+                    scale: Math.min(2, window.devicePixelRatio || 1),
+                    ignoreElements: el => el.hasAttribute && el.hasAttribute('data-no-capture'),
+                    windowWidth: document.documentElement.scrollWidth,
+                };
+                let target = first;
+                if (last !== first) {
+                    // Their common parent, cropped to the span between them.
+                    // The crop is measured on the copy html2canvas renders, not
+                    // at the click: anything that finishes loading in between
+                    // (the library itself is fetched on the first click) grows
+                    // the page, and a crop measured earlier cut off its bottom.
+                    // html2canvas measures the crop from the captured element's
+                    // own top, not the page's.
+                    while (!target.contains(last)) target = target.parentElement;
+                    opts.onclone = (doc, clonedTarget) => {
+                        const f = doc.querySelector('[data-shot-first]');
+                        const l = doc.querySelector('[data-shot-last]');
+                        const top = f.getBoundingClientRect().top;
+                        // `last` not rendered yet (page still loading): just `first`.
+                        opts.y = top - clonedTarget.getBoundingClientRect().top;
+                        opts.height = (l.getClientRects().length ? l : f).getBoundingClientRect().bottom - top;
+                    };
+                }
+
+                const label = btn.querySelector('span') || btn;
+                const idle = label.textContent;
+                btn.disabled = true;
+                label.textContent = 'Rendering…';
+
+                const png = Promise.all([loadHtml2canvas(), ready])
+                    .then(([h2c]) => {
+                        // The clone is taken when html2canvas starts, so the
+                        // markers only need to outlive that call.
+                        first.setAttribute('data-shot-first', '');
+                        last.setAttribute('data-shot-last', '');
+                        const shot = h2c(target, opts);
+                        first.removeAttribute('data-shot-first');
+                        last.removeAttribute('data-shot-last');
+                        return shot;
+                    })
+                    .then(canvas => new Promise((resolve, reject) =>
+                        canvas.toBlob(b => (b ? resolve(b) : reject(new Error('empty image'))), 'image/png')));
+                const download = () => png.then(blob => { downloadBlob(blob, `${name}.png`); return 'Downloaded PNG'; });
+                let done;
+                try {
+                    // The clipboard write starts now, inside the click, with the
+                    // image still rendering: a browser that only lets a page write
+                    // the clipboard straight after a click (Safari, and Chrome
+                    // once a render runs long) would refuse a write made later.
+                    if (!(window.isSecureContext && navigator.clipboard && window.ClipboardItem)) throw 0;
+                    done = navigator.clipboard.write([new ClipboardItem({'image/png': png})])
+                        .then(() => 'Copied image', download);
+                } catch (e) {
+                    done = download();
+                }
+                done.then(text => text, () => 'Image failed').then(text => {
+                    label.textContent = text;
+                    btn.disabled = false;
+                    setTimeout(() => { label.textContent = idle; }, 2500);
+                });
+            };
+        })();
+
+        // GitHub's own incident status, read straight from its public Statuspage
+        // in the browser: no backend involved, so the live server and the
+        // static snapshot both show a current value. The dot next to the
+        // GitHub menu is what makes an ongoing incident visible without
+        // opening the menu -- a GitHub outage is a common reason for the CI
+        // results on these pages to look broken.
+        (function () {
+            // Muted enough to sit on the navbar, bright enough to read on it.
+            const DOT_COLORS = {
+                none: '#5cd97b',
+                minor: '#ffd43b',
+                major: '#ff922b',
+                critical: '#ff6b6b',
+            };
+
+            const text = document.getElementById('github-status-text');
+            const dot = document.getElementById('github-status-dot');
+            const link = document.getElementById('github-status-link');
+
+            fetch('https://www.githubstatus.com/api/v2/status.json')
+                .then(response => response.ok ? response.json() : Promise.reject())
+                .then(data => {
+                    const status = data.status || {};
+                    const description = status.description || 'Status unknown';
+                    if (text) text.textContent = description;
+                    if (link) link.title = 'GitHub Status: ' + description;
+                    const color = DOT_COLORS[status.indicator];
+                    if (dot && color) {
+                        dot.style.color = color;
+                        dot.classList.remove('d-none');
+                    }
+                })
+                .catch(() => {
+                    // Ignore: the link itself still works, and a failed check
+                    // here says nothing about GitHub (it is just as likely to
+                    // be the viewer's network).
+                    if (text) text.textContent = 'check on githubstatus.com';
+                });
+        })();
+
+        // Load visitor count
+        fetch('/api/visitor-count')
+            .then(response => response.json())
+            .then(data => {
+                document.getElementById('visitor-count').textContent = data.count.toLocaleString();
+            })
+            .catch(() => {
+                document.getElementById('visitor-count').textContent = '-';
+            });
+    </script>
+
+    <!-- Bootstrap JS Bundle -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+    <!-- Custom JS -->
+    <script src="/sglang-ci/static/js/dashboard.js"></script>
+
+    
+<script>
+document.addEventListener('DOMContentLoaded',function(){
+  // Hide refresh buttons that need a backend
+  document.querySelectorAll('[onclick*="loadStatus"],[onclick*="refreshAllPRs"]').forEach(function(el){el.classList.add('static-hidden')});
+  // Hide refresh buttons next to cache status on nightly/pr-test
+  document.querySelectorAll('[onclick*="loadData(true)"]').forEach(function(el){el.classList.add('static-hidden')});
+  // Replace visitor count with dash
+  var vc=document.getElementById('visitor-count');if(vc)vc.textContent='-';
+});
+</script>
+</body>
+</html>

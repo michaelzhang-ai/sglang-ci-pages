@@ -1,0 +1,1517 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Summary - SGLang CI</title>
+
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+
+    <!-- Bootstrap Icons -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
+
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+
+    <!-- Flatpickr Date Picker -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr@4.6.13/dist/flatpickr.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr@4.6.13/dist/flatpickr.min.js"></script>
+
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="/sglang-ci/static/css/style.css">
+
+    
+<style>
+    .sum-card .card-header { display: flex; justify-content: space-between; align-items: center; gap: 0.5rem; }
+    .sum-card .card-body { font-size: 0.86rem; }
+    .sum-headline { font-size: 1.9rem; font-weight: 700; line-height: 1.1; }
+    .sum-sub { color: var(--bs-secondary-color); font-size: 0.8rem; }
+    .sum-row { display: flex; justify-content: space-between; align-items: baseline; gap: 0.75rem; padding: 0.18rem 0; border-bottom: 1px dashed var(--bs-border-color); }
+    .sum-row:last-child { border-bottom: 0; }
+    .sum-row > :first-child { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .sum-row > :last-child { white-space: nowrap; }
+    .sum-dots { display: inline-flex; gap: 2px; vertical-align: middle; }
+    .sum-dot { width: 9px; height: 9px; border-radius: 2px; display: inline-block; background: #ced4da; }
+    .sum-dot.good { background: #198754; }
+    .sum-dot.warn { background: #ffc107; }
+    .sum-dot.bad { background: #dc3545; }
+    .sum-dot.run { background: #0d6efd; }
+    .sum-status { font-size: 0.72rem; }
+    .sum-footer { font-size: 0.78rem; display: flex; justify-content: space-between; align-items: center; }
+    #sum-attention .alert { font-size: 0.84rem; }
+</style>
+
+<script>
+(function(){
+var B='/sglang-ci/';
+var _f=window.fetch;
+window.fetch=function(u,o){
+if(typeof u!=='string')return _f.apply(this,arguments);
+if(o&&o.method&&o.method.toUpperCase()==='POST')
+  return Promise.resolve(new Response(
+    JSON.stringify({error:'Not available in static mode',success:false}),
+    {status:405,headers:{'Content-Type':'application/json'}}));
+if(u.startsWith('/api/')){
+  var p=u.substring(1),q=p.indexOf('?');
+  if(q>=0){var sp=new URLSearchParams(p.substring(q));p=p.substring(0,q);
+    Array.from(sp.entries()).sort(function(a,b){return a[0].localeCompare(b[0])})
+    .forEach(function(e){p+='-'+e[0]+'-'+e[1];});}
+  p+='.json';
+  return _f.call(this,B+p,o);}
+return _f.apply(this,arguments);
+};
+})();
+</script>
+<style>
+.static-hidden{display:none!important}
+.static-banner{background:#e8f4fd;border-bottom:1px solid #bee5eb;padding:0.35rem 1rem;text-align:center;font-size:0.82rem;color:#0c5460}
+@media(max-width:768px){.static-banner{font-size:0.75rem;padding:0.3rem 0.5rem}}
+</style>
+</head>
+<body>
+    <!-- Navigation Bar -->
+    <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="/sglang-ci/summary/">
+                <i class="bi bi-graph-up"></i> SGLang Dashboard
+            </a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav me-auto">
+                    <li class="nav-item">
+                        <a class="nav-link active" href="/sglang-ci/summary/">
+                            <i class="bi bi-grid-1x2"></i> Summary
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link " href="/sglang-ci/coverage/">
+                            <i class="bi bi-bar-chart-steps"></i> Coverage
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link " href="/sglang-ci/benchmark-dashboard/">
+                            <i class="bi bi-speedometer2"></i> Benchmarks
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link " href="/sglang-ci/nightly-ci/">
+                            <i class="bi bi-moon-stars"></i> Nightly CI
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link " href="/sglang-ci/day0/">
+                            <i class="bi bi-rocket-takeoff"></i> <span class="text-nowrap">Day-0</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link " href="/sglang-ci/docker-images/">
+                            <i class="bi bi-box-seam"></i> Docker Images
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link " href="/sglang-ci/aiter/">
+                            <i class="bi bi-cpu"></i> AITER
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link " href="/sglang-ci/rocm-versions/">
+                            <i class="bi bi-layers"></i> <span class="text-nowrap">ROCm</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link " href="/sglang-ci/miles/">
+                            <i class="bi bi-signpost-split"></i> MILES
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link " href="/sglang-ci/runner-health/">
+                            <i class="bi bi-heart-pulse"></i> Runner Health
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link " href="/sglang-ci/amd-pr-tracker/">
+                            <i class="bi bi-git"></i> AMD PRs
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link " href="/sglang-ci/amd-bot/">
+                            <i class="bi bi-robot"></i> AMD Bot
+                        </a>
+                    </li>
+                </ul>
+                <ul class="navbar-nav">
+                    
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle " href="#" id="githubDropdown" role="button" data-bs-toggle="dropdown">
+                            <i class="bi bi-github"></i> GitHub
+                            <i class="bi bi-circle-fill d-none" id="github-status-dot" style="font-size:0.5rem;vertical-align:middle"></i>
+                        </a>
+                        <ul class="dropdown-menu dropdown-menu-end">
+                            <li><a class="dropdown-item " href="/sglang-ci/pr-test/">
+                                <i class="bi bi-check2-square"></i> PR Test (AMD)
+                            </a></li>
+                            
+                            <li><hr class="dropdown-divider"></li>
+                            <li><a class="dropdown-item " href="/sglang-ci/sglang-info/">
+                                <i class="bi bi-info-circle"></i> SGLang Info
+                            </a></li>
+                            <li><a class="dropdown-item" href="https://github.com/sgl-project/sglang" target="_blank" rel="noopener">
+                                <i class="bi bi-git"></i> SGLang Repo
+                            </a></li>
+                            <li><hr class="dropdown-divider"></li>
+                            
+                            <li><a class="dropdown-item" href="https://grafana.aws-usea1-eks-pvt-prd.k8s.external.platform-stg.amd.com/d/ci-tenant-cluster-detail-read-only/ci-tenant-cluster-detail?orgId=1&amp;from=now-7d&amp;to=now&amp;timezone=browser&amp;var-datasource=amp-prometheus&amp;var-cluster=$__all&amp;var-tenant=sglang&amp;var-gpu_type=$__all" target="_blank" rel="noopener"
+                                   title="CI tenant cluster telemetry in Grafana (Okta sign-in required)">
+                                <i class="bi bi-activity"></i> Grafana
+                            </a></li>
+                            
+                            <li><a class="dropdown-item" href="https://www.githubstatus.com/" target="_blank" rel="noopener" id="github-status-link">
+                                <i class="bi bi-broadcast-pin"></i> GitHub Status
+                                <span class="d-block small text-muted" id="github-status-text">checking...</span>
+                            </a></li>
+                        </ul>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Internal-only banner: live dashboard link. Rendered only when
+         DASHBOARD_URL is configured, and stripped from the public GitHub Pages
+         static build so the internal address is never published. -->
+    
+
+    <!-- Main Content -->
+    <div class="static-banner"><i class="bi bi-clock-history"></i> This is a static snapshot. Data auto-updates every 20 minutes. Please reach out to CI dashboard owner Zhang, Michael, Chen, Bingxu or Tseng, YC for any question.</div>
+    <main class="container-fluid py-4">
+        <!-- Shared data-freshness stamp and time zone choice, in the same spot
+             on every page. Pages report the timestamp of the data they render
+             via setPageLastUpdated(); the rest fall back to the site-wide
+             refresh time from /api/build-info. -->
+        <div class="d-flex justify-content-end align-items-center gap-2 mb-2" id="page-updated-bar">
+            <small class="text-muted" id="page-updated-stamp" style="display:none">
+                <i class="bi bi-clock-history"></i> Last Updated: <span id="page-last-updated"></span>
+            </small>
+            <select class="form-select form-select-sm py-0" id="timeZoneSelect" style="width: auto;"
+                onchange="setDisplayTimeZone(this.value)" data-no-capture aria-label="Time zone"
+                title="Time zone for every time on the site. Remembered for your next visit.">
+                <option value="local">Local time</option>
+                <option value="beijing">Beijing time</option>
+                <option value="pt">Pacific time</option>
+                <option value="utc">UTC</option>
+            </select>
+        </div>
+        
+<div class="row mb-3" id="sum-header">
+    <div class="col">
+        <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+            <div>
+                <h1 class="display-5 mb-1"><i class="bi bi-grid-1x2"></i> SGLang AMD CI Summary</h1>
+                <p class="text-muted mb-0">Coverage, nightly images, nightly CI, Day-0 models, AITER, ROCm, runners, benchmarks and MILES on one page &mdash; each card opens the full view</p>
+            </div>
+            <button class="btn btn-outline-secondary btn-sm" id="sum-shot" onclick="copySummaryImage()" data-no-capture
+                title="Copy a picture of this page to paste into a chat or email (downloads a PNG where the browser cannot copy images)">
+                <i class="bi bi-image"></i> <span>Copy as image</span></button>
+        </div>
+    </div>
+</div>
+
+<div id="sum-body">
+    
+    
+    <div class="row g-3" id="sum-cards">
+        
+        <div class="col-xl-4 col-md-6">
+            <div class="card sum-card h-100" id="sum-coverage" data-title="Coverage">
+                <div class="card-header py-2">
+                    <h6 class="mb-0"><a href="/sglang-ci/coverage/" class="text-reset text-decoration-none"><i class="bi bi-bar-chart-steps"></i> Coverage</a></h6>
+                    <span class="text-nowrap"><span class="badge sum-status bg-light text-muted border" id="sum-coverage-status">loading</span></span>
+                </div>
+                <div class="card-body py-2" id="sum-coverage-body">
+                    <div class="text-muted"><span class="spinner-border spinner-border-sm"></span> Loading&hellip;</div>
+                </div>
+                <div class="card-footer bg-transparent py-1 sum-footer">
+                    <span class="text-muted" id="sum-coverage-age"></span>
+                    <a href="/sglang-ci/coverage/" class="text-decoration-none sum-open">Open Coverage <i class="bi bi-arrow-right"></i></a>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-xl-4 col-md-6">
+            <div class="card sum-card h-100" id="sum-docker" data-title="Docker Images">
+                <div class="card-header py-2">
+                    <h6 class="mb-0"><a href="/sglang-ci/docker-images/" class="text-reset text-decoration-none"><i class="bi bi-box-seam"></i> Docker Images</a></h6>
+                    <span class="text-nowrap"><span class="badge sum-status bg-light text-muted border" id="sum-docker-status">loading</span></span>
+                </div>
+                <div class="card-body py-2" id="sum-docker-body">
+                    <div class="text-muted"><span class="spinner-border spinner-border-sm"></span> Loading&hellip;</div>
+                </div>
+                <div class="card-footer bg-transparent py-1 sum-footer">
+                    <span class="text-muted" id="sum-docker-age"></span>
+                    <a href="/sglang-ci/docker-images/" class="text-decoration-none sum-open">Open Docker Images <i class="bi bi-arrow-right"></i></a>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-xl-4 col-md-6">
+            <div class="card sum-card h-100" id="sum-nightly" data-title="Nightly CI">
+                <div class="card-header py-2">
+                    <h6 class="mb-0"><a href="/sglang-ci/nightly-ci/" class="text-reset text-decoration-none"><i class="bi bi-moon-stars"></i> Nightly CI</a></h6>
+                    <span class="text-nowrap"><span class="badge sum-status bg-light text-muted border" id="sum-nightly-status">loading</span></span>
+                </div>
+                <div class="card-body py-2" id="sum-nightly-body">
+                    <div class="text-muted"><span class="spinner-border spinner-border-sm"></span> Loading&hellip;</div>
+                </div>
+                <div class="card-footer bg-transparent py-1 sum-footer">
+                    <span class="text-muted" id="sum-nightly-age"></span>
+                    <a href="/sglang-ci/nightly-ci/" class="text-decoration-none sum-open">Open Nightly CI <i class="bi bi-arrow-right"></i></a>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-xl-4 col-md-6">
+            <div class="card sum-card h-100" id="sum-day0" data-title="Day-0">
+                <div class="card-header py-2">
+                    <h6 class="mb-0"><a href="/sglang-ci/day0/" class="text-reset text-decoration-none"><i class="bi bi-rocket-takeoff"></i> Day-0</a></h6>
+                    <span class="text-nowrap"><span class="badge sum-status bg-light text-muted border" id="sum-day0-status">loading</span></span>
+                </div>
+                <div class="card-body py-2" id="sum-day0-body">
+                    <div class="text-muted"><span class="spinner-border spinner-border-sm"></span> Loading&hellip;</div>
+                </div>
+                <div class="card-footer bg-transparent py-1 sum-footer">
+                    <span class="text-muted" id="sum-day0-age"></span>
+                    <a href="/sglang-ci/day0/" class="text-decoration-none sum-open">Open Day-0 <i class="bi bi-arrow-right"></i></a>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-xl-4 col-md-6">
+            <div class="card sum-card h-100" id="sum-aiter" data-title="AITER">
+                <div class="card-header py-2">
+                    <h6 class="mb-0"><a href="/sglang-ci/aiter/" class="text-reset text-decoration-none"><i class="bi bi-cpu"></i> AITER</a></h6>
+                    <span class="text-nowrap"><span class="badge sum-status bg-light text-muted border" id="sum-aiter-status">loading</span></span>
+                </div>
+                <div class="card-body py-2" id="sum-aiter-body">
+                    <div class="text-muted"><span class="spinner-border spinner-border-sm"></span> Loading&hellip;</div>
+                </div>
+                <div class="card-footer bg-transparent py-1 sum-footer">
+                    <span class="text-muted" id="sum-aiter-age"></span>
+                    <a href="/sglang-ci/aiter/" class="text-decoration-none sum-open">Open AITER <i class="bi bi-arrow-right"></i></a>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-xl-4 col-md-6">
+            <div class="card sum-card h-100" id="sum-runners" data-title="Runner Health">
+                <div class="card-header py-2">
+                    <h6 class="mb-0"><a href="/sglang-ci/runner-health/" class="text-reset text-decoration-none"><i class="bi bi-hdd-rack"></i> Runner Health</a></h6>
+                    <span class="text-nowrap"><span class="badge sum-status bg-light text-muted border" id="sum-runners-status">loading</span></span>
+                </div>
+                <div class="card-body py-2" id="sum-runners-body">
+                    <div class="text-muted"><span class="spinner-border spinner-border-sm"></span> Loading&hellip;</div>
+                </div>
+                <div class="card-footer bg-transparent py-1 sum-footer">
+                    <span class="text-muted" id="sum-runners-age"></span>
+                    <a href="/sglang-ci/runner-health/" class="text-decoration-none sum-open">Open Runner Health <i class="bi bi-arrow-right"></i></a>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-xl-4 col-md-6">
+            <div class="card sum-card h-100" id="sum-benchmark" data-title="Benchmarks">
+                <div class="card-header py-2">
+                    <h6 class="mb-0"><a href="/sglang-ci/benchmark-dashboard/" class="text-reset text-decoration-none"><i class="bi bi-speedometer2"></i> Benchmarks</a></h6>
+                    <span class="text-nowrap"><span class="badge sum-status bg-light text-muted border" id="sum-benchmark-status">loading</span></span>
+                </div>
+                <div class="card-body py-2" id="sum-benchmark-body">
+                    <div class="text-muted"><span class="spinner-border spinner-border-sm"></span> Loading&hellip;</div>
+                </div>
+                <div class="card-footer bg-transparent py-1 sum-footer">
+                    <span class="text-muted" id="sum-benchmark-age"></span>
+                    <a href="/sglang-ci/benchmark-dashboard/" class="text-decoration-none sum-open">Open Benchmarks <i class="bi bi-arrow-right"></i></a>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-xl-4 col-md-6">
+            <div class="card sum-card h-100" id="sum-miles" data-title="MILES">
+                <div class="card-header py-2">
+                    <h6 class="mb-0"><a href="/sglang-ci/miles/" class="text-reset text-decoration-none"><i class="bi bi-signpost-split"></i> MILES</a></h6>
+                    <span class="text-nowrap"><span class="badge sum-status bg-light text-muted border" id="sum-miles-status">loading</span></span>
+                </div>
+                <div class="card-body py-2" id="sum-miles-body">
+                    <div class="text-muted"><span class="spinner-border spinner-border-sm"></span> Loading&hellip;</div>
+                </div>
+                <div class="card-footer bg-transparent py-1 sum-footer">
+                    <span class="text-muted" id="sum-miles-age"></span>
+                    <a href="/sglang-ci/miles/" class="text-decoration-none sum-open">Open MILES <i class="bi bi-arrow-right"></i></a>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-xl-4 col-md-6">
+            <div class="card sum-card h-100" id="sum-amdbot" data-title="AMD Bot">
+                <div class="card-header py-2">
+                    <h6 class="mb-0"><a href="/sglang-ci/amd-bot/" class="text-reset text-decoration-none"><i class="bi bi-robot"></i> AMD Bot</a></h6>
+                    <span class="text-nowrap"><span class="badge sum-status bg-light text-muted border" id="sum-amdbot-status">loading</span></span>
+                </div>
+                <div class="card-body py-2" id="sum-amdbot-body">
+                    <div class="text-muted"><span class="spinner-border spinner-border-sm"></span> Loading&hellip;</div>
+                </div>
+                <div class="card-footer bg-transparent py-1 sum-footer">
+                    <span class="text-muted" id="sum-amdbot-age"></span>
+                    <a href="/sglang-ci/amd-bot/" class="text-decoration-none sum-open">Open AMD Bot <i class="bi bi-arrow-right"></i></a>
+                </div>
+            </div>
+        </div>
+        
+    </div>
+
+    <div class="card mt-3" id="sum-attention-card">
+        <div class="card-header bg-dark text-white py-2 d-flex justify-content-between align-items-center">
+            <h6 class="mb-0"><i class="bi bi-flag"></i> Needs attention</h6>
+            <span class="small" id="sum-attention-count"></span>
+        </div>
+        <div class="card-body py-2" id="sum-attention">
+            <span class="text-muted small"><span class="spinner-border spinner-border-sm"></span> Loading&hellip;</span>
+        </div>
+    </div>
+</div>
+
+    </main>
+
+    <!-- Footer -->
+    <footer class="bg-light text-center text-muted py-3 mt-5">
+        <div class="container">
+            <p class="mb-0">
+                SGLang Dashboard
+                <span class="ms-3"><a href="https://www.githubstatus.com/" target="_blank" rel="noopener" class="text-decoration-none"><i class="bi bi-broadcast-pin"></i> GitHub Status</a></span>
+                <span class="ms-3"><i class="bi bi-people-fill"></i> <span id="visitor-count">...</span> visitors</span>
+            </p>
+        </div>
+    </footer>
+
+    <script>
+        // Shared timestamp formatting and the "Last Updated" stamp. Defined
+        // before any page script runs so pages can use them as soon as their
+        // data lands.
+        (function () {
+            let pageReported = false;
+            let lastStamp = null;
+
+            // Times are shown in the zone picked in the select above every
+            // page: the viewer's own by default, or Beijing, Pacific or UTC,
+            // remembered across visits. The zone is always named, so a time
+            // copied into a chat still means the same thing to a reader
+            // elsewhere. Format every wall-clock time through these helpers
+            // (or zoneOptions) so it follows the choice.
+            const TIME_ZONE_KEY = 'display_time_zone';
+            const TIME_ZONES = {
+                local: undefined,
+                beijing: 'Asia/Shanghai',
+                pt: 'America/Los_Angeles',
+                utc: 'UTC',
+            };
+            let zoneChoice = 'local';
+            try {
+                const saved = localStorage.getItem(TIME_ZONE_KEY);
+                if (saved in TIME_ZONES) zoneChoice = saved;
+            } catch (e) { /* private mode */ }
+
+            window.getDisplayTimeZone = () => zoneChoice;
+            // The IANA zone to pass as `timeZone`, or undefined for the viewer's.
+            window.displayTimeZoneId = () => TIME_ZONES[zoneChoice];
+
+            // A page that can redraw its times in place registers here; one
+            // that doesn't is reloaded, so nothing is left in the old zone.
+            const zoneHandlers = [];
+            window.onTimeZoneChange = fn => { zoneHandlers.push(fn); };
+
+            window.setDisplayTimeZone = function (choice) {
+                if (!(choice in TIME_ZONES) || choice === zoneChoice) return;
+                zoneChoice = choice;
+                try { localStorage.setItem(TIME_ZONE_KEY, choice); } catch (e) { /* private mode */ }
+                const select = document.getElementById('timeZoneSelect');
+                if (select) select.value = choice;
+                if (!zoneHandlers.length) { location.reload(); return; }
+                if (lastStamp) render(lastStamp);
+                localizeClocks();
+                zoneHandlers.forEach(fn => fn(choice));
+            };
+
+            // `toLocaleString` options with the chosen zone applied and named.
+            window.zoneOptions = function (options) {
+                return { ...options, timeZone: TIME_ZONES[zoneChoice], timeZoneName: 'short' };
+            };
+
+            // Single definition of how an absolute moment is shown, so a new
+            // one can't be added without the zone. Values that aren't dates are
+            // passed through untouched.
+            window.formatTimestamp = function (value) {
+                const parsed = new Date(value);
+                return isNaN(parsed.getTime())
+                    ? String(value)
+                    : parsed.toLocaleString(undefined, window.zoneOptions({}));
+            };
+
+            // The compact form for table cells, e.g. "Oct 8, 14:02 PDT"; put
+            // formatTimestamp in the tooltip when the full one matters.
+            window.formatShortTime = function (value) {
+                const parsed = value ? new Date(value) : null;
+                if (!parsed || isNaN(parsed.getTime())) return '';
+                return parsed.toLocaleString(undefined, window.zoneOptions({
+                    month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', hourCycle: 'h23',
+                }));
+            };
+
+            // The calendar date of a moment in the chosen zone, in the viewer's
+            // locale (formatDate) or as YYYY-MM-DD (formatIsoDate). No zone
+            // name: it is a day, not a clock time. A bare "2026-11-03" is a
+            // day already and is not shifted.
+            const BARE_DATE = /^\d{4}-\d{2}-\d{2}$/;
+            function zonedDate(value, locale) {
+                if (!value) return '';
+                const parsed = new Date(BARE_DATE.test(value) ? `${value}T12:00:00Z` : value);
+                if (isNaN(parsed.getTime())) return String(value);
+                const timeZone = BARE_DATE.test(value) ? 'UTC' : TIME_ZONES[zoneChoice];
+                return parsed.toLocaleDateString(locale, { timeZone });
+            }
+            window.formatDate = value => zonedDate(value, undefined);
+            window.formatIsoDate = value => zonedDate(value, 'en-CA');
+
+            // A UTC clock time ("16:00") as the chosen zone reads it on `on`
+            // (default today, which decides DST): its clock, the zone's short
+            // name, and how many days it moved (-1, 0, +1).
+            window.zonedClock = function (hhmm, on) {
+                const [h, m] = String(hhmm).split(':').map(Number);
+                const ref = on ? new Date(on) : new Date();
+                const at = new Date(Date.UTC(ref.getUTCFullYear(), ref.getUTCMonth(), ref.getUTCDate(), h, m || 0));
+                const parts = {};
+                new Intl.DateTimeFormat('en-US', window.zoneOptions({
+                    year: 'numeric', month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit', hourCycle: 'h23',
+                })).formatToParts(at).forEach(p => { parts[p.type] = p.value; });
+                const zonedDay = Date.UTC(Number(parts.year), Number(parts.month) - 1, Number(parts.day));
+                const utcDay = Date.UTC(at.getUTCFullYear(), at.getUTCMonth(), at.getUTCDate());
+                return {
+                    clock: `${parts.hour}:${parts.minute}`,
+                    zone: parts.timeZoneName,
+                    dayShift: Math.round((zonedDay - utcDay) / 86400000),
+                };
+            };
+
+            // Cron summaries are written in UTC ("16:00 UTC daily", "01:00 &
+            // 13:00 UTC daily", "20:00 UTC Sat", "21:00 UTC odd days", joined
+            // with " + "). Each clock time is shown in the chosen zone. A time
+            // that lands on another date moves its weekdays with it; odd/even
+            // and every-N-days counts are UTC dates and can't move, so those
+            // keep the UTC schedule and give the zone's time beside it.
+            const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+            const WEEKDAY_LIST = /^ ((?:Sun|Mon|Tue|Wed|Thu|Fri|Sat)(?:, (?:Sun|Mon|Tue|Wed|Thu|Fri|Sat))*(?: & (?:Sun|Mon|Tue|Wed|Thu|Fri|Sat))?)$/;
+            window.localizeSchedule = function (text) {
+                if (!text || zoneChoice === 'utc') return text;
+                return String(text).split(' + ').map(segment => {
+                    const match = /^(\d{1,2}:\d{2}(?: & \d{1,2}:\d{2})*) UTC(.*)$/.exec(segment);
+                    if (!match) return segment;
+                    const clocks = match[1].split(' & ').map(c => window.zonedClock(c));
+                    const times = `${clocks.map(c => c.clock).join(' & ')} ${clocks[0].zone}`;
+                    const suffix = match[2];
+                    const shifts = new Set(clocks.map(c => c.dayShift));
+                    const shift = shifts.size === 1 ? [...shifts][0] : null;
+                    if (shift === 0 || suffix.trim() === 'daily') return times + suffix;
+                    if (shift !== null && WEEKDAY_LIST.test(suffix)) {
+                        return times + suffix.replace(/Sun|Mon|Tue|Wed|Thu|Fri|Sat/g,
+                            d => WEEKDAYS[(WEEKDAYS.indexOf(d) + shift + 7) % 7]);
+                    }
+                    const when = shift === 1 ? ' next day' : shift === -1 ? ' previous day' : '';
+                    return `${segment} (${times}${when})`;
+                }).join(' + ');
+            };
+
+            // Static markup names a time that recurs every day as
+            // <span data-utc-clock="16:00">16:00 UTC</span>; it is rewritten
+            // here, on load and on every change. (Prose that ties a time to
+            // UTC dates, like "even dates", should stay in UTC.)
+            function localizeClocks() {
+                document.querySelectorAll('[data-utc-clock]').forEach(el => {
+                    el.textContent = window.localizeSchedule(`${el.dataset.utcClock} UTC daily`).replace(/ daily$/, '');
+                });
+            }
+
+            function render(value) {
+                const bar = document.getElementById('page-updated-stamp');
+                const out = document.getElementById('page-last-updated');
+                if (!bar || !out || !value) return;
+                lastStamp = value;
+                out.textContent = window.formatTimestamp(value);
+                bar.style.display = '';
+            }
+
+            // "Local time" names the viewer's zone so it can be told apart
+            // from the others.
+            const select = document.getElementById('timeZoneSelect');
+            if (select) {
+                select.value = zoneChoice;
+                const local = new Intl.DateTimeFormat('en-US', { timeZoneName: 'short' })
+                    .formatToParts(new Date()).find(p => p.type === 'timeZoneName');
+                if (local) select.querySelector('option[value="local"]').textContent = `Local time (${local.value})`;
+            }
+            localizeClocks();
+
+            window.setPageLastUpdated = function (value) {
+                if (!value) return;
+                pageReported = true;
+                render(value);
+            };
+
+            fetch('/api/build-info')
+                .then(response => response.json())
+                .then(data => { if (!pageReported) render(data.generated_at); })
+                .catch(() => {});
+        })();
+
+        // Shared "Copy as image" button: a picture of part of a page, as it is
+        // shown now, for a chat or an email. Copied to the clipboard where the
+        // browser allows images there (a secure page and ClipboardItem),
+        // downloaded as a PNG otherwise. html2canvas (~45 KB) is loaded from the
+        // CDN on the first click, so a page pays nothing for it until then.
+        // Anything tagged data-no-capture (the button itself, selects, show/hide
+        // toggles) is left out of the image.
+        (function () {
+            let html2canvasLoad = null;
+            function loadHtml2canvas() {
+                if (window.html2canvas) return Promise.resolve(window.html2canvas);
+                if (!html2canvasLoad) {
+                    html2canvasLoad = new Promise((resolve, reject) => {
+                        const s = document.createElement('script');
+                        s.src = 'https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js';
+                        s.onload = () => resolve(window.html2canvas);
+                        s.onerror = () => { html2canvasLoad = null; reject(new Error('could not load html2canvas')); };
+                        document.head.appendChild(s);
+                    });
+                }
+                return html2canvasLoad;
+            }
+
+            function downloadBlob(blob, fileName) {
+                const a = document.createElement('a');
+                a.href = URL.createObjectURL(blob);
+                a.download = fileName;
+                document.body.appendChild(a);
+                a.click();
+                setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1000);
+            }
+
+            // `region` is one element, or [first, last] for everything from the
+            // top of `first` to the bottom of `last` -- for a section that is not
+            // one element, like a page header plus the cards below it. `name` is
+            // the file name, without .png, used when the image is downloaded.
+            // `ready`, if given, is a promise the picture waits for, so a page
+            // still loading its data is pictured once it has finished.
+            // The button's <span> (or the button) reports how it went.
+            window.copyScreenshot = function (btn, region, name, ready) {
+                const [first, last] = Array.isArray(region) ? region : [region, region];
+                const opts = {
+                    backgroundColor: '#ffffff',
+                    scale: Math.min(2, window.devicePixelRatio || 1),
+                    ignoreElements: el => el.hasAttribute && el.hasAttribute('data-no-capture'),
+                    windowWidth: document.documentElement.scrollWidth,
+                };
+                let target = first;
+                if (last !== first) {
+                    // Their common parent, cropped to the span between them.
+                    // The crop is measured on the copy html2canvas renders, not
+                    // at the click: anything that finishes loading in between
+                    // (the library itself is fetched on the first click) grows
+                    // the page, and a crop measured earlier cut off its bottom.
+                    // html2canvas measures the crop from the captured element's
+                    // own top, not the page's.
+                    while (!target.contains(last)) target = target.parentElement;
+                    opts.onclone = (doc, clonedTarget) => {
+                        const f = doc.querySelector('[data-shot-first]');
+                        const l = doc.querySelector('[data-shot-last]');
+                        const top = f.getBoundingClientRect().top;
+                        // `last` not rendered yet (page still loading): just `first`.
+                        opts.y = top - clonedTarget.getBoundingClientRect().top;
+                        opts.height = (l.getClientRects().length ? l : f).getBoundingClientRect().bottom - top;
+                    };
+                }
+
+                const label = btn.querySelector('span') || btn;
+                const idle = label.textContent;
+                btn.disabled = true;
+                label.textContent = 'Rendering…';
+
+                const png = Promise.all([loadHtml2canvas(), ready])
+                    .then(([h2c]) => {
+                        // The clone is taken when html2canvas starts, so the
+                        // markers only need to outlive that call.
+                        first.setAttribute('data-shot-first', '');
+                        last.setAttribute('data-shot-last', '');
+                        const shot = h2c(target, opts);
+                        first.removeAttribute('data-shot-first');
+                        last.removeAttribute('data-shot-last');
+                        return shot;
+                    })
+                    .then(canvas => new Promise((resolve, reject) =>
+                        canvas.toBlob(b => (b ? resolve(b) : reject(new Error('empty image'))), 'image/png')));
+                const download = () => png.then(blob => { downloadBlob(blob, `${name}.png`); return 'Downloaded PNG'; });
+                let done;
+                try {
+                    // The clipboard write starts now, inside the click, with the
+                    // image still rendering: a browser that only lets a page write
+                    // the clipboard straight after a click (Safari, and Chrome
+                    // once a render runs long) would refuse a write made later.
+                    if (!(window.isSecureContext && navigator.clipboard && window.ClipboardItem)) throw 0;
+                    done = navigator.clipboard.write([new ClipboardItem({'image/png': png})])
+                        .then(() => 'Copied image', download);
+                } catch (e) {
+                    done = download();
+                }
+                done.then(text => text, () => 'Image failed').then(text => {
+                    label.textContent = text;
+                    btn.disabled = false;
+                    setTimeout(() => { label.textContent = idle; }, 2500);
+                });
+            };
+        })();
+
+        // GitHub's own incident status, read straight from its public Statuspage
+        // in the browser: no backend involved, so the live server and the
+        // static snapshot both show a current value. The dot next to the
+        // GitHub menu is what makes an ongoing incident visible without
+        // opening the menu -- a GitHub outage is a common reason for the CI
+        // results on these pages to look broken.
+        (function () {
+            // Muted enough to sit on the navbar, bright enough to read on it.
+            const DOT_COLORS = {
+                none: '#5cd97b',
+                minor: '#ffd43b',
+                major: '#ff922b',
+                critical: '#ff6b6b',
+            };
+
+            const text = document.getElementById('github-status-text');
+            const dot = document.getElementById('github-status-dot');
+            const link = document.getElementById('github-status-link');
+
+            fetch('https://www.githubstatus.com/api/v2/status.json')
+                .then(response => response.ok ? response.json() : Promise.reject())
+                .then(data => {
+                    const status = data.status || {};
+                    const description = status.description || 'Status unknown';
+                    if (text) text.textContent = description;
+                    if (link) link.title = 'GitHub Status: ' + description;
+                    const color = DOT_COLORS[status.indicator];
+                    if (dot && color) {
+                        dot.style.color = color;
+                        dot.classList.remove('d-none');
+                    }
+                })
+                .catch(() => {
+                    // Ignore: the link itself still works, and a failed check
+                    // here says nothing about GitHub (it is just as likely to
+                    // be the viewer's network).
+                    if (text) text.textContent = 'check on githubstatus.com';
+                });
+        })();
+
+        // Load visitor count
+        fetch('/api/visitor-count')
+            .then(response => response.json())
+            .then(data => {
+                document.getElementById('visitor-count').textContent = data.count.toLocaleString();
+            })
+            .catch(() => {
+                document.getElementById('visitor-count').textContent = '-';
+            });
+    </script>
+
+    <!-- Bootstrap JS Bundle -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+    <!-- Custom JS -->
+    <script src="/sglang-ci/static/js/dashboard.js"></script>
+
+    
+<script>
+    // One card per dashboard page, each built from the JSON that page already
+    // loads, so the summary needs no data of its own: the static site serves it
+    // from the snapshots the hourly refresh publishes, and a live server answers
+    // it from the same endpoints. A card whose data fails to load says so and
+    // leaves the others alone.
+    const SECTIONS = [
+        { key: 'coverage', urls: ['/api/coverage/overview'], render: renderCoverage },
+        // ROCm rides on the Docker Images card as one line: which ROCm the
+        // images CI builds carry, and how far behind the newest release.
+        { key: 'docker', urls: ['/api/docker-images/status?days=14&source=dockerhub'], optional: ['/api/rocm-versions/status'], render: renderDocker },
+        { key: 'nightly', urls: ['/api/nightly-ci/status?days=7'], render: renderNightly },
+        { key: 'day0', urls: ['/api/day0/status'], render: renderDay0 },
+        { key: 'aiter', urls: ['/api/aiter/status', '/api/aiter/sglang-ci'], render: renderAiter },
+        { key: 'runners', urls: ['/api/runner-health/status'], render: renderRunners },
+        // A week rather than the page's two-day refresh window, so a GPU that
+        // stopped reporting numbers still shows up, as stale, instead of vanishing.
+        { key: 'benchmark', urls: ['/api/benchmark/perf-data?days=7'], render: renderBenchmark },
+        { key: 'miles', urls: ['/api/miles/status?days=7'], optional: ['/api/miles/test-coverage'], render: renderMiles },
+        { key: 'amdbot', urls: ['/api/amd-bot/status'], render: renderAmdBot },
+    ];
+
+    // Same order and thresholds as the Nightly CI page.
+    const WF_ORDER = ['pr_amd_rocm10', 'pr_amd_rocm72', 'amd', 'mi355x_disagg', 'aiter_scout'];
+    function passRateLevel(rate) {
+        return rate > 90 ? 'good' : rate >= 70 ? 'warn' : 'bad';
+    }
+
+    const LEVEL_BADGE = {
+        good: ['bg-success', 'OK'],
+        warn: ['bg-warning text-dark', 'Check'],
+        bad: ['bg-danger', 'Failing'],
+        running: ['bg-primary', 'Running'],
+        unknown: ['bg-secondary', 'No data'],
+    };
+    const LEVEL_RANK = { unknown: 0, good: 1, running: 1.5, warn: 2, bad: 3 };
+
+    // While today's run is in progress the card shows blue, unless the last
+    // finished run was green: then that green result stands until today's
+    // finishes, rather than a working state hiding a good one.
+    function whileRunning(level, running) {
+        return running && level !== 'good' ? 'running' : level;
+    }
+    const SEVERITY_RANK = { error: 3, warning: 2, info: 1 };
+
+    const attention = {};   // section key -> [{severity, message, url}]
+    let pending = SECTIONS.length;
+    let allLoaded;
+    const loaded = new Promise(resolve => { allLoaded = resolve; });
+
+    document.addEventListener('DOMContentLoaded', () => {
+        SECTIONS.forEach(s => {
+            const card = document.getElementById(`sum-${s.key}`);
+            s.title = card.dataset.title;
+            s.href = card.querySelector('.sum-open').getAttribute('href');
+            loadSection(s);
+        });
+    });
+
+    // Waits for every card, so a click made while the page is still loading
+    // pictures the finished page rather than spinners and a partial
+    // "Needs attention" list.
+    function copySummaryImage() {
+        copyScreenshot(
+            document.getElementById('sum-shot'),
+            [document.getElementById('sum-header'), document.getElementById('sum-body')],
+            `sglang-ci-summary-${new Date().toISOString().slice(0, 10)}`,
+            loaded,
+        );
+    }
+
+    // ---- helpers -----------------------------------------------------------
+
+    function escapeHtml(value) {
+        return String(value == null ? '' : value).replace(/[&<>"']/g, c =>
+            ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+    }
+
+    function link(url, html, cls) {
+        if (!/^https:\/\//.test(url || '')) return html;
+        return `<a href="${escapeHtml(url)}" target="_blank" rel="noopener" class="${cls || 'text-decoration-none'}">${html}</a>`;
+    }
+
+    function row(label, value, title) {
+        const t = title ? ` title="${escapeHtml(title)}"` : '';
+        return `<div class="sum-row"${t}><span>${label}</span><span>${value}</span></div>`;
+    }
+
+    function pct(n, d) {
+        return d > 0 ? Math.round((n / d) * 100) : null;
+    }
+
+    function levelText(level, html) {
+        const cls = { good: 'text-success', warn: 'text-warning-emphasis', bad: 'text-danger', running: 'text-primary' }[level] || '';
+        return `<span class="${cls}">${html}</span>`;
+    }
+
+    function worst(levels) {
+        return levels.reduce((a, b) => (LEVEL_RANK[b] > LEVEL_RANK[a] ? b : a), 'unknown');
+    }
+
+    function ago(value) {
+        const t = new Date(value).getTime();
+        if (isNaN(t)) return '';
+        const mins = Math.max(0, Math.round((Date.now() - t) / 60000));
+        if (mins < 60) return `${mins} min ago`;
+        const hours = Math.round(mins / 60);
+        if (hours < 48) return `${hours} h ago`;
+        return `${Math.round(hours / 24)} days ago`;
+    }
+
+    function duration(seconds) {
+        if (seconds == null) return '—';
+        if (seconds < 60) return `${Math.round(seconds)}s`;
+        if (seconds < 3600) return `${Math.round(seconds / 60)}m`;
+        return `${(seconds / 3600).toFixed(1)}h`;
+    }
+
+    function ymd(value) {
+        const s = String(value || '');
+        return /^\d{8}$/.test(s) ? `${s.slice(0, 4)}-${s.slice(4, 6)}-${s.slice(6)}` : s.slice(0, 10);
+    }
+
+    function fetchJson(url) {
+        return fetch(url).then(r => {
+            if (!r.ok) throw new Error(r.status === 404 ? 'not published yet' : `HTTP ${r.status}`);
+            return r.json();
+        });
+    }
+
+    // ---- card plumbing -----------------------------------------------------
+
+    // `optional` payloads arrive as null when missing, so a secondary panel
+    // cannot blank the card's main numbers.
+    function loadSection(s) {
+        const optional = (s.optional || []).map(u => fetchJson(u).catch(() => null));
+        Promise.all(s.urls.map(fetchJson).concat(optional))
+            .then(payloads => {
+                const out = s.render(...payloads);
+                fillCard(s, out);
+            })
+            .catch(err => {
+                fillCard(s, {
+                    level: 'unknown',
+                    html: `<div class="text-muted"><i class="bi bi-exclamation-triangle"></i> Could not load: ${escapeHtml(err.message)}</div>`,
+                });
+            })
+            .finally(() => {
+                pending -= 1;
+                renderAttention();
+                if (!pending) allLoaded();
+            });
+    }
+
+    function fillCard(s, out) {
+        const [cls, label] = LEVEL_BADGE[out.level] || LEVEL_BADGE.unknown;
+        const badge = document.getElementById(`sum-${s.key}-status`);
+        badge.parentElement.querySelectorAll('.sum-status-extra').forEach(e => e.remove());
+        // A card reporting two things that can be in different states (MI30X
+        // and MI35X waits) gives each its own badge and colour.
+        const parts = out.badges && out.badges.length ? out.badges : [{ text: out.status || label, level: out.level }];
+        parts.forEach((part, i) => {
+            const el = i === 0 ? badge : document.createElement('span');
+            el.className = `badge sum-status ${(LEVEL_BADGE[part.level] || LEVEL_BADGE.unknown)[0]}${i ? ' sum-status-extra ms-1' : ''}`;
+            el.textContent = part.text;
+            if (i) badge.parentElement.appendChild(el);
+        });
+        document.getElementById(`sum-${s.key}-body`).innerHTML = out.html;
+        const age = document.getElementById(`sum-${s.key}-age`);
+        if (out.asOf) {
+            age.textContent = `Updated ${ago(out.asOf)}`;
+            age.title = formatTimestamp(out.asOf);
+        }
+        attention[s.key] = (out.signals || []).map(sig => Object.assign({ section: s }, sig));
+    }
+
+    function renderAttention() {
+        const all = [].concat(...Object.values(attention));
+        const shown = all
+            .filter(a => a.severity !== 'info')
+            .sort((a, b) => (SEVERITY_RANK[b.severity] || 0) - (SEVERITY_RANK[a.severity] || 0));
+        const notes = all.length - shown.length;
+        const box = document.getElementById('sum-attention');
+        const count = document.getElementById('sum-attention-count');
+        const loading = pending > 0
+            ? '<div class="text-muted small mt-1"><span class="spinner-border spinner-border-sm"></span> Still loading&hellip;</div>'
+            : '';
+        if (!shown.length) {
+            box.innerHTML = (pending > 0 ? '' : '<span class="text-success"><i class="bi bi-check-circle-fill"></i> Nothing flagged.</span>') + loading;
+            count.textContent = notes ? `${notes} info note${notes === 1 ? '' : 's'} on the pages` : '';
+            return;
+        }
+        count.textContent = `${shown.length} item${shown.length === 1 ? '' : 's'}` + (notes ? ` · ${notes} info note${notes === 1 ? '' : 's'} on the pages` : '');
+        box.innerHTML = shown.map(a => {
+            const cls = a.severity === 'error' ? 'alert-danger' : 'alert-warning';
+            const icon = a.severity === 'error' ? 'bi-x-octagon-fill' : 'bi-exclamation-triangle-fill';
+            const more = a.url ? ` ${link(a.url, '<i class="bi bi-box-arrow-up-right"></i>')}` : '';
+            return `<div class="alert ${cls} py-1 px-2 mb-1"><i class="bi ${icon}"></i>
+                <a href="${a.section.href}" class="badge bg-light text-dark border text-decoration-none me-1">${escapeHtml(a.section.title)}</a>
+                ${escapeHtml(a.message)}${more}</div>`;
+        }).join('') + loading;
+    }
+
+    // ---- sections ----------------------------------------------------------
+
+    function renderCoverage(data) {
+        const s = data.summary || {};
+        const tiers = data.tiers || {};
+        const covPct = s.amd_vs_cuda_coverage_pct;
+        // Above 90% is green, on the same scale as the nightly pass rates; the
+        // gap stays on its own row, since coverage can pass 100% on AMD's
+        // larger nightly surface while NVIDIA tests AMD never runs remain.
+        const gap = s.amd_gap_count || 0;
+        const level = covPct == null ? 'unknown' : passRateLevel(covPct);
+        const tierRows = ['core', 'extra', 'kernel'].filter(k => tiers[k]).map(k => {
+            const t = tiers[k];
+            const p = t.coverage_pct != null ? t.coverage_pct : t.coverage_registered_pct;
+            const g = (t.gap || {}).total;
+            return row(`${k[0].toUpperCase()}${k.slice(1)} tests`,
+                `${p != null ? p + '%' : '—'} <span class="sum-sub">· ${t.amd_enabled ?? '—'} AMD / ${t.cuda_enabled ?? '—'} NV${g ? ` · gap ${g}` : ''}</span>`);
+        }).join('');
+        return {
+            level,
+            status: covPct != null ? `${covPct}%` : null,
+            asOf: data.generated_at,
+            html: `<div class="d-flex align-items-baseline gap-2 mb-1">
+                    <span class="sum-headline">${covPct != null ? levelText(level, escapeHtml(covPct) + '%') : '—'}</span>
+                    <span class="sum-sub">AMD vs NVIDIA coverage</span></div>
+                ${row('Enabled tests', `${s.amd_enabled ?? '—'} AMD / ${s.cuda_enabled ?? '—'} NVIDIA`)}
+                ${row('<a href="/sglang-ci/coverage/#amd-gap" class="text-decoration-none">NVIDIA tests not run on AMD</a>', `<strong>${gap}</strong>`)}
+                ${row('Excluded (AMD cannot run)', s.amd_excluded_count ?? '—')}
+                ${tierRows}`,
+        };
+    }
+
+    // One row per workflow of a nightly status payload (Nightly CI and MILES
+    // share the shape): the latest finished run's pass rate and a strip of the
+    // last seven runs.
+    function workflowRows(data, order, levelOf = passRateLevel) {
+        const health = data.health || {};
+        const daily = (health.daily || []).slice().sort((a, b) => a.date.localeCompare(b.date));
+        const names = data.workflows || {};
+        // The nightly payload carries NVIDIA's workflows for the Nightly CI
+        // page's comparison; this card is AMD's.
+        const vendors = data.vendors || {};
+        const keys = order.filter(k => names[k] || (health.summary || {})[k])
+            .concat(Object.keys(names).filter(k => !order.includes(k)))
+            .filter(k => vendors[k] !== 'nvidia');
+        const levels = [];
+        const latest = {};   // workflow key -> its latest finished run's numbers
+        const running = {};  // workflow key -> a run is in progress
+        const rows = keys.map(k => {
+            const runs = daily.map(d => ({ date: d.date, wf: (d.workflows || {})[k] })).filter(r => r.wf);
+            const finished = runs.filter(r => !r.wf.ongoing && (r.wf.jobs_total || 0) > 0);
+            const last = finished[finished.length - 1];
+            const busy = runs.some(r => r.wf.ongoing);
+            running[k] = busy;
+            const dots = runs.slice(-7).map(r => {
+                if (r.wf.ongoing) return `<span class="sum-dot run" title="${escapeHtml(r.date)}: running"></span>`;
+                const t = testsOf(r.wf);
+                const p = pct(t.passed, t.total);
+                return `<span class="sum-dot ${p == null ? '' : levelOf(p)}" title="${escapeHtml(r.date)}: ${t.passed}/${t.total} passed"></span>`;
+            }).join('');
+            let value = '<span class="text-muted">no run</span>';
+            if (last) {
+                const t = testsOf(last.wf);
+                const p = pct(t.passed, t.total);
+                const finishedLevel = p == null ? 'unknown' : levelOf(p);
+                const lvl = whileRunning(finishedLevel, busy);
+                levels.push(lvl);
+                latest[k] = { date: last.date, passed: t.passed, total: t.total, rate: p, level: lvl, finishedLevel, running: busy, url: last.wf.html_url };
+                value =`${levelText(lvl, `<strong>${p}%</strong>`)} <span class="sum-sub">${t.passed}/${t.total} · ${escapeHtml(last.date.slice(5))}</span>`;
+            }
+            const label = `<span title="${escapeHtml(names[k] || k)}">${escapeHtml(names[k] || k)}</span>` + (busy ? ' <span class="badge bg-primary" style="font-size:0.65rem">running</span>' : '');
+            return row(`${label}`, `${value} <span class="sum-dots ms-1">${dots}</span>`);
+        }).join('');
+        return { rows, levels, latest, running };
+    }
+
+    // The ROCm 10 PR gate is the series the team reads first, so it is the
+    // card's headline; the rows below still cover every workflow.
+    const NIGHTLY_HEADLINE = 'pr_amd_rocm10';
+
+    function renderNightly(data) {
+        const { rows, levels, latest, running } = workflowRows(data, WF_ORDER);
+        const head = latest[NIGHTLY_HEADLINE];
+        const headRunning = !!running[NIGHTLY_HEADLINE];
+        const headName = (data.workflows || {})[NIGHTLY_HEADLINE] || 'PR Test (AMD ROCm 10)';
+        const headline = head
+            ? `<div class="d-flex align-items-baseline gap-2 mb-1 flex-wrap">
+                    <span class="sum-headline">${levelText(head.level, `${head.rate}%`)}</span>
+                    <span class="sum-sub">${link(head.url, `<strong>${escapeHtml(headName)}</strong>`)} · ${head.passed}/${head.total} tests passed · ${escapeHtml(head.date.slice(5))}${head.running ? ' · today\'s run in progress' : ''}</span></div>`
+            : headRunning ? '<div class="mb-1"><span class="sum-headline text-primary">running</span> <span class="sum-sub">PR Test (AMD ROCm 10), first run in the window</span></div>' : '';
+        const signals = [];
+        const reports = data.daily_reports || {};
+        const latestReport = Object.keys(reports).sort().reverse()[0];
+        let reportRow = '';
+        if (latestReport) {
+            const r = reports[latestReport];
+            const cls = { red: 'bg-danger', amber: 'bg-warning text-dark', yellow: 'bg-warning text-dark', green: 'bg-success' }[r.status] || 'bg-secondary';
+            const clusters = r.active_clusters != null
+                ? `${r.active_clusters} active failure cluster${r.active_clusters === 1 ? '' : 's'}${r.new_clusters ? `, ${r.new_clusters} new` : ''}`
+                : '';
+            reportRow = row(`CI monitor report ${link(r.url, escapeHtml(latestReport.slice(5)))}`,
+                `<span class="badge ${cls}">${escapeHtml(r.status || '?')}</span> <span class="sum-sub">${escapeHtml(clusters)}</span>`);
+            if (r.status === 'red') {
+                signals.push({ severity: 'error', message: `CI monitor daily report for ${latestReport} is red: ${clusters}`, url: r.url });
+            }
+        }
+        if (data.github_api_degraded) {
+            signals.push({ severity: 'info', message: 'Nightly CI data was collected while the GitHub API was degraded; some job details may be missing.' });
+        }
+        return {
+            // The badge carries the headline's number, so it takes the
+            // headline's colour; each row colours its own workflow.
+            level: head ? head.level : headRunning ? 'running' : worst(levels),
+            status: head && head.level === 'running' ? 'ROCm 10 PR running'
+                : head ? `ROCm 10 PR ${head.rate}%` : headRunning ? 'ROCm 10 PR running' : null,
+            asOf: data.generated_at,
+            signals,
+            html: `${headline}<div class="sum-sub mb-1">Latest finished run's test pass rate · last 7 runs</div>${rows}${reportRow}`,
+        };
+    }
+
+    function renderBenchmark(data) {
+        const runs = data.perf_runs || [];
+        const today = String(data.generated_at || new Date().toISOString()).slice(0, 10);
+        const STALE_DAYS = 2;
+        const groups = {};
+        runs.forEach(r => {
+            const disagg = r.deployment === 'disaggregated';
+            const key = `${r.platform}|${r.hardware}|${disagg}`;
+            const g = groups[key] || (groups[key] = { platform: r.platform, hardware: r.hardware, disagg, dates: {} });
+            const day = g.dates[r.date] || (g.dates[r.date] = { configs: new Set(), images: new Set() });
+            day.configs.add(`${r.model_name}|${r.variant}|${r.rocm_version || ''}`);
+            if (r.rocm_version) day.images.add(r.rocm_version.replace(/^ROCm /, ''));
+        });
+        const list = Object.values(groups).map(g => {
+            const latest = Object.keys(g.dates).sort().pop();
+            const age = Math.round((new Date(today) - new Date(latest)) / 86400000);
+            return Object.assign(g, { latest, age, day: g.dates[latest] });
+        }).sort((a, b) => (a.platform === b.platform ? a.hardware.localeCompare(b.hardware) : a.platform === 'AMD' ? -1 : 1));
+        if (!list.length) return { level: 'unknown', asOf: data.generated_at, html: '<div class="text-muted">No benchmark runs in the last week</div>' };
+
+        const amd = list.filter(g => g.platform === 'AMD');
+        const stale = amd.filter(g => g.age > STALE_DAYS);
+        const amdConfigs = amd.reduce((n, g) => n + g.day.configs.size, 0);
+        const amdModels = new Set(runs.filter(r => r.platform === 'AMD').map(r => r.model_name)).size;
+        const rows = list.map(g => {
+            const label = `${escapeHtml(g.hardware)}${g.disagg ? ' disagg' : ''}` +
+                (g.platform === 'AMD' ? '' : ' <span class="sum-sub">NVIDIA</span>');
+            const date = g.age > STALE_DAYS && g.platform === 'AMD'
+                ? levelText('warn', `${escapeHtml(g.latest.slice(5))}, ${g.age}d ago`)
+                : `<span class="sum-sub">${escapeHtml(g.latest.slice(5))}</span>`;
+            const images = [...g.day.images].sort().reverse();
+            return row(label, `${g.day.configs.size} configs · ${date}`,
+                images.length ? `ROCm ${images.join(', ')}` : '');
+        }).join('');
+        const signals = stale.map(g => ({
+            severity: 'warning',
+            message: `No ${g.hardware}${g.disagg ? ' disagg' : ''} benchmark numbers since ${g.latest}`,
+        }));
+        return {
+            level: stale.length ? 'warn' : 'good',
+            status: `${amdConfigs} AMD configs`,
+            asOf: data.generated_at,
+            signals,
+            html: `<div class="d-flex align-items-baseline gap-2 mb-1">
+                    <span class="sum-headline">${amdConfigs}</span>
+                    <span class="sum-sub">AMD model configs in each GPU's latest run · ${amdModels} models this week</span></div>
+                <div class="sum-sub mb-1">Configs per GPU on its latest benchmark date</div>
+                ${rows}`,
+        };
+    }
+
+    // MILES on its own scale: above 80% green, above 50% yellow, else red.
+    function milesLevel(rate) {
+        return rate > 80 ? 'good' : rate > 50 ? 'warn' : 'bad';
+    }
+
+    // Image build first, nightly second: a nightly can only be as good as the
+    // image it ran on, so the build is the first thing to read. Each gets a
+    // badge; a track whose tests are retired still shows its build but does
+    // not colour the card.
+    function renderMiles(data, coverage) {
+        const signals = [];
+        const tracks = data.tracks || {};
+        const builds = (data.builds || {}).summary || {};
+        // A build still running is judged by the one before it, from the
+        // per-day record, until it finishes.
+        const buildDays = (data.builds || {}).days || {};
+        const lastFinished = track => Object.keys(buildDays[track] || {}).sort().reverse()
+            .map(d => buildDays[track][d]).find(r => r && r.status === 'completed') || {};
+        const live = Object.entries(builds).filter(([track]) => !(tracks[track] || {}).test_retired);
+        const liveRunning = live.some(([, b]) => (b.latest || {}).status && b.latest.status !== 'completed');
+        const liveOk = live.filter(([track, b]) => {
+            const last = b.latest || {};
+            return (last.status === 'completed' ? last : lastFinished(track)).conclusion === 'success';
+        }).length;
+        const buildFinished = !live.length ? 'unknown' : liveOk === live.length ? 'good' : liveOk ? 'warn' : 'bad';
+        const buildLevel = whileRunning(buildFinished, liveRunning);
+        const buildRows = Object.entries(builds).map(([track, b]) => {
+            const last = b.latest || {};
+            const t = tracks[track] || {};
+            const busy = last.status && last.status !== 'completed';
+            const retired = t.test_retired ? ' <span class="sum-sub">(tests retired)</span>' : '';
+            const lvl = busy ? 'running' : last.conclusion === 'success' ? 'good' : t.test_retired ? 'unknown' : 'bad';
+            return row(`Image build ${escapeHtml(t.label || track)}${retired}`,
+                link(last.html_url, levelText(lvl, escapeHtml(busy ? 'running' : last.conclusion || last.status || '—'))) +
+                ` <span class="sum-sub">${escapeHtml(ymd(last.created_at))}</span>`);
+        }).join('');
+        Object.values(tracks).forEach(t => {
+            const test = t.latest_image_test;
+            if (test && test.image_stale && !t.test_retired) {
+                signals.push({
+                    severity: 'warning',
+                    message: `${t.label} nightly on ${test.test_date} ran a stale image (${test.image_tag})`,
+                    url: test.html_url,
+                });
+            }
+        });
+
+        // Nightly: suites passed across each workflow's latest finished run.
+        const { rows, latest, running } = workflowRows(data, [], milesLevel);
+        const nightlyRunning = Object.values(running).some(Boolean);
+        const runs = Object.values(latest);
+        const passed = runs.reduce((n, r) => n + r.passed, 0);
+        const total = runs.reduce((n, r) => n + r.total, 0);
+        const rate = pct(passed, total);
+        const nightlyLevel = whileRunning(rate == null ? 'unknown' : milesLevel(rate), nightlyRunning);
+
+        let coverageRows = '';
+        if (coverage && coverage.current) {
+            const en = coverage.current.enabled || {};
+            const d = (coverage.delta || {}).enabled || {};
+            const signed = n => (n > 0 ? `+${n}` : `${n || 0}`);
+            coverageRows = row('Tests enabled', `${en.ROCM ?? '—'} AMD / ${en.CUDA ?? '—'} NVIDIA` +
+                    (coverage.current.amd_vs_nvidia_pct != null ? ` <span class="sum-sub">(${coverage.current.amd_vs_nvidia_pct}%)</span>` : '')) +
+                row(`Change in ${coverage.window_days || 7} days`, `${signed(d.ROCM)} AMD / ${signed(d.CUDA)} NVIDIA`);
+        }
+        const badges = [
+            { text: buildLevel === 'running' ? 'build running' : !live.length ? 'build —'
+                    : liveOk === live.length ? 'build passed' : `build ${liveOk}/${live.length}`, level: buildLevel },
+            { text: nightlyLevel === 'running' ? 'nightly running' : rate == null ? 'nightly —' : `nightly ${rate}%`, level: nightlyLevel },
+        ];
+        return {
+            level: worst(badges.map(x => x.level)),
+            badges,
+            asOf: data.generated_at,
+            signals,
+            html: `<div class="sum-sub mb-1">Docker image builds</div>${buildRows}
+                <div class="sum-sub mt-2 mb-1">Nightly: latest finished run's suite pass rate · last 7 runs${rate == null ? '' : ` · ${levelText(nightlyLevel, `<strong>${rate}%</strong>`)} (${passed}/${total})`}</div>${rows}
+                ${coverageRows}`,
+        };
+    }
+
+    // Pass rate counts tests, not jobs, as on the Nightly CI page.
+    function testsOf(wf) {
+        if ((wf.tests_total || 0) > 0) return { passed: wf.tests_passed || 0, total: wf.tests_total };
+        return { passed: wf.jobs_passed || 0, total: wf.jobs_total || 0 };
+    }
+
+    function renderDocker(data, rocmData) {
+        const days = (data.days || []).slice().sort((a, b) => String(b.date).localeCompare(String(a.date)));
+        // A date says something once an image is published or a build ended
+        // without one. Before that -- the build not fired yet, or still
+        // running -- nothing is late, so report the newest settled date and
+        // show the next one's progress beside it, instead of 0/8.
+        const settled = d => (d.available || 0) > 0 || (d.missing_required || 0) > 0;
+        // The newest date is only reported once its builds have all finished
+        // (or one ended without its image): while one is still building, the
+        // date before stands.
+        const finished = (d, i) => (d.missing_required || 0) > 0
+            || (settled(d) && !(d.pending || 0) && !(i === 0 && (d.not_run || 0)));
+        const ran = days.filter(settled);
+        const today = days.find(finished) || ran[0];
+        if (!today) return { level: 'unknown', asOf: data.generated_at, html: '<div class="text-muted">No image data</div>' };
+        const upcoming = days[0] !== today ? days[0] : null;
+        const upcomingState = upcoming && [
+            upcoming.available ? `${upcoming.available} published` : '',
+            upcoming.pending ? `<span class="text-primary"><i class="bi bi-hourglass-split"></i> ${upcoming.pending} building</span>` : '',
+            upcoming.not_run ? `<i class="bi bi-calendar-event"></i> ${upcoming.not_run} not built yet` : '',
+        ].filter(Boolean).join(' · ');
+        const missing = today.missing_required || 0;
+        const building = !!upcoming && (upcoming.pending || 0) > 0;
+        const level = whileRunning(missing > 0 ? 'bad' : (today.pending || 0) > 0 ? 'warn' : 'good', building);
+        const CHIP = {
+            available: ['bg-success', 'published'],
+            pending: ['bg-info text-dark', 'building'],
+            not_run: ['bg-light text-muted border', 'not built yet'],
+        };
+        const chips = Object.entries(today.images || {}).map(([name, img]) => {
+            const [cls, state] = CHIP[img.status] || (img.optional ? ['bg-secondary', 'optional, missing'] : ['bg-danger', 'missing']);
+            return `<span class="badge ${cls} me-1 mb-1" title="${escapeHtml(img.tag || state)}">${escapeHtml(name)}</span>`;
+        }).join('');
+        const left = (today.pending || 0) + (today.not_run || 0);
+        const streak = ran.filter((d, i) => ran.slice(0, i + 1).every(x => (x.missing_required || 0) === 0)).length;
+        const builds = Object.entries(data.workflows || {}).map(([wf, runs]) => {
+            // A cancelled build is usually one superseded by a manual rebuild,
+            // which the events list records; it says nothing about the image.
+            const last = (runs || []).find(r => r.status === 'completed' && r.conclusion !== 'cancelled');
+            if (!last) return '';
+            const ok = last.conclusion === 'success';
+            return row(`Build <code>${escapeHtml(wf)}</code>`,
+                link(last.html_url, `${levelText(ok ? 'good' : 'warn', escapeHtml(last.conclusion))}`) +
+                ` <span class="sum-sub">${escapeHtml(ymd(last.created_at))}</span>`);
+        }).join('');
+        const signals = [];
+        if (missing > 0) signals.push({ severity: 'error', message: `${missing} required nightly image${missing === 1 ? '' : 's'} missing for ${ymd(today.date)}` });
+        const rocm = rocmLine(rocmData);
+        const badges = [{ text: level === 'running' ? 'building' : `${today.available}/${today.checked}`, level }];
+        if (rocm) {
+            badges.push({ text: rocm.badge, level: rocm.level });
+            signals.push(...rocm.signals);
+        }
+        return {
+            level: worst(badges.map(x => x.level)),
+            badges,
+            asOf: data.generated_at,
+            signals,
+            html: `<div class="d-flex align-items-baseline gap-2 mb-1">
+                    <span class="sum-headline">${today.available}/${today.checked}</span>
+                    <span class="sum-sub">nightly images published ${escapeHtml(ymd(today.date))}${left ? ` · ${left} still to build` : ''}</span></div>
+                <div class="mb-1">${chips}</div>
+                ${rocm ? rocm.row : ''}
+                ${upcoming ? row(`${escapeHtml(ymd(upcoming.date))} images`, `<span class="text-muted">${upcomingState || 'not built yet'}</span>`) : ''}
+                ${row('Days in a row with every required image', `${streak} of ${ran.length}`)}
+                ${builds}`,
+        };
+    }
+
+    function renderDay0(data) {
+        if (!data.available) return { level: 'unknown', html: `<div class="text-muted">${escapeHtml(data.reason || 'Unavailable')}</div>` };
+        const s = data.summary || {};
+        const by = s.by_status || {};
+        const matrix = s.ci_matrix || {};
+        const failing = (data.models || []).filter(m => m.status === 'failing');
+        const untested = (data.models || []).filter(m => ['untested', 'not_scheduled', 'no_result'].includes(m.status));
+        const names = list => list.map(m => escapeHtml(m.name)).join(', ');
+
+        // The Day-0 page's headline: model CI jobs passing, out of those with a
+        // result, with disaggregation configs left out (day0Jobs mirrors its
+        // jobTally()).
+        const jobs = day0Jobs(data.models || []);
+        const rated = jobs.total - jobs.no_result;
+        const rate = rated ? Math.round((100 * jobs.passing) / rated) : null;
+        const level = rate == null ? 'unknown' : jobs.passing === rated ? 'good' : jobs.passing ? 'warn' : 'bad';
+        const details = [
+            jobs.failing ? `${jobs.failing} failing` : '',
+            jobs.stale ? `${jobs.stale} stale` : '',
+            jobs.no_result ? `${jobs.no_result} with no result, not counted` : '',
+        ].filter(Boolean).join(' · ');
+        return {
+            level,
+            status: rate == null ? null : `${rate}% pass rate`,
+            asOf: data.generated_at,
+            signals: (data.signals || []).map(sig => ({ severity: sig.severity, message: sig.message, url: sig.url })),
+            html: `<div class="d-flex align-items-baseline gap-2 mb-1">
+                    <span class="sum-headline">${rated ? jobs.passing : '—'}<span class="fs-5 text-muted">/${rated || 0}</span></span>
+                    <span class="sum-sub">model CI jobs passing</span></div>
+                ${rate == null ? '' : `<div class="mb-1">${levelText(level, `<strong>${rate}% pass rate</strong>`)}${details ? ` <span class="sum-sub">· ${escapeHtml(details)}</span>` : ''}</div>`}
+                ${row('Models with all CI passing', `${by.passing || 0}/${s.models || 0}`)}
+                ${row('Failing', failing.length ? levelText('bad', names(failing)) : '<span class="text-muted">none</span>')}
+                ${row('Untested', untested.length ? levelText('warn', names(untested)) : '<span class="text-muted">none</span>')}
+                ${row('Recipe cells covered (MI30x/MI35x × FP4/FP8)', `${matrix.covered ?? '—'}/${matrix.required ?? '—'}`)}`,
+        };
+    }
+
+    function day0Jobs(models) {
+        const jobs = models.flatMap(m => (m.jobs || []).filter(job => job.dedicated && job.group !== 'disagg'));
+        const count = verdict => jobs.filter(job => job.verdict === verdict).length;
+        return {
+            total: jobs.length,
+            passing: count('passing'),
+            failing: count('failing'),
+            stale: count('stale'),
+            no_result: count('no_result'),
+        };
+    }
+
+    function renderAiter(data, downstream) {
+        if (!data.available) return { level: 'unknown', html: `<div class="text-muted">${escapeHtml(data.reason || 'Unavailable')}</div>` };
+        const cur = data.current || {};
+        const base = cur.baseline || {};
+        const scout = cur.scout || {};
+        const behind = cur.behind_main || {};
+        const setBy = cur.set_by || {};
+        const offPin = (data.ci_now || []).filter(c => !c.on_pin);
+        const scoutLevel = { accepted: 'good', passed: 'good', rejected: 'bad' }[scout.status] || 'warn';
+        const pin = (downstream && downstream.pin) || {};
+        const pinLevel = { passed: 'good', failed: 'bad' }[pin.verdict] || 'warn';
+        const tracks = (data.ci_now || []).map(c => {
+            const j = (c.run || {}).jobs || {};
+            const pinIcon = c.on_pin
+                ? '<i class="bi bi-pin-angle-fill text-success" title="CI ran the pinned AITER"></i>'
+                : `<i class="bi bi-exclamation-circle-fill text-warning" title="CI ran ${escapeHtml(c.tested_short || '?')}, not the pin"></i>`;
+            const res = j.total ? ` <span class="sum-sub">${j.passed}/${j.total} jobs passed${j.pending ? `, ${j.pending} pending` : ''}</span>` : '';
+            return row(`${escapeHtml(c.label)} CI`, `${pinIcon} <code>${escapeHtml(c.tested_short || '—')}</code>${res}`);
+        }).join('');
+        // When the pin last moved, and by which PR, is the headline: it says
+        // how fresh the AITER in every AMD image is.
+        const pr = setBy.pr || {};
+        const prUrl = pr.url || (setBy.pr_number ? `https://github.com/sgl-project/sglang/pull/${setBy.pr_number}` : setBy.url);
+        const updated = setBy.committed_at || pr.merged_at;
+        // A pin moved within two weeks is current, so the card is green on
+        // that alone; Scout and CI verdicts keep their own colours in the rows
+        // and Needs attention. Without a known update date, fall back to them.
+        const PIN_FRESH_DAYS = 14;
+        const pinAgeDays = updated ? (Date.now() - new Date(updated).getTime()) / 86400000 : null;
+        const level = pinAgeDays != null && !isNaN(pinAgeDays)
+            ? (pinAgeDays <= PIN_FRESH_DAYS ? 'good' : 'warn')
+            : offPin.length ? 'warn' : worst([scoutLevel === 'bad' ? 'warn' : 'good', pinLevel]);
+        const headline = updated
+            ? `<div class="d-flex align-items-baseline gap-2 mb-1 flex-wrap">
+                    <span class="sum-headline">${levelText(level, escapeHtml(ymd(updated)))}</span>
+                    <span class="sum-sub">pin last updated · ${escapeHtml(ago(updated))}</span></div>
+                <div class="mb-1">${setBy.pr_number ? link(prUrl, `<strong>#${escapeHtml(setBy.pr_number)}</strong>`) : ''}
+                    <span class="text-truncate" title="${escapeHtml(pr.title || setBy.title || '')}">${escapeHtml(pr.title || setBy.title || '')}</span>
+                    ${pr.author ? `<span class="sum-sub">· ${escapeHtml(pr.author)}</span>` : ''}</div>`
+            : '';
+        return {
+            level,
+            status: updated ? `pin ${ymd(updated).slice(5)} · ${base.short || ''}` : (base.short || null),
+            asOf: data.generated_at,
+            signals: (data.signals || []).map(sig => ({ severity: sig.severity, message: sig.message, url: sig.url })),
+            html: `${headline}
+                ${row('Pinned AITER', `${link(base.url, `<code>${escapeHtml(base.short || '—')}</code>`)} <span class="sum-sub">${escapeHtml(ymd(base.committed_at))}</span>`, base.title)}
+                ${behind.ahead_by != null ? row('AITER main since the pin', link(behind.url, `${behind.ahead_by} commits ahead`)) : ''}
+                ${scout.status_text ? row(`AITER Scout ${escapeHtml(scout.label || '')}`, link(scout.run_url, levelText(scoutLevel, escapeHtml(scout.status_text)))) : ''}
+                ${pin.verdict ? row('AITER-side SGLang CI on the pin', levelText(pinLevel, escapeHtml(pin.verdict))) : ''}
+                ${tracks}`,
+        };
+    }
+
+    // One line for the Docker Images card: the ROCm versions CI runs, and
+    // the release CI does not run yet. Green while every release out of CI is
+    // under a month old, yellow to three months, red past that; the oldest
+    // such release sets it, so a fresh release cannot hide an old one still
+    // waiting.
+    function rocmLine(data) {
+        if (!data || !data.available) return null;
+        const s = data.summary || {};
+        const gaps = s.gaps || [];
+        const gapAge = Math.max(-1, ...gaps.map(v => ((data.rows || []).find(r => r.version === v) || {}).days_since_release ?? -1));
+        const level = gapAge <= 30 ? 'good' : gapAge <= 90 ? 'warn' : 'bad';
+        const inCi = (data.tracks || []).flatMap(t => t.versions || []);
+        const tested = inCi.length ? inCi.join(' · ') : (s.newest_tested || '—');
+        const gap = gaps.length
+            ? ` <span class="sum-sub">·</span> ${levelText(level, `${escapeHtml(gaps.join(', '))} not in CI`)}${gapAge >= 0 ? ` <span class="sum-sub">(${gapAge}d)</span>` : ''}`
+            : ' <span class="sum-sub">· newest release in CI</span>';
+        return {
+            level,
+            badge: `ROCm ${s.newest_tested || '—'}`,
+            signals: (data.signals || []).map(sig => ({ severity: sig.severity, message: sig.message, url: sig.url })),
+            row: row('<a href="/sglang-ci/rocm-versions/" class="text-decoration-none">ROCm in CI</a>', `${escapeHtml(tested)}${gap}`,
+                     `Newest released: ${s.newest || '?'}`),
+        };
+    }
+
+    const WAIT_FAMILIES = [['MI30X', 'mi300'], ['MI35X', 'mi35x']];   // [queue family, runner_pools key]
+
+    function renderRunners(data) {
+        const qp = data.queue_pressure || {};
+        const fleet = qp.fleet || {};
+        const pools = Object.values(data.runner_pools || {});
+        const poolLevel = { healthy: 'good', idle: 'good', degraded: 'warn', down: 'bad', unhealthy: 'bad' };
+        // The headline: how long a job waited for an MI30X and an MI35X runner
+        // over the last 24 hours (median, from the pool's pickup record).
+        // Green up to an hour, yellow past it; red only when machines are
+        // down -- the family's PR-gate jobs all went unrun, or a runner size
+        // has jobs queued and none running.
+        const waitLevel = s => (s == null ? 'unknown' : s <= 60 * 60 ? 'good' : 'warn');
+        const waitingNow = family => (qp.pools || [])
+            .filter(p => p.family === family).reduce((n, p) => n + (p.waiting_for_runner || 0), 0);
+        const downSizes = family => (data.runner_pool_detail || [])
+            .filter(d => d.family === family && d.status === 'offline').map(d => d.label);
+        const matrix = WAIT_FAMILIES.map(([family, key]) => {
+            const pool = (data.runner_pools || {})[key] || {};
+            const day = (pool.pickup || {})['24h'] || {};
+            const down = pool.status === 'offline' ? ['all runners'] : downSizes(family);
+            return { family, key, p50: day.p50, p90: day.p90, pct: day.pct, now: waitingNow(family), down,
+                     level: down.length ? 'bad' : waitLevel(day.p50) };
+        });
+        const matrixHtml = `<div class="row g-2 mb-2 text-center">${matrix.map(m => `
+            <div class="col-6"><div class="border rounded py-1 px-1 h-100">
+                <div class="sum-sub"><strong>${escapeHtml(m.family)}</strong> wait · p50, 24h</div>
+                <div class="sum-headline">${levelText(m.level, duration(m.p50))}</div>
+                <div class="sum-sub">p90 ${duration(m.p90)}${m.pct != null ? ` · ${m.pct}% &lt;15m` : ''}</div>
+                <div class="sum-sub">${m.now} waiting now</div>
+                ${m.down.length ? `<div class="sum-sub text-danger" title="${escapeHtml(m.down.join(', '))}"><i class="bi bi-x-octagon-fill"></i> down: ${escapeHtml(m.down.join(', '))}</div>` : ''}
+            </div></div>`).join('')}</div>`;
+        const poolRows = pools.filter(p => !WAIT_FAMILIES.some(([, key]) => data.runner_pools[key] === p)).map(p => {
+            const pk = (p.pickup || {})['24h'] || {};
+            const pick = pk.pct != null ? ` <span class="sum-sub" title="Jobs a runner picked up within 15 minutes, last 24h (p50 wait ${duration(pk.p50)})">${pk.pct}% picked up &lt;15m</span>` : '';
+            return row(escapeHtml(p.label), `${levelText(poolLevel[p.status] || 'warn', escapeHtml(p.status))}${pick}`);
+        }).join('');
+        const signals = matrix.filter(m => m.down.length).map(m => ({
+            severity: 'error', message: `${m.family} runners down: ${m.down.join(', ')}`,
+        }));
+        const capped = (qp.pools || []).filter(p => p.status === 'capped' && (p.waiting_for_runner || 0) > 0);
+        if (capped.length) {
+            signals.push({ severity: 'warning', message: `Runner pools at their ceiling with jobs waiting: ${capped.map(p => `${p.label} (${p.waiting_for_runner})`).join(', ')}` });
+        }
+        const underScaled = (qp.pools || []).filter(p => p.status === 'under-scaled');
+        if (underScaled.length) {
+            signals.push({ severity: 'warning', message: `Runner pools short of runners with headroom left: ${underScaled.map(p => p.label).join(', ')}` });
+        }
+        // The badge and colour follow the headline waits.
+        const level = worst(matrix.map(m => m.level));
+        return {
+            level,
+            badges: matrix.map(m => ({ text: `${m.family} ${duration(m.p50)}`, level: m.level })),
+            asOf: data.checked_at,
+            signals,
+            html: `${matrixHtml}
+                ${fleet.waiting_for_runner != null ? row('Jobs waiting for a runner now', `${fleet.waiting_for_runner}${fleet.held_by_matrix ? ` <span class="sum-sub">(+${fleet.held_by_matrix} held by max-parallel)</span>` : ''}`) : ''}
+                ${fleet.max_runners ? row('Runners busy', `${fleet.runners_busy}/${fleet.max_runners} <span class="sum-sub">(${fleet.runner_pct}%) · GPUs ${fleet.gpus_busy}/${fleet.max_gpus}</span>`) : ''}
+                ${fleet.p50_wait_seconds != null ? row('Queue wait now', `p50 ${duration(fleet.p50_wait_seconds)} · p90 ${duration(fleet.p90_wait_seconds)}`) : ''}
+                ${poolRows}`,
+        };
+    }
+
+    // The bot's own scheduled workflows -- the ones that answer @amd-bot and
+    // write the daily report. Notion Staging copies reports elsewhere and has
+    // no part in the bot being up, so it is not tracked here.
+    const BOT_UNTRACKED = new Set(['notion-staging.yml']);
+
+    // Whether @amd-bot answers on SGLang PRs, and whether it is online: green
+    // while none of its scheduled workflows has stopped or keeps failing,
+    // yellow otherwise. The answer rate is its own badge (green from 95%).
+    function renderAmdBot(data) {
+        if (!data.available) return { level: 'unknown', html: `<div class="text-muted">${escapeHtml(data.reason || data.error || 'Unavailable')}</div>` };
+        const VERDICT = { ok: ['good', 'healthy'], failing: ['warn', 'failing'], stale: ['warn', 'not running'],
+                          unstable: ['good', 'unstable'], idle: ['unknown', 'idle'] };
+        const scheduled = (data.workflows || []).filter(w => w.schedule !== 'on demand' && !BOT_UNTRACKED.has(w.file));
+        const s = (data.summary || {})['30'] || {};
+        const rate = s.answer_rate == null ? null : Math.round(s.answer_rate * 100);
+        const rateLevel = rate == null ? 'unknown' : rate >= 95 ? 'good' : rate >= 80 ? 'warn' : 'bad';
+        const down = scheduled.filter(w => ['failing', 'stale'].includes(w.verdict));
+        const online = scheduled.length > 0 && !down.length;
+        const onlineLevel = !scheduled.length ? 'unknown' : online ? 'good' : 'warn';
+        const rows = scheduled.map(w => {
+            const [lvl, label] = VERDICT[w.verdict] || ['unknown', w.verdict || '?'];
+            const runs = w.success_rate == null ? '' : ` <span class="sum-sub">${Math.round(w.success_rate * 100)}% of ${w.runs} runs</span>`;
+            return row(link(w.url, escapeHtml(w.label)), `${levelText(lvl, escapeHtml(label))}${runs}`, w.what);
+        }).join('');
+        const report = data.daily_report;
+        const signals = (data.signals || []).map(sig => ({ severity: sig.severity, message: sig.message, url: sig.url }));
+        down.forEach(w => signals.push({ severity: 'warning', message: `AMD bot workflow ${w.label} is ${(VERDICT[w.verdict] || [])[1] || w.verdict}`, url: w.url }));
+        const badges = [
+            { text: rate == null ? 'answered —' : `${rate}% answered`, level: rateLevel },
+            { text: !scheduled.length ? 'status —' : online ? 'online' : `offline: ${down.map(w => w.label).join(', ')}`, level: onlineLevel },
+        ];
+        return {
+            level: worst(badges.map(x => x.level)),
+            badges,
+            asOf: data.checked_at || data.generated_at,
+            signals,
+            html: `<div class="d-flex align-items-baseline gap-2 mb-1">
+                    <span class="sum-headline">${rate == null ? '—' : levelText(rateLevel, `${rate}%`)}</span>
+                    <span class="sum-sub">of ${s.commands ?? 0} @amd-bot commands answered, 30 days · ${s.users ?? 0} people · p50 ${duration(s.p50_latency_s)}</span></div>
+                ${rows}
+                ${report ? row('Daily report', link(report.url, `${escapeHtml(report.date)} · #${escapeHtml(report.number)}`) + ` <span class="sum-sub">${escapeHtml(ago(report.updated_at))}</span>`) : ''}`,
+        };
+    }
+</script>
+
+<script>
+document.addEventListener('DOMContentLoaded',function(){
+  // Hide refresh buttons that need a backend
+  document.querySelectorAll('[onclick*="loadStatus"],[onclick*="refreshAllPRs"]').forEach(function(el){el.classList.add('static-hidden')});
+  // Hide refresh buttons next to cache status on nightly/pr-test
+  document.querySelectorAll('[onclick*="loadData(true)"]').forEach(function(el){el.classList.add('static-hidden')});
+  // Replace visitor count with dash
+  var vc=document.getElementById('visitor-count');if(vc)vc.textContent='-';
+});
+</script>
+</body>
+</html>
