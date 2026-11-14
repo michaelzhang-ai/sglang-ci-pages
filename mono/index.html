@@ -1,0 +1,1168 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>sgl-amd-mono CI - SGLang CI</title>
+
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+
+    <!-- Bootstrap Icons -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
+
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+
+    <!-- Flatpickr Date Picker -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr@4.6.13/dist/flatpickr.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr@4.6.13/dist/flatpickr.min.js"></script>
+
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="/sglang-ci/static/css/style.css">
+
+    
+<style>
+    .mono-badge { text-transform: capitalize; font-weight: 600; }
+    .mono-badge.success { background-color: #d1e7dd; color: #0f5132; }
+    .mono-badge.failure { background-color: #f8d7da; color: #842029; }
+    .mono-badge.cancelled, .mono-badge.timed_out { background-color: #fff3cd; color: #664d03; }
+    .mono-badge.skipped, .mono-badge.none { background-color: #e2e3e5; color: #41464b; }
+    .mono-badge.in_progress, .mono-badge.queued, .mono-badge.waiting, .mono-badge.pending {
+        background-color: #cfe2ff; color: #084298;
+    }
+    .model-chip { display: inline-flex; align-items: center; gap: 3px; font-size: 0.72rem; padding: 1px 6px;
+        border-radius: 10px; border: 1px solid; margin: 1px 2px 1px 0; text-decoration: none; white-space: nowrap; }
+    .model-chip:hover { text-decoration: underline; }
+    .model-chip.success { color: #0f5132; border-color: #a3cfbb; background: #d1e7dd; }
+    .model-chip.failure { color: #842029; border-color: #f1aeb5; background: #f8d7da; }
+    .model-chip.cancelled, .model-chip.timed_out { color: #664d03; border-color: #ffe69c; background: #fff3cd; }
+    .model-chip.skipped, .model-chip.none { color: #41464b; border-color: #ced4da; background: #f1f3f5; }
+    .model-chip.in_progress, .model-chip.queued, .model-chip.waiting, .model-chip.pending {
+        color: #084298; border-color: #9ec5fe; background: #cfe2ff; }
+    .model-chip .warn-dot { color: #dc3545; }
+    .run-row { cursor: pointer; }
+    .run-row:hover { background-color: rgba(var(--bs-primary-rgb), 0.04); }
+    .run-row.selected > td { background-color: rgba(var(--bs-primary-rgb), 0.08); }
+    .runs-table { font-size: 0.82rem; }
+    .runs-table td { vertical-align: middle; }
+    .detail-row > td { background: #fbfcfd; }
+    .detail-model { border-left: 3px solid #adb5bd; padding: 0.4rem 0.75rem; margin-bottom: 0.6rem; background: #fff; }
+    .detail-model.success { border-left-color: #198754; }
+    .detail-model.failure { border-left-color: #dc3545; }
+    .detail-model.in_progress, .detail-model.queued { border-left-color: #0d6efd; }
+    .detail-model h6 { font-size: 0.88rem; margin-bottom: 0.3rem; }
+    .metric-table { font-size: 0.76rem; margin-bottom: 0.3rem; }
+    .metric-table th, .metric-table td { padding: 0.15rem 0.45rem; white-space: nowrap; }
+    .delta-good { color: #198754; font-weight: 600; }
+    .delta-bad { color: #dc3545; font-weight: 600; }
+    .note-line { font-size: 0.75rem; color: #6c757d; overflow-wrap: anywhere; }
+    .err-line { font-size: 0.75rem; color: #b02a37; overflow-wrap: anywhere; }
+    .matrix-table { font-size: 0.78rem; }
+    .matrix-table th, .matrix-table td { text-align: center; padding: 0.25rem 0.35rem; white-space: nowrap; }
+    .matrix-table td:first-child, .matrix-table th:first-child { text-align: left; position: sticky; left: 0; background: #fff; }
+    .matrix-cell { display: inline-block; width: 22px; height: 22px; line-height: 22px; border-radius: 4px; text-decoration: none; }
+    .matrix-cell.success { background: #d1e7dd; color: #0f5132; }
+    .matrix-cell.failure { background: #f8d7da; color: #842029; }
+    .matrix-cell.cancelled, .matrix-cell.timed_out { background: #fff3cd; color: #664d03; }
+    .matrix-cell.in_progress, .matrix-cell.queued { background: #cfe2ff; color: #084298; }
+    .matrix-cell.none, .matrix-cell.skipped { background: #f1f3f5; color: #adb5bd; }
+    .stat-card .stat-value { font-size: 1.6rem; font-weight: 600; line-height: 1.2; }
+    .stat-card .stat-label { font-size: 0.75rem; color: #6c757d; text-transform: uppercase; letter-spacing: 0.04em; }
+    /* The CI monitor bot's sgl-amd-mono problems, as the Nightly CI page draws its own. */
+    .report-body { font-size: 0.85rem; }
+    .report-body code { font-size: 0.95em; color: #6f42c1; background: #f6f4fb; padding: 0 2px; }
+    .report-cluster { border: 1px solid #dee2e6; border-left-width: 4px; border-left-color: #adb5bd; border-radius: 4px; margin-bottom: 6px; }
+    .report-cluster > summary { cursor: pointer; padding: 6px 10px; list-style-position: inside; }
+    .report-cluster > div { padding: 2px 10px 8px 26px; }
+    .report-cluster.fix-none { border-left-color: #dc3545; }
+    .report-cluster.fix-in_flight { border-left-color: #ffc107; }
+    .report-cluster.fix-merged { border-left-color: #198754; }
+    .report-detail { margin-bottom: 3px; }
+    .report-table { font-size: 0.78rem; }
+    .report-table td, .report-table th { vertical-align: top; }
+</style>
+
+<script>
+(function(){
+var B='/sglang-ci/';
+var _f=window.fetch;
+window.fetch=function(u,o){
+if(typeof u!=='string')return _f.apply(this,arguments);
+if(o&&o.method&&o.method.toUpperCase()==='POST')
+  return Promise.resolve(new Response(
+    JSON.stringify({error:'Not available in static mode',success:false}),
+    {status:405,headers:{'Content-Type':'application/json'}}));
+if(u.startsWith('/api/')){
+  var p=u.substring(1),q=p.indexOf('?');
+  if(q>=0){var sp=new URLSearchParams(p.substring(q));p=p.substring(0,q);
+    Array.from(sp.entries()).sort(function(a,b){return a[0].localeCompare(b[0])})
+    .forEach(function(e){p+='-'+e[0]+'-'+e[1];});}
+  p+='.json';
+  return _f.call(this,B+p,o);}
+return _f.apply(this,arguments);
+};
+})();
+</script>
+<style>
+.static-hidden{display:none!important}
+.static-banner{background:#e8f4fd;border-bottom:1px solid #bee5eb;padding:0.35rem 1rem;text-align:center;font-size:0.82rem;color:#0c5460}
+@media(max-width:768px){.static-banner{font-size:0.75rem;padding:0.3rem 0.5rem}}
+</style>
+</head>
+<body>
+    <!-- Navigation Bar -->
+    <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="/sglang-ci/summary/">
+                <i class="bi bi-graph-up"></i> SGLang Dashboard
+            </a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav me-auto">
+                    <li class="nav-item">
+                        <a class="nav-link " href="/sglang-ci/summary/">
+                            <i class="bi bi-grid-1x2"></i> Summary
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link " href="/sglang-ci/coverage/">
+                            <i class="bi bi-bar-chart-steps"></i> Coverage
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link " href="/sglang-ci/benchmark-dashboard/">
+                            <i class="bi bi-speedometer2"></i> Benchmarks
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link " href="/sglang-ci/nightly-ci/">
+                            <i class="bi bi-moon-stars"></i> Nightly CI
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link " href="/sglang-ci/day0/">
+                            <i class="bi bi-rocket-takeoff"></i> <span class="text-nowrap">Day-0</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link " href="/sglang-ci/docker-images/">
+                            <i class="bi bi-box-seam"></i> Docker Images
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link " href="/sglang-ci/aiter/">
+                            <i class="bi bi-cpu"></i> AITER
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link " href="/sglang-ci/miles/">
+                            <i class="bi bi-signpost-split"></i> MILES
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link active" href="/sglang-ci/mono/">
+                            <i class="bi bi-lightning-charge"></i> Mono
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link " href="/sglang-ci/runner-health/">
+                            <i class="bi bi-heart-pulse"></i> Runner Health
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link " href="/sglang-ci/amd-pr-tracker/">
+                            <i class="bi bi-git"></i> AMD PRs
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link " href="/sglang-ci/amd-bot/">
+                            <i class="bi bi-robot"></i> AMD Bot
+                        </a>
+                    </li>
+                </ul>
+                <ul class="navbar-nav">
+                    
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle " href="#" id="githubDropdown" role="button" data-bs-toggle="dropdown">
+                            <i class="bi bi-github"></i> GitHub
+                            <i class="bi bi-circle-fill d-none" id="github-status-dot" style="font-size:0.5rem;vertical-align:middle"></i>
+                        </a>
+                        <ul class="dropdown-menu dropdown-menu-end">
+                            <li><a class="dropdown-item " href="/sglang-ci/pr-test/">
+                                <i class="bi bi-check2-square"></i> PR Test (AMD)
+                            </a></li>
+                            
+                            <li><hr class="dropdown-divider"></li>
+                            <li><a class="dropdown-item " href="/sglang-ci/sglang-info/">
+                                <i class="bi bi-info-circle"></i> SGLang Info
+                            </a></li>
+                            <li><a class="dropdown-item" href="https://github.com/sgl-project/sglang" target="_blank" rel="noopener">
+                                <i class="bi bi-git"></i> SGLang Repo
+                            </a></li>
+                            <li><hr class="dropdown-divider"></li>
+                            
+                            <li><a class="dropdown-item" href="https://www.githubstatus.com/" target="_blank" rel="noopener" id="github-status-link">
+                                <i class="bi bi-broadcast-pin"></i> GitHub Status
+                                <span class="d-block small text-muted" id="github-status-text">checking...</span>
+                            </a></li>
+                        </ul>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Internal-only banner: live dashboard link. Rendered only when
+         DASHBOARD_URL is configured, and stripped from the public GitHub Pages
+         static build so the internal address is never published. -->
+    
+
+    <!-- Main Content -->
+    <div class="static-banner"><i class="bi bi-clock-history"></i> This is a static snapshot. Data auto-updates every 20 minutes. Please reach out to CI dashboard owner Zhang, Michael or Chen, Bingxu for any question.</div>
+    <main class="container-fluid py-4">
+        <!-- Shared data-freshness stamp and time zone choice, in the same spot
+             on every page. Pages report the timestamp of the data they render
+             via setPageLastUpdated(); the rest fall back to the site-wide
+             refresh time from /api/build-info. -->
+        <div class="d-flex justify-content-end align-items-center gap-2 mb-2" id="page-updated-bar">
+            <small class="text-muted" id="page-updated-stamp" style="display:none">
+                <i class="bi bi-clock-history"></i> Last Updated: <span id="page-last-updated"></span>
+            </small>
+            <select class="form-select form-select-sm py-0" id="timeZoneSelect" style="width: auto;"
+                onchange="setDisplayTimeZone(this.value)" data-no-capture aria-label="Time zone"
+                title="Time zone for every time on the site. Remembered for your next visit.">
+                <option value="local">Local time</option>
+                <option value="beijing">Beijing time</option>
+                <option value="pt">Pacific time</option>
+                <option value="utc">UTC</option>
+            </select>
+        </div>
+        
+<div class="row mb-3">
+    <div class="col">
+        <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+            <div>
+                <h1 class="display-6"><i class="bi bi-lightning-charge"></i> sgl-amd-mono CI</h1>
+                <p class="text-muted mb-0">
+                    <a href="https://github.com/sgl-project/sgl-amd-mono" target="_blank" class="text-decoration-none">sgl-amd-mono</a>
+                    (AMD monokernels for SGLang) on its two dedicated MI355X nodes: the nightly runs main on the newest
+                    SGLang ROCm image<span id="monoSchedule"></span>, and a maintainer's <code>run-ci</code> label runs a
+                    PR's models with the monokernels on vs off.
+                </p>
+            </div>
+            <div class="d-flex gap-2 align-items-center flex-wrap">
+                <small class="text-muted" id="cache-status"></small>
+                <button class="btn btn-outline-secondary btn-sm" onclick="loadData(true)" title="Refresh from GitHub">
+                    <i class="bi bi-arrow-clockwise"></i>
+                </button>
+                <div class="btn-group btn-group-sm" role="group">
+                    <a href="https://github.com/sgl-project/sgl-amd-mono" target="_blank" class="btn btn-outline-dark">
+                        <i class="bi bi-github"></i> Repo
+                    </a>
+                    <a href="https://github.com/sgl-project/sgl-amd-mono/actions/workflows/nightly-amd.yml" target="_blank" class="btn btn-outline-primary">
+                        <i class="bi bi-moon-stars"></i> Nightly
+                    </a>
+                    <a href="https://github.com/sgl-project/sgl-amd-mono/actions/workflows/pr-test-amd.yml" target="_blank" class="btn btn-outline-primary">
+                        <i class="bi bi-git"></i> PR Test
+                    </a>
+                    <a href="https://github.com/sgl-project/sgl-amd-mono/blob/main/scripts/ci/README.md" target="_blank" class="btn btn-outline-secondary">
+                        <i class="bi bi-book"></i> How it gates
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="alert alert-warning d-flex align-items-center d-none" id="apiDegradedAlert" role="alert">
+    <i class="bi bi-exclamation-triangle-fill me-2 fs-5"></i>
+    <div><strong>GitHub Actions API is degraded.</strong> Some runs come from the last snapshot and may be stale.</div>
+</div>
+
+<div id="main-loading" class="text-center py-5">
+    <div class="spinner-border text-primary" role="status"></div>
+    <p class="mt-2 text-muted">Fetching sgl-amd-mono CI runs from GitHub...</p>
+</div>
+<div id="main-error" style="display: none;"></div>
+
+<div id="dashboard" style="display: none;">
+    <div class="row g-3 mb-4" id="stat-cards"></div>
+
+    <div class="card mb-4">
+        <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
+            <h5 class="mb-0"><i class="bi bi-robot"></i> CI Monitor Report
+                <span class="text-muted fw-normal fs-6">the
+                <a href="https://github.com/bingxche/sglang-ci-bot" target="_blank" rel="noopener">CI monitor bot</a>'s
+                triage of this repo's failures</span></h5>
+            <small class="text-muted" id="monitor-date"></small>
+        </div>
+        <div class="card-body report-body" id="monitor-report">
+            <div class="text-muted">Loading the newest CI monitor report...</div>
+        </div>
+    </div>
+
+    <div class="card mb-4">
+        <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
+            <h5 class="mb-0"><i class="bi bi-grid-3x3-gap"></i> Nightly by Model
+                <span class="text-muted fw-normal fs-6">newest run first &middot; click a cell for the job</span></h5>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive" id="model-matrix"></div>
+        </div>
+    </div>
+
+    <div class="card mb-4">
+        <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
+            <h5 class="mb-0"><i class="bi bi-moon-stars"></i> Nightly &amp; Weekly Runs
+                <span class="text-muted fw-normal fs-6">click a run for each model's tests, accuracy and speed</span></h5>
+            <small class="text-muted" id="nightly-count"></small>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive" id="nightly-runs"></div>
+        </div>
+    </div>
+
+    <div class="card mb-4">
+        <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
+            <h5 class="mb-0"><i class="bi bi-git"></i> PR Test Runs
+                <span class="text-muted fw-normal fs-6">started by the <code>run-ci</code> / <code>run-ci-extra</code> label or a dispatch</span></h5>
+            <small class="text-muted" id="pr-count"></small>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive" id="pr-runs"></div>
+        </div>
+    </div>
+</div>
+
+    </main>
+
+    <!-- Footer -->
+    <footer class="bg-light text-center text-muted py-3 mt-5">
+        <div class="container">
+            <p class="mb-0">
+                SGLang Dashboard
+                <span class="ms-3"><a href="https://www.githubstatus.com/" target="_blank" rel="noopener" class="text-decoration-none"><i class="bi bi-broadcast-pin"></i> GitHub Status</a></span>
+                <span class="ms-3"><i class="bi bi-people-fill"></i> <span id="visitor-count">...</span> visitors</span>
+            </p>
+        </div>
+    </footer>
+
+    <script>
+        // Shared timestamp formatting and the "Last Updated" stamp. Defined
+        // before any page script runs so pages can use them as soon as their
+        // data lands.
+        (function () {
+            let pageReported = false;
+            let lastStamp = null;
+
+            // Times are shown in the zone picked in the select above every
+            // page: the viewer's own by default, or Beijing, Pacific or UTC,
+            // remembered across visits. The zone is always named, so a time
+            // copied into a chat still means the same thing to a reader
+            // elsewhere. Format every wall-clock time through these helpers
+            // (or zoneOptions) so it follows the choice.
+            const TIME_ZONE_KEY = 'display_time_zone';
+            const TIME_ZONES = {
+                local: undefined,
+                beijing: 'Asia/Shanghai',
+                pt: 'America/Los_Angeles',
+                utc: 'UTC',
+            };
+            let zoneChoice = 'local';
+            try {
+                const saved = localStorage.getItem(TIME_ZONE_KEY);
+                if (saved in TIME_ZONES) zoneChoice = saved;
+            } catch (e) { /* private mode */ }
+
+            window.getDisplayTimeZone = () => zoneChoice;
+            // The IANA zone to pass as `timeZone`, or undefined for the viewer's.
+            window.displayTimeZoneId = () => TIME_ZONES[zoneChoice];
+
+            // A page that can redraw its times in place registers here; one
+            // that doesn't is reloaded, so nothing is left in the old zone.
+            const zoneHandlers = [];
+            window.onTimeZoneChange = fn => { zoneHandlers.push(fn); };
+
+            window.setDisplayTimeZone = function (choice) {
+                if (!(choice in TIME_ZONES) || choice === zoneChoice) return;
+                zoneChoice = choice;
+                try { localStorage.setItem(TIME_ZONE_KEY, choice); } catch (e) { /* private mode */ }
+                const select = document.getElementById('timeZoneSelect');
+                if (select) select.value = choice;
+                if (!zoneHandlers.length) { location.reload(); return; }
+                if (lastStamp) render(lastStamp);
+                localizeClocks();
+                zoneHandlers.forEach(fn => fn(choice));
+            };
+
+            // `toLocaleString` options with the chosen zone applied and named.
+            window.zoneOptions = function (options) {
+                return { ...options, timeZone: TIME_ZONES[zoneChoice], timeZoneName: 'short' };
+            };
+
+            // Single definition of how an absolute moment is shown, so a new
+            // one can't be added without the zone. Values that aren't dates are
+            // passed through untouched.
+            window.formatTimestamp = function (value) {
+                const parsed = new Date(value);
+                return isNaN(parsed.getTime())
+                    ? String(value)
+                    : parsed.toLocaleString(undefined, window.zoneOptions({}));
+            };
+
+            // The compact form for table cells, e.g. "Oct 8, 14:02 PDT"; put
+            // formatTimestamp in the tooltip when the full one matters.
+            window.formatShortTime = function (value) {
+                const parsed = value ? new Date(value) : null;
+                if (!parsed || isNaN(parsed.getTime())) return '';
+                return parsed.toLocaleString(undefined, window.zoneOptions({
+                    month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', hourCycle: 'h23',
+                }));
+            };
+
+            // The calendar date of a moment in the chosen zone, in the viewer's
+            // locale (formatDate) or as YYYY-MM-DD (formatIsoDate). No zone
+            // name: it is a day, not a clock time. A bare "2026-11-03" is a
+            // day already and is not shifted.
+            const BARE_DATE = /^\d{4}-\d{2}-\d{2}$/;
+            function zonedDate(value, locale) {
+                if (!value) return '';
+                const parsed = new Date(BARE_DATE.test(value) ? `${value}T12:00:00Z` : value);
+                if (isNaN(parsed.getTime())) return String(value);
+                const timeZone = BARE_DATE.test(value) ? 'UTC' : TIME_ZONES[zoneChoice];
+                return parsed.toLocaleDateString(locale, { timeZone });
+            }
+            window.formatDate = value => zonedDate(value, undefined);
+            window.formatIsoDate = value => zonedDate(value, 'en-CA');
+
+            // A UTC clock time ("16:00") as the chosen zone reads it on `on`
+            // (default today, which decides DST): its clock, the zone's short
+            // name, and how many days it moved (-1, 0, +1).
+            window.zonedClock = function (hhmm, on) {
+                const [h, m] = String(hhmm).split(':').map(Number);
+                const ref = on ? new Date(on) : new Date();
+                const at = new Date(Date.UTC(ref.getUTCFullYear(), ref.getUTCMonth(), ref.getUTCDate(), h, m || 0));
+                const parts = {};
+                new Intl.DateTimeFormat('en-US', window.zoneOptions({
+                    year: 'numeric', month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit', hourCycle: 'h23',
+                })).formatToParts(at).forEach(p => { parts[p.type] = p.value; });
+                const zonedDay = Date.UTC(Number(parts.year), Number(parts.month) - 1, Number(parts.day));
+                const utcDay = Date.UTC(at.getUTCFullYear(), at.getUTCMonth(), at.getUTCDate());
+                return {
+                    clock: `${parts.hour}:${parts.minute}`,
+                    zone: parts.timeZoneName,
+                    dayShift: Math.round((zonedDay - utcDay) / 86400000),
+                };
+            };
+
+            // Cron summaries are written in UTC ("16:00 UTC daily", "01:00 &
+            // 13:00 UTC daily", "20:00 UTC Sat", "21:00 UTC odd days", joined
+            // with " + "). Each clock time is shown in the chosen zone. A time
+            // that lands on another date moves its weekdays with it; odd/even
+            // and every-N-days counts are UTC dates and can't move, so those
+            // keep the UTC schedule and give the zone's time beside it.
+            const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+            const WEEKDAY_LIST = /^ ((?:Sun|Mon|Tue|Wed|Thu|Fri|Sat)(?:, (?:Sun|Mon|Tue|Wed|Thu|Fri|Sat))*(?: & (?:Sun|Mon|Tue|Wed|Thu|Fri|Sat))?)$/;
+            window.localizeSchedule = function (text) {
+                if (!text || zoneChoice === 'utc') return text;
+                return String(text).split(' + ').map(segment => {
+                    const match = /^(\d{1,2}:\d{2}(?: & \d{1,2}:\d{2})*) UTC(.*)$/.exec(segment);
+                    if (!match) return segment;
+                    const clocks = match[1].split(' & ').map(c => window.zonedClock(c));
+                    const times = `${clocks.map(c => c.clock).join(' & ')} ${clocks[0].zone}`;
+                    const suffix = match[2];
+                    const shifts = new Set(clocks.map(c => c.dayShift));
+                    const shift = shifts.size === 1 ? [...shifts][0] : null;
+                    if (shift === 0 || suffix.trim() === 'daily') return times + suffix;
+                    if (shift !== null && WEEKDAY_LIST.test(suffix)) {
+                        return times + suffix.replace(/Sun|Mon|Tue|Wed|Thu|Fri|Sat/g,
+                            d => WEEKDAYS[(WEEKDAYS.indexOf(d) + shift + 7) % 7]);
+                    }
+                    const when = shift === 1 ? ' next day' : shift === -1 ? ' previous day' : '';
+                    return `${segment} (${times}${when})`;
+                }).join(' + ');
+            };
+
+            // Static markup names a time that recurs every day as
+            // <span data-utc-clock="16:00">16:00 UTC</span>; it is rewritten
+            // here, on load and on every change. (Prose that ties a time to
+            // UTC dates, like "even dates", should stay in UTC.)
+            function localizeClocks() {
+                document.querySelectorAll('[data-utc-clock]').forEach(el => {
+                    el.textContent = window.localizeSchedule(`${el.dataset.utcClock} UTC daily`).replace(/ daily$/, '');
+                });
+            }
+
+            function render(value) {
+                const bar = document.getElementById('page-updated-stamp');
+                const out = document.getElementById('page-last-updated');
+                if (!bar || !out || !value) return;
+                lastStamp = value;
+                out.textContent = window.formatTimestamp(value);
+                bar.style.display = '';
+            }
+
+            // "Local time" names the viewer's zone so it can be told apart
+            // from the others.
+            const select = document.getElementById('timeZoneSelect');
+            if (select) {
+                select.value = zoneChoice;
+                const local = new Intl.DateTimeFormat('en-US', { timeZoneName: 'short' })
+                    .formatToParts(new Date()).find(p => p.type === 'timeZoneName');
+                if (local) select.querySelector('option[value="local"]').textContent = `Local time (${local.value})`;
+            }
+            localizeClocks();
+
+            window.setPageLastUpdated = function (value) {
+                if (!value) return;
+                pageReported = true;
+                render(value);
+            };
+
+            fetch('/api/build-info')
+                .then(response => response.json())
+                .then(data => { if (!pageReported) render(data.generated_at); })
+                .catch(() => {});
+        })();
+
+        // Shared "Copy as image" button: a picture of part of a page, as it is
+        // shown now, for a chat or an email. Copied to the clipboard where the
+        // browser allows images there (a secure page and ClipboardItem),
+        // downloaded as a PNG otherwise. html2canvas (~45 KB) is loaded from the
+        // CDN on the first click, so a page pays nothing for it until then.
+        // Anything tagged data-no-capture (the button itself, selects, show/hide
+        // toggles) is left out of the image.
+        (function () {
+            let html2canvasLoad = null;
+            function loadHtml2canvas() {
+                if (window.html2canvas) return Promise.resolve(window.html2canvas);
+                if (!html2canvasLoad) {
+                    html2canvasLoad = new Promise((resolve, reject) => {
+                        const s = document.createElement('script');
+                        s.src = 'https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js';
+                        s.onload = () => resolve(window.html2canvas);
+                        s.onerror = () => { html2canvasLoad = null; reject(new Error('could not load html2canvas')); };
+                        document.head.appendChild(s);
+                    });
+                }
+                return html2canvasLoad;
+            }
+
+            function downloadBlob(blob, fileName) {
+                const a = document.createElement('a');
+                a.href = URL.createObjectURL(blob);
+                a.download = fileName;
+                document.body.appendChild(a);
+                a.click();
+                setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1000);
+            }
+
+            // `region` is one element, or [first, last] for everything from the
+            // top of `first` to the bottom of `last` -- for a section that is not
+            // one element, like a page header plus the cards below it. `name` is
+            // the file name, without .png, used when the image is downloaded.
+            // `ready`, if given, is a promise the picture waits for, so a page
+            // still loading its data is pictured once it has finished.
+            // The button's <span> (or the button) reports how it went.
+            window.copyScreenshot = function (btn, region, name, ready) {
+                const [first, last] = Array.isArray(region) ? region : [region, region];
+                const opts = {
+                    backgroundColor: '#ffffff',
+                    scale: Math.min(2, window.devicePixelRatio || 1),
+                    ignoreElements: el => el.hasAttribute && el.hasAttribute('data-no-capture'),
+                    windowWidth: document.documentElement.scrollWidth,
+                };
+                let target = first;
+                if (last !== first) {
+                    // Their common parent, cropped to the span between them.
+                    // The crop is measured on the copy html2canvas renders, not
+                    // at the click: anything that finishes loading in between
+                    // (the library itself is fetched on the first click) grows
+                    // the page, and a crop measured earlier cut off its bottom.
+                    // html2canvas measures the crop from the captured element's
+                    // own top, not the page's.
+                    while (!target.contains(last)) target = target.parentElement;
+                    opts.onclone = (doc, clonedTarget) => {
+                        const f = doc.querySelector('[data-shot-first]');
+                        const l = doc.querySelector('[data-shot-last]');
+                        const top = f.getBoundingClientRect().top;
+                        // `last` not rendered yet (page still loading): just `first`.
+                        opts.y = top - clonedTarget.getBoundingClientRect().top;
+                        opts.height = (l.getClientRects().length ? l : f).getBoundingClientRect().bottom - top;
+                    };
+                }
+
+                const label = btn.querySelector('span') || btn;
+                const idle = label.textContent;
+                btn.disabled = true;
+                label.textContent = 'Rendering…';
+
+                const png = Promise.all([loadHtml2canvas(), ready])
+                    .then(([h2c]) => {
+                        // The clone is taken when html2canvas starts, so the
+                        // markers only need to outlive that call.
+                        first.setAttribute('data-shot-first', '');
+                        last.setAttribute('data-shot-last', '');
+                        const shot = h2c(target, opts);
+                        first.removeAttribute('data-shot-first');
+                        last.removeAttribute('data-shot-last');
+                        return shot;
+                    })
+                    .then(canvas => new Promise((resolve, reject) =>
+                        canvas.toBlob(b => (b ? resolve(b) : reject(new Error('empty image'))), 'image/png')));
+                const download = () => png.then(blob => { downloadBlob(blob, `${name}.png`); return 'Downloaded PNG'; });
+                let done;
+                try {
+                    // The clipboard write starts now, inside the click, with the
+                    // image still rendering: a browser that only lets a page write
+                    // the clipboard straight after a click (Safari, and Chrome
+                    // once a render runs long) would refuse a write made later.
+                    if (!(window.isSecureContext && navigator.clipboard && window.ClipboardItem)) throw 0;
+                    done = navigator.clipboard.write([new ClipboardItem({'image/png': png})])
+                        .then(() => 'Copied image', download);
+                } catch (e) {
+                    done = download();
+                }
+                done.then(text => text, () => 'Image failed').then(text => {
+                    label.textContent = text;
+                    btn.disabled = false;
+                    setTimeout(() => { label.textContent = idle; }, 2500);
+                });
+            };
+        })();
+
+        // GitHub's own incident status, read straight from its public Statuspage
+        // in the browser: no backend involved, so the live server and the
+        // static snapshot both show a current value. The dot next to the
+        // GitHub menu is what makes an ongoing incident visible without
+        // opening the menu -- a GitHub outage is a common reason for the CI
+        // results on these pages to look broken.
+        (function () {
+            // Muted enough to sit on the navbar, bright enough to read on it.
+            const DOT_COLORS = {
+                none: '#5cd97b',
+                minor: '#ffd43b',
+                major: '#ff922b',
+                critical: '#ff6b6b',
+            };
+
+            const text = document.getElementById('github-status-text');
+            const dot = document.getElementById('github-status-dot');
+            const link = document.getElementById('github-status-link');
+
+            fetch('https://www.githubstatus.com/api/v2/status.json')
+                .then(response => response.ok ? response.json() : Promise.reject())
+                .then(data => {
+                    const status = data.status || {};
+                    const description = status.description || 'Status unknown';
+                    if (text) text.textContent = description;
+                    if (link) link.title = 'GitHub Status: ' + description;
+                    const color = DOT_COLORS[status.indicator];
+                    if (dot && color) {
+                        dot.style.color = color;
+                        dot.classList.remove('d-none');
+                    }
+                })
+                .catch(() => {
+                    // Ignore: the link itself still works, and a failed check
+                    // here says nothing about GitHub (it is just as likely to
+                    // be the viewer's network).
+                    if (text) text.textContent = 'check on githubstatus.com';
+                });
+        })();
+
+        // Load visitor count
+        fetch('/api/visitor-count')
+            .then(response => response.json())
+            .then(data => {
+                document.getElementById('visitor-count').textContent = data.count.toLocaleString();
+            })
+            .catch(() => {
+                document.getElementById('visitor-count').textContent = '-';
+            });
+    </script>
+
+    <!-- Bootstrap JS Bundle -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+    <!-- Custom JS -->
+    <script src="/sglang-ci/static/js/dashboard.js"></script>
+
+    
+<script>
+    const DAYS = 30;
+    const CACHE_TTL_MS = 10 * 60 * 1000;
+    const CACHE_KEY = 'mono_v1';
+    let cachedData = null;
+    const openRuns = new Set();
+
+    function escapeHtml(value) {
+        return String(value == null ? '' : value).replace(/[&<>"']/g, c =>
+            ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+    }
+
+    function extLink(url, html, cls) {
+        if (!/^https:\/\//.test(url || '')) return html;
+        return `<a href="${escapeHtml(url)}" target="_blank" rel="noopener" class="${cls || 'text-decoration-none'}">${html}</a>`;
+    }
+
+    function duration(seconds) {
+        if (seconds == null) return '—';
+        if (seconds < 60) return `${Math.round(seconds)}s`;
+        if (seconds < 3600) return `${Math.round(seconds / 60)}m`;
+        const h = Math.floor(seconds / 3600), m = Math.round((seconds % 3600) / 60);
+        return `${h}h ${m}m`;
+    }
+
+    // A job's state as one word: its conclusion once finished, else its status.
+    function stateOf(x) {
+        if (!x) return 'none';
+        return x.status === 'completed' ? (x.conclusion || 'none') : (x.status || 'none');
+    }
+
+    const STATE_ICON = {
+        success: 'bi-check-lg', failure: 'bi-x-lg', cancelled: 'bi-slash-circle', timed_out: 'bi-clock',
+        in_progress: 'bi-arrow-repeat', queued: 'bi-hourglass', waiting: 'bi-hourglass', pending: 'bi-hourglass',
+        skipped: 'bi-dash', none: 'bi-dash',
+    };
+
+    function badge(state) {
+        const label = state === 'in_progress' ? 'running' : state.replace('_', ' ');
+        return `<span class="badge mono-badge ${escapeHtml(state)}"><i class="bi ${STATE_ICON[state] || 'bi-dash'}"></i> ${escapeHtml(label)}</span>`;
+    }
+
+    function imageTag(image) {
+        if (!image) return '';
+        const tag = String(image).split(':').pop();
+        return `<code title="${escapeHtml(image)}">${escapeHtml(tag)}</code>`;
+    }
+
+    // Problems a green job can still carry: failed tests, a step that raised,
+    // a benchmark that errored. The run's report job decides the gate; these
+    // are shown so a pass is never read as "nothing went wrong".
+    function jobWarnings(job) {
+        const r = job.result || {};
+        const out = [];
+        Object.entries(r.tests || {}).forEach(([name, t]) => {
+            if (t.failed) out.push(`${name}: ${t.failed} failed`);
+        });
+        Object.keys(r.step_errors || {}).forEach(k => out.push(`step ${k} raised`));
+        if ((r.pinned || {}).contract && !/^pass/.test(r.pinned.contract)) out.push(`pinned contract: ${r.pinned.contract}`);
+        if (r.error) out.push('run error');
+        return out;
+    }
+
+    function modelChip(job) {
+        const state = stateOf(job);
+        const warns = jobWarnings(job);
+        const tier = job.tier && job.tier !== 'full' ? ` <span class="opacity-75">${escapeHtml(job.tier)}</span>` : '';
+        const title = [job.name, state, ...warns].join('\n');
+        const dot = warns.length ? ' <i class="bi bi-exclamation-circle-fill warn-dot"></i>' : '';
+        return `<a href="${escapeHtml(job.url || '#')}" target="_blank" rel="noopener" class="model-chip ${escapeHtml(state)}" title="${escapeHtml(title)}">
+            <i class="bi ${STATE_ICON[state] || 'bi-dash'}"></i>${escapeHtml(job.model)}${tier}${dot}</a>`;
+    }
+
+    // ---- cron -> "05:17 UTC Sun, Mon, Tue, Wed, Thu & Fri" -----------------
+    const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    function cronText(cron) {
+        const f = String(cron || '').trim().split(/\s+/);
+        if (f.length !== 5 || !/^\d+$/.test(f[0]) || !/^\d+$/.test(f[1])) return null;
+        const clock = `${f[1].padStart(2, '0')}:${f[0].padStart(2, '0')} UTC`;
+        if (f[4] === '*') return `${clock} daily`;
+        const days = new Set();
+        f[4].split(',').forEach(part => {
+            const [a, b] = part.split('-').map(Number);
+            for (let d = a; d <= (isNaN(b) ? a : b); d++) days.add(d % 7);
+        });
+        const names = [...days].sort().map(d => WEEKDAYS[d]);
+        if (!names.length) return null;
+        const list = names.length === 1 ? names[0] : `${names.slice(0, -1).join(', ')} & ${names[names.length - 1]}`;
+        return `${clock} ${list}`;
+    }
+
+    function renderSchedule(data) {
+        const crons = (data.schedules || []).map(cronText).filter(Boolean);
+        const el = document.getElementById('monoSchedule');
+        if (!crons.length) { el.textContent = ''; return; }
+        // The workflow's last cron is the weekly one (every benchmark, on and off).
+        const parts = crons.length > 1
+            ? [`${localizeSchedule(crons.slice(0, -1).join(' + '))}`, `weekly ${localizeSchedule(crons[crons.length - 1])}`]
+            : [localizeSchedule(crons[0])];
+        el.textContent = ` (${parts.join('; ')})`;
+    }
+
+    // ---- loading -----------------------------------------------------------
+    function loadFromCache() {
+        try {
+            const cached = JSON.parse(localStorage.getItem(CACHE_KEY) || 'null');
+            return cached && Date.now() - cached._ts <= CACHE_TTL_MS ? cached : null;
+        } catch { return null; }
+    }
+
+    function saveToCache(data) {
+        try { localStorage.setItem(CACHE_KEY, JSON.stringify({ ...data, _ts: Date.now() })); } catch {}
+    }
+
+    function show(data, fromCache) {
+        cachedData = data;
+        document.getElementById('main-loading').style.display = 'none';
+        document.getElementById('dashboard').style.display = 'block';
+        renderAll(data);
+        const el = document.getElementById('cache-status');
+        if (fromCache && data._ts) {
+            const ago = Math.round((Date.now() - data._ts) / 60000);
+            el.innerHTML = `<i class="bi bi-database"></i> cached ${ago}m ago`;
+        } else {
+            el.innerHTML = '<i class="bi bi-cloud-check"></i> live';
+        }
+    }
+
+    function loadData(forceRefresh) {
+        if (!forceRefresh) {
+            const cached = loadFromCache();
+            if (cached) { show(cached, true); return; }
+        }
+        document.getElementById('main-loading').style.display = 'block';
+        document.getElementById('dashboard').style.display = 'none';
+        document.getElementById('main-error').style.display = 'none';
+        fetch(`/api/mono/status?days=${DAYS}`)
+            .then(r => { if (!r.ok) throw new Error(r.status === 404 ? 'not published yet' : `HTTP ${r.status}`); return r.json(); })
+            .then(data => { saveToCache(data); show(data, false); })
+            .catch(err => {
+                document.getElementById('main-loading').style.display = 'none';
+                const box = document.getElementById('main-error');
+                box.innerHTML = `<div class="alert alert-danger"><i class="bi bi-exclamation-triangle"></i> Failed to load: ${escapeHtml(err.message)}</div>`;
+                box.style.display = 'block';
+            });
+    }
+
+    // ---- rendering ---------------------------------------------------------
+    function renderAll(data) {
+        data.runs = data.runs || { nightly: [], pr: [] };
+        setPageLastUpdated(data.generated_at);
+        document.getElementById('apiDegradedAlert').classList.toggle('d-none', !data.github_api_degraded);
+        renderSchedule(data);
+        renderStats(data);
+        renderMatrix(data);
+        renderRuns('nightly-runs', data.runs.nightly || [], false);
+        renderRuns('pr-runs', data.runs.pr || [], true);
+        const n = (data.runs.nightly || []).length, p = (data.runs.pr || []).length;
+        document.getElementById('nightly-count').textContent = `${n} run${n === 1 ? '' : 's'} in ${data.days || DAYS} days`;
+        document.getElementById('pr-count').textContent = `${p} run${p === 1 ? '' : 's'} in ${data.days || DAYS} days`;
+    }
+
+    function statCard(label, valueHtml, subHtml, tone) {
+        return `<div class="col-lg-3 col-md-6"><div class="card stat-card h-100 ${tone ? `border-${tone}` : ''}">
+            <div class="card-body py-2">
+                <div class="stat-label">${label}</div>
+                <div class="stat-value">${valueHtml}</div>
+                <div class="small text-muted">${subHtml || ''}</div>
+            </div></div></div>`;
+    }
+
+    function renderStats(data) {
+        const s = data.summary || {};
+        const ns = s.nightly || {}, ps = s.pr || {};
+        const latest = ns.latest;
+        const running = ns.in_progress;
+        const tone = st => ({ success: 'success', failure: 'danger', in_progress: 'primary' }[st] || 'secondary');
+        const cards = [];
+        if (latest) {
+            const st = stateOf(latest);
+            cards.push(statCard('Latest finished nightly', badge(st),
+                `${extLink(latest.url, escapeHtml(formatShortTime(latest.created_at)))} &middot; ${escapeHtml(latest.mode)} &middot; ${imageTag(latest.image)}`, tone(st)));
+        } else {
+            cards.push(statCard('Latest finished nightly', '<span class="text-muted">—</span>', 'no finished run yet'));
+        }
+        if (running) {
+            const done = running.jobs.filter(j => j.status === 'completed').length;
+            cards.push(statCard('Running now', badge('in_progress'),
+                `${extLink(running.url, escapeHtml(formatShortTime(running.created_at)))} &middot; ${done}/${running.jobs.length} models done`, 'primary'));
+        } else {
+            const models = Object.entries(data.models || {});
+            const green = models.filter(([, m]) => (m.latest || {}).conclusion === 'success').length;
+            cards.push(statCard('Models green (latest job)', models.length ? `${green}/${models.length}` : '—',
+                models.filter(([, m]) => (m.latest || {}).conclusion !== 'success').map(([k]) => escapeHtml(k)).join(', ') || 'every model passed its latest job',
+                models.length ? (green === models.length ? 'success' : 'danger') : ''));
+        }
+        cards.push(statCard(`Nightly runs (${data.days || DAYS}d)`,
+            `<span class="text-success">${ns.passed || 0}</span> / <span class="text-danger">${ns.failed || 0}</span>`,
+            `passed / failed${ns.running ? ` &middot; ${ns.running} running` : ''}`));
+        cards.push(statCard(`PR test runs (${data.days || DAYS}d)`,
+            `<span class="text-success">${ps.passed || 0}</span> / <span class="text-danger">${ps.failed || 0}</span>`,
+            `passed / failed &middot; ${ps.prs || 0} PR${ps.prs === 1 ? '' : 's'}${ps.running ? ` &middot; ${ps.running} running` : ''}`));
+        document.getElementById('stat-cards').innerHTML = cards.join('');
+    }
+
+    function renderMatrix(data) {
+        const runs = (data.runs.nightly || []).slice(0, 14);
+        const box = document.getElementById('model-matrix');
+        if (!runs.length) {
+            box.innerHTML = '<div class="text-muted p-3">No nightly run in this window yet.</div>';
+            return;
+        }
+        const models = [...new Set(runs.flatMap(r => r.jobs.map(j => j.model)))]
+            .sort((a, b) => (a === 'common' ? -1 : b === 'common' ? 1 : a.localeCompare(b)));
+        const head = runs.map(r => `<th title="${escapeHtml(formatTimestamp(r.created_at))}">
+            ${extLink(r.url, escapeHtml(formatIsoDate(r.created_at).slice(5)))}<br>
+            <span class="text-muted fw-normal">${r.mode === 'weekly' ? 'weekly' : ''}</span></th>`).join('');
+        const rows = models.map(model => {
+            const cells = runs.map(r => {
+                const job = r.jobs.find(j => j.model === model);
+                if (!job) return '<td><span class="matrix-cell none">·</span></td>';
+                const st = stateOf(job);
+                const warns = jobWarnings(job);
+                const title = [`${model} · ${formatShortTime(r.created_at)}`, st, ...warns].join('\n');
+                return `<td><a class="matrix-cell ${escapeHtml(st)}" href="${escapeHtml(job.url || '#')}" target="_blank" rel="noopener" title="${escapeHtml(title)}">
+                    <i class="bi ${STATE_ICON[st] || 'bi-dash'}"></i></a>${warns.length ? '<i class="bi bi-exclamation-circle-fill text-danger small"></i>' : ''}</td>`;
+            }).join('');
+            return `<tr><td><strong>${escapeHtml(model)}</strong></td>${cells}</tr>`;
+        }).join('');
+        box.innerHTML = `<table class="table table-sm matrix-table w-auto mb-0"><thead><tr><th>Model</th>${head}</tr></thead><tbody>${rows}</tbody></table>`;
+    }
+
+    function prCell(run) {
+        const pr = run.pr;
+        if (!pr) return `<span class="text-muted">${escapeHtml(run.title || '')}</span>`;
+        const state = pr.state ? ` <span class="badge bg-light text-dark border">${escapeHtml(pr.state)}</span>` : '';
+        return `${extLink(pr.url, `#${escapeHtml(pr.number)}`, 'fw-semibold text-decoration-none')} ${escapeHtml(pr.title)}${state}
+            <div class="note-line">${escapeHtml(pr.author || '')}</div>`;
+    }
+
+    function renderRuns(boxId, runs, isPr) {
+        const box = document.getElementById(boxId);
+        if (!runs.length) {
+            box.innerHTML = `<div class="text-muted p-3">${isPr
+                ? 'No PR has been tested in this window. A maintainer adds the <code>run-ci</code> label to start one.'
+                : 'No nightly run in this window yet.'}</div>`;
+            return;
+        }
+        const rows = runs.map(run => {
+            const st = stateOf(run);
+            const open = openRuns.has(run.id);
+            const elapsed = run.duration_s != null ? duration(run.duration_s)
+                : run.started_at ? `${duration((Date.now() - new Date(run.started_at)) / 1000)} so far` : '—';
+            const what = isPr ? prCell(run)
+                : `<span class="badge ${run.mode === 'weekly' ? 'bg-dark' : 'bg-secondary'}">${escapeHtml(run.mode)}</span>
+                   ${run.event === 'workflow_dispatch' ? `<span class="note-line">dispatched by ${escapeHtml(run.actor || '')}</span>` : ''}`;
+            const main = `<tr class="run-row ${open ? 'selected' : ''}" data-run="${run.id}" onclick="toggleRun(${run.id})">
+                <td class="text-nowrap" title="${escapeHtml(formatTimestamp(run.created_at))}"><i class="bi bi-chevron-${open ? 'down' : 'right'} small"></i> ${escapeHtml(formatShortTime(run.created_at))}</td>
+                <td>${what}</td>
+                <td>${run.jobs.map(modelChip).join('') || '<span class="text-muted">—</span>'}</td>
+                <td>${imageTag(run.image)}</td>
+                <td class="text-nowrap">${elapsed}</td>
+                <td class="text-nowrap">${extLink(run.url, badge(st))}</td>
+            </tr>`;
+            const detail = open ? `<tr class="detail-row"><td colspan="6">${runDetail(run)}</td></tr>` : '';
+            return main + detail;
+        }).join('');
+        box.innerHTML = `<table class="table table-sm table-hover runs-table mb-0">
+            <thead><tr><th>Started</th><th>${isPr ? 'PR' : 'Kind'}</th><th>Models</th><th>Image</th><th>Duration</th><th>Result</th></tr></thead>
+            <tbody>${rows}</tbody></table>`;
+    }
+
+    function toggleRun(id) {
+        if (openRuns.has(id)) openRuns.delete(id); else openRuns.add(id);
+        if (cachedData) {
+            renderRuns('nightly-runs', cachedData.runs.nightly || [], false);
+            renderRuns('pr-runs', cachedData.runs.pr || [], true);
+        }
+    }
+
+    // ---- one run's detail: each model's tests, accuracy and speed -----------
+    function fmtScore(e) {
+        if (!e) return '<span class="text-muted">—</span>';
+        if (e.score != null) return (e.score * 100).toFixed(1) + '%';
+        if (e.skipped) return `<span class="text-muted" title="${escapeHtml(e.skipped)}">skipped</span>`;
+        if (e.error) return `<span class="text-danger" title="${escapeHtml(e.error)}">error</span>`;
+        return '<span class="text-muted">—</span>';
+    }
+
+    function scoreDelta(on, ref) {
+        if (!on || !ref || on.score == null || ref.score == null) return '';
+        const d = (on.score - ref.score) * 100;
+        const cls = d < -0.05 ? 'delta-bad' : d > 0.05 ? 'delta-good' : 'text-muted';
+        return `<span class="${cls}">${d >= 0 ? '+' : ''}${d.toFixed(1)} pt</span>`;
+    }
+
+    function accuracyTable(acc) {
+        const sides = ['on', 'off', 'base'].filter(s => acc[s]);
+        if (!sides.length) return '';
+        const evals = [...new Set(sides.flatMap(s => Object.keys(acc[s])))];
+        const ref = acc.off ? 'off' : acc.base ? 'base' : null;
+        const head = sides.map(s => `<th>${s === 'on' ? 'mono on' : s === 'off' ? 'mono off' : 'base'}</th>`).join('');
+        const rows = evals.map(name => {
+            const on = (acc.on || {})[name];
+            const any = sides.map(s => acc[s][name]).find(Boolean) || {};
+            const n = any.num_examples ? `${any.num_examples}${any.n_repeats > 1 ? ` × ${any.n_repeats}` : ''}` : '';
+            return `<tr><td>${escapeHtml(name)} <span class="text-muted">${escapeHtml(n)}</span></td>
+                ${sides.map(s => `<td>${fmtScore(acc[s][name])}</td>`).join('')}
+                <td>${ref && acc.on ? scoreDelta(on, acc[ref][name]) : ''}</td></tr>`;
+        }).join('');
+        return `<table class="table table-sm metric-table w-auto"><thead><tr><th>Accuracy</th>${head}<th>${ref ? `on vs ${ref}` : ''}</th></tr></thead><tbody>${rows}</tbody></table>`;
+    }
+
+    function perfTable(perf) {
+        const sides = ['on', 'off', 'base'].filter(s => perf[s] && Object.keys(perf[s]).length);
+        if (!sides.length) return '';
+        const ref = perf.base && Object.keys(perf.base).length ? 'base' : perf.off ? 'off' : null;
+        const concs = [...new Set(sides.flatMap(s => Object.keys(perf[s])))].sort((a, b) => Number(a) - Number(b));
+        const cell = v => !v ? '<span class="text-muted">—</span>'
+            : v.error ? `<span class="text-danger" title="${escapeHtml(v.error)}">error</span>`
+            : v.median_tpot_ms != null ? `${v.median_tpot_ms.toFixed(2)} ms <span class="text-muted">· ${v.output_throughput != null ? Math.round(v.output_throughput) : '—'} tok/s</span>` : '—';
+        const rows = concs.map(c => {
+            const on = (perf.on || {})[c], r = ref ? (perf[ref] || {})[c] : null;
+            let delta = '';
+            if (on && r && on.median_tpot_ms && r.median_tpot_ms) {
+                // TPOT: lower is better, so a gain is a negative change.
+                const gain = (r.median_tpot_ms - on.median_tpot_ms) / r.median_tpot_ms * 100;
+                const cls = gain <= -2 ? 'delta-bad' : gain >= 5 ? 'delta-good' : 'text-muted';
+                delta = `<span class="${cls}">${gain >= 0 ? '+' : ''}${gain.toFixed(1)}%</span>`;
+            }
+            return `<tr><td>c=${escapeHtml(c)}</td>${sides.map(s => `<td>${cell(perf[s][c])}</td>`).join('')}<td>${delta}</td></tr>`;
+        }).join('');
+        const head = sides.map(s => `<th>${s === 'on' ? 'mono on' : s === 'off' ? 'mono off' : 'base'}</th>`).join('');
+        return `<table class="table table-sm metric-table w-auto"><thead><tr><th>TPOT p50 · throughput</th>${head}<th>${ref ? `speed-up vs ${ref}` : ''}</th></tr></thead><tbody>${rows}</tbody></table>`;
+    }
+
+    function jobDetail(job) {
+        const st = stateOf(job);
+        const r = job.result;
+        const head = `<h6>${extLink(job.url, escapeHtml(job.model))}
+            ${job.tier && job.tier !== 'full' ? `<span class="badge bg-light text-dark border">${escapeHtml(job.tier)}</span>` : ''}
+            ${badge(st)} <span class="text-muted small">${duration(job.duration_s)}</span></h6>`;
+        if (!r) {
+            const why = job.status !== 'completed' ? 'Still running; results appear when the job ends.'
+                : 'No result.json (the job ended before writing one, or its artifact expired).';
+            return `<div class="detail-model ${escapeHtml(st)}">${head}<div class="note-line">${why}</div></div>`;
+        }
+        const tests = Object.entries(r.tests || {}).map(([name, t]) => {
+            const total = (t.passed || 0) + (t.failed || 0);
+            const cls = t.failed ? 'text-danger fw-semibold' : 'text-success';
+            return `<span class="me-3">${escapeHtml(name)}: <span class="${cls}">${t.passed || 0}/${total}</span>${t.skipped ? ` <span class="text-muted">(${t.skipped} skipped)</span>` : ''}</span>`;
+        }).join('');
+        const pinned = r.pinned && Object.keys(r.pinned).length
+            ? `<div class="note-line">Image's pinned mono: ${escapeHtml(r.pinned.commit || '')}
+                ${Object.entries(r.pinned).filter(([k]) => k !== 'commit').map(([k, v]) =>
+                    `&middot; ${escapeHtml(k)} <span class="${/^pass/.test(String(v)) ? 'text-success' : 'text-danger'}">${escapeHtml(v)}</span>`).join(' ')}</div>`
+            : '';
+        const notes = [
+            r.baseline ? `Speed baseline: ${escapeHtml(r.baseline)}` : '',
+            r.extra ? 'run-ci-extra (GPQA)' : '',
+            r.sglang ? `SGLang ${escapeHtml(r.sglang)}` : '',
+        ].filter(Boolean).map(n => `<div class="note-line">${n}</div>`).join('');
+        const skipped = Object.entries(r.skipped || {}).map(([k, v]) => `<div class="note-line">Skipped ${escapeHtml(k)}: ${escapeHtml(v)}</div>`).join('');
+        const errors = Object.entries(r.step_errors || {}).map(([k, v]) => `<div class="err-line">Step ${escapeHtml(k)}: ${escapeHtml(v)}</div>`).join('')
+            + (r.error ? `<div class="err-line">${escapeHtml(r.error)}</div>` : '');
+        return `<div class="detail-model ${escapeHtml(st)}">${head}
+            ${tests ? `<div class="small mb-1">${tests}</div>` : ''}
+            ${pinned}${errors}
+            <div class="d-flex flex-wrap gap-3 mt-1">${accuracyTable(r.accuracy || {})}${perfTable(r.perf || {})}</div>
+            ${skipped}${notes}</div>`;
+    }
+
+    function runDetail(run) {
+        const report = run.report
+            ? `<div class="note-line mb-2">Gate (report job): ${extLink(run.report.url, badge(stateOf(run.report)))}
+               &middot; the run's summary on GitHub has the full report.</div>`
+            : '';
+        return report + (run.jobs.map(jobDetail).join('') || '<div class="text-muted">No test job.</div>');
+    }
+
+    // ---- the CI monitor bot's report on this repo ----------------------------
+    // The bot's daily report covers sgl-amd-mono next to sglang's own CI; the
+    // Nightly CI page leaves the sgl-amd-mono part (``mono`` in the parsed
+    // report) to this card. The newest report the site has is shown: today's
+    // UTC date first, then back a few days for one not filed or published yet.
+    const MONITOR_LOOKBACK_DAYS = 4;
+
+    // Bot-written markdown: escaped first, then only inline code, http(s)
+    // links and bold are let back in, as on the Nightly CI page.
+    function md(text) {
+        return escapeHtml(text)
+            .replace(/`([^`]+)`/g, '<code>$1</code>')
+            .replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>')
+            .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+    }
+
+    function reportTable(table) {
+        return `<div class="table-responsive mt-2">
+            <table class="table table-sm table-bordered report-table mb-0">
+                <thead class="table-light"><tr>${table.headers.map(h => `<th>${md(h)}</th>`).join('')}</tr></thead>
+                <tbody>${table.rows.map(row => `<tr>${row.map(c => `<td>${md(c)}</td>`).join('')}</tr>`).join('')}</tbody>
+            </table></div>`;
+    }
+
+    function clusterHtml(cluster) {
+        const badges = [];
+        if (cluster.id) badges.push(`<span class="badge bg-dark">${escapeHtml(cluster.id)}</span>`);
+        if (cluster.is_new) badges.push('<span class="badge bg-danger">NEW</span>');
+        const meta = [cluster.workflows ? `<code>${escapeHtml(cluster.workflows)}</code>` : '', ...(cluster.tags || []).map(md)].filter(Boolean);
+        const details = (cluster.details || []).map(d =>
+            `<div class="report-detail">${d.label ? `<strong>${escapeHtml(d.label)}:</strong> ` : ''}${md(d.text)}</div>`).join('');
+        return `<details class="report-cluster fix-${escapeHtml(cluster.fix || '')}" open>
+            <summary>${badges.join(' ')} ${md(cluster.title)}${meta.length ? ` <span class="text-muted">· ${meta.join(' · ')}</span>` : ''}</summary>
+            <div>${details}${cluster.table ? reportTable(cluster.table) : ''}</div>
+        </details>`;
+    }
+
+    function renderMonitor(date, report) {
+        const box = document.getElementById('monitor-report');
+        document.getElementById('monitor-date').innerHTML = report
+            ? `${extLink(report.url, `${escapeHtml(date)} report`)}${report.updated_at ? ` &middot; edited ${escapeHtml(formatShortTime(report.updated_at))}` : ''}`
+            : '';
+        if (!report) {
+            box.innerHTML = `<div class="text-muted">No CI monitor report in the last ${MONITOR_LOOKBACK_DAYS} days.</div>`;
+            return;
+        }
+        const m = report.mono || {};
+        const parts = [];
+        for (const line of m.tldr || []) parts.push(`<p class="mb-2">${md(line)}</p>`);
+        if ((m.clusters || []).length) {
+            parts.push(`<h6 class="mt-3">Problems <span class="text-muted fw-normal">(${m.clusters.length})</span></h6>`);
+            parts.push(m.clusters.map(clusterHtml).join(''));
+        }
+        if (m.workflow_table) {
+            parts.push('<h6 class="mt-3">Workflow status</h6>' + reportTable(m.workflow_table));
+        }
+        for (const extra of m.collapsed_tables || []) {
+            parts.push(`<details class="mt-2"><summary class="text-muted">${md(extra.summary)}</summary>${reportTable(extra.table)}</details>`);
+        }
+        box.innerHTML = parts.join('')
+            || `<div class="text-muted">The ${escapeHtml(date)} report names no sgl-amd-mono problem.</div>`;
+    }
+
+    function loadMonitorReport() {
+        const dates = Array.from({ length: MONITOR_LOOKBACK_DAYS }, (_, i) =>
+            new Date(Date.now() - i * 86400000).toISOString().slice(0, 10));
+        const next = i => {
+            if (i >= dates.length) return renderMonitor(null, null);
+            // The static site has no file for a date not published yet (404);
+            // the live server answers `available: false` for one the bot skipped.
+            return fetch(`/api/nightly-ci/daily-report/${dates[i]}`)
+                .then(r => (r.ok ? r.json() : null))
+                .catch(() => null)
+                .then(report => (report && report.available ? renderMonitor(dates[i], report) : next(i + 1)));
+        };
+        next(0);
+    }
+
+    document.addEventListener('DOMContentLoaded', () => { loadData(false); loadMonitorReport(); });
+    if (window.onTimeZoneChange) onTimeZoneChange(() => { if (cachedData) renderAll(cachedData); });
+</script>
+
+<script>
+document.addEventListener('DOMContentLoaded',function(){
+  // Hide refresh buttons that need a backend
+  document.querySelectorAll('[onclick*="loadStatus"],[onclick*="refreshAllPRs"]').forEach(function(el){el.classList.add('static-hidden')});
+  // Hide refresh buttons next to cache status on nightly/pr-test
+  document.querySelectorAll('[onclick*="loadData(true)"]').forEach(function(el){el.classList.add('static-hidden')});
+  // Replace visitor count with dash
+  var vc=document.getElementById('visitor-count');if(vc)vc.textContent='-';
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,2199 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AMD PR Tracker - SGLang Upstream</title>
+
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+
+    <!-- Bootstrap Icons -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
+
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+
+    <!-- Flatpickr Date Picker -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr@4.6.13/dist/flatpickr.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr@4.6.13/dist/flatpickr.min.js"></script>
+
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="/sglang-ci/static/css/style.css">
+
+    
+<style>
+    .section-tiles {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(8.5rem, 1fr));
+        gap: 0.5rem;
+    }
+    .section-tile {
+        display: block;
+        padding: 0.4rem 0.6rem;
+        border: 1px solid var(--bs-border-color);
+        border-radius: 0.375rem;
+        color: inherit;
+        text-decoration: none;
+        background: var(--bs-body-bg);
+    }
+    .section-tile:hover { border-color: var(--bs-danger); color: inherit; }
+    .section-tile.active {
+        border-color: var(--bs-danger);
+        background: rgba(var(--bs-danger-rgb), 0.08);
+        box-shadow: inset 0 0 0 1px var(--bs-danger);
+    }
+    .section-tile .section-name { font-weight: 600; font-size: 0.85rem; line-height: 1.2; }
+    .section-tile .section-counts { font-size: 0.8rem; }
+    .section-tile .section-members { font-size: 0.72rem; color: var(--bs-secondary-color); }
+    .section-badge { font-size: 0.7em; font-weight: 500; white-space: nowrap; }
+
+    /* PRs by Author fills the right column at the left column's height and
+       scrolls inside it; stacked below on narrow screens. */
+    .author-card { display: flex; flex-direction: column; }
+    .author-card .card-body { display: flex; flex-direction: column; flex: 1 1 auto; min-height: 0; }
+    .author-scroll { overflow-y: auto; max-height: 420px; }
+    .author-scroll thead th { position: sticky; top: 0; z-index: 1; background: var(--bs-tertiary-bg); }
+    .author-scroll th.rank-col { cursor: pointer; white-space: nowrap; user-select: none; }
+    .author-scroll th.rank-col:hover { color: var(--bs-danger); }
+    .author-scroll th.rank-col.active { color: var(--bs-danger); box-shadow: inset 0 -2px 0 var(--bs-danger); }
+    .author-scroll td.rank-col { text-align: right; font-variant-numeric: tabular-nums; }
+    .author-row { cursor: pointer; }
+    .author-row .bi { font-size: 0.7em; margin-right: 0.15rem; }
+    .author-row.expanded > td { border-bottom-color: transparent; }
+    .author-detail > td { background: var(--bs-tertiary-bg); }
+    .author-detail-body { max-height: 260px; overflow-y: auto; font-size: 0.78rem; }
+    .author-detail-body li { max-width: 100%; }
+    /* Fixed widths, so a dropdown's long titles truncate instead of widening
+       the table and pushing the counts out of the card. */
+    .author-scroll table { table-layout: fixed; width: 100%; }
+    .author-scroll th.rank-col { width: 4.1em; font-size: 0.88em; padding-left: 0; padding-right: 0.3em; }
+    @media (min-width: 992px) {
+        .author-col { position: relative; }
+        .author-card {
+            position: absolute; top: 0; bottom: 0;
+            left: calc(var(--bs-gutter-x) * .5); right: calc(var(--bs-gutter-x) * .5);
+        }
+        .author-scroll { max-height: none; flex: 1 1 auto; min-height: 0; }
+        /* Another repo's lists can be a few rows long; the author table
+           still gets room for a dozen people. */
+        .repo-other-row .author-col { min-height: 480px; }
+    }
+</style>
+
+<script>
+(function(){
+var B='/sglang-ci/';
+var _f=window.fetch;
+window.fetch=function(u,o){
+if(typeof u!=='string')return _f.apply(this,arguments);
+if(o&&o.method&&o.method.toUpperCase()==='POST')
+  return Promise.resolve(new Response(
+    JSON.stringify({error:'Not available in static mode',success:false}),
+    {status:405,headers:{'Content-Type':'application/json'}}));
+if(u.startsWith('/api/')){
+  var p=u.substring(1),q=p.indexOf('?');
+  if(q>=0){var sp=new URLSearchParams(p.substring(q));p=p.substring(0,q);
+    Array.from(sp.entries()).sort(function(a,b){return a[0].localeCompare(b[0])})
+    .forEach(function(e){p+='-'+e[0]+'-'+e[1];});}
+  p+='.json';
+  return _f.call(this,B+p,o);}
+return _f.apply(this,arguments);
+};
+})();
+</script>
+<style>
+.static-hidden{display:none!important}
+.static-banner{background:#e8f4fd;border-bottom:1px solid #bee5eb;padding:0.35rem 1rem;text-align:center;font-size:0.82rem;color:#0c5460}
+@media(max-width:768px){.static-banner{font-size:0.75rem;padding:0.3rem 0.5rem}}
+</style>
+</head>
+<body>
+    <!-- Navigation Bar -->
+    <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="/sglang-ci/summary/">
+                <i class="bi bi-graph-up"></i> SGLang Dashboard
+            </a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav me-auto">
+                    <li class="nav-item">
+                        <a class="nav-link " href="/sglang-ci/summary/">
+                            <i class="bi bi-grid-1x2"></i> Summary
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link " href="/sglang-ci/coverage/">
+                            <i class="bi bi-bar-chart-steps"></i> Coverage
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link " href="/sglang-ci/benchmark-dashboard/">
+                            <i class="bi bi-speedometer2"></i> Benchmarks
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link " href="/sglang-ci/nightly-ci/">
+                            <i class="bi bi-moon-stars"></i> Nightly CI
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link " href="/sglang-ci/day0/">
+                            <i class="bi bi-rocket-takeoff"></i> <span class="text-nowrap">Day-0</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link " href="/sglang-ci/docker-images/">
+                            <i class="bi bi-box-seam"></i> Docker Images
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link " href="/sglang-ci/aiter/">
+                            <i class="bi bi-cpu"></i> AITER
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link " href="/sglang-ci/miles/">
+                            <i class="bi bi-signpost-split"></i> MILES
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link " href="/sglang-ci/mono/">
+                            <i class="bi bi-lightning-charge"></i> Mono
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link " href="/sglang-ci/runner-health/">
+                            <i class="bi bi-heart-pulse"></i> Runner Health
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link active" href="/sglang-ci/amd-pr-tracker/">
+                            <i class="bi bi-git"></i> AMD PRs
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link " href="/sglang-ci/amd-bot/">
+                            <i class="bi bi-robot"></i> AMD Bot
+                        </a>
+                    </li>
+                </ul>
+                <ul class="navbar-nav">
+                    
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle " href="#" id="githubDropdown" role="button" data-bs-toggle="dropdown">
+                            <i class="bi bi-github"></i> GitHub
+                            <i class="bi bi-circle-fill d-none" id="github-status-dot" style="font-size:0.5rem;vertical-align:middle"></i>
+                        </a>
+                        <ul class="dropdown-menu dropdown-menu-end">
+                            <li><a class="dropdown-item " href="/sglang-ci/pr-test/">
+                                <i class="bi bi-check2-square"></i> PR Test (AMD)
+                            </a></li>
+                            
+                            <li><hr class="dropdown-divider"></li>
+                            <li><a class="dropdown-item " href="/sglang-ci/sglang-info/">
+                                <i class="bi bi-info-circle"></i> SGLang Info
+                            </a></li>
+                            <li><a class="dropdown-item" href="https://github.com/sgl-project/sglang" target="_blank" rel="noopener">
+                                <i class="bi bi-git"></i> SGLang Repo
+                            </a></li>
+                            <li><hr class="dropdown-divider"></li>
+                            
+                            <li><a class="dropdown-item" href="https://www.githubstatus.com/" target="_blank" rel="noopener" id="github-status-link">
+                                <i class="bi bi-broadcast-pin"></i> GitHub Status
+                                <span class="d-block small text-muted" id="github-status-text">checking...</span>
+                            </a></li>
+                        </ul>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Internal-only banner: live dashboard link. Rendered only when
+         DASHBOARD_URL is configured, and stripped from the public GitHub Pages
+         static build so the internal address is never published. -->
+    
+
+    <!-- Main Content -->
+    <div class="static-banner"><i class="bi bi-clock-history"></i> This is a static snapshot. Data auto-updates every 20 minutes. Please reach out to CI dashboard owner Zhang, Michael or Chen, Bingxu for any question.</div>
+    <main class="container-fluid py-4">
+        <!-- Shared data-freshness stamp and time zone choice, in the same spot
+             on every page. Pages report the timestamp of the data they render
+             via setPageLastUpdated(); the rest fall back to the site-wide
+             refresh time from /api/build-info. -->
+        <div class="d-flex justify-content-end align-items-center gap-2 mb-2" id="page-updated-bar">
+            <small class="text-muted" id="page-updated-stamp" style="display:none">
+                <i class="bi bi-clock-history"></i> Last Updated: <span id="page-last-updated"></span>
+            </small>
+            <select class="form-select form-select-sm py-0" id="timeZoneSelect" style="width: auto;"
+                onchange="setDisplayTimeZone(this.value)" data-no-capture aria-label="Time zone"
+                title="Time zone for every time on the site. Remembered for your next visit.">
+                <option value="local">Local time</option>
+                <option value="beijing">Beijing time</option>
+                <option value="pt">Pacific time</option>
+                <option value="utc">UTC</option>
+            </select>
+        </div>
+        
+<!-- Header -->
+<div class="row mb-3">
+    <div class="col">
+        <div class="d-flex justify-content-between align-items-center flex-wrap">
+            <div>
+                <h1 class="display-5 mb-1">
+                    <i class="bi bi-git"></i> AMD PR Tracker
+                </h1>
+                <nav aria-label="breadcrumb">
+                    <ol class="breadcrumb mb-0">
+                        <li class="breadcrumb-item"><a href="/sglang-ci/inhouse/">Home</a></li>
+                        <li class="breadcrumb-item active">AMD PR Tracker</li>
+                    </ol>
+                </nav>
+            </div>
+            <div class="d-flex align-items-center gap-2 flex-wrap">
+            <!-- Repo switch: SGLang upstream, or one of TRACKER_REPOS -->
+            <div class="btn-group btn-group-sm" role="group" aria-label="Repo" id="repo-buttons">
+                <button type="button" class="btn btn-outline-danger" data-repo="sglang" onclick="setRepo('sglang')">SGLang</button>
+                
+                <button type="button" class="btn btn-outline-danger" data-repo="miles" onclick="setRepo('miles')">Miles</button>
+                
+                <button type="button" class="btn btn-outline-danger" data-repo="aiter" onclick="setRepo('aiter')">AITER</button>
+                
+                <button type="button" class="btn btn-outline-danger" data-repo="inferencex" onclick="setRepo('inferencex')">InferenceX</button>
+                
+                <button type="button" class="btn btn-outline-danger" data-repo="mono" onclick="setRepo('mono')">Mono</button>
+                
+                <button type="button" class="btn btn-outline-danger" data-repo="mori" onclick="setRepo('mori')">MORI</button>
+                
+            </div>
+            <!-- Quick Links -->
+            <div class="btn-group btn-group-sm" role="group" id="sglang-links">
+                <a href="https://github.com/sgl-project/sglang" target="_blank" class="btn btn-outline-primary">
+                    <i class="bi bi-github"></i> SGLang Upstream
+                </a>
+                <a href="https://github.com/sgl-project/sglang/pulls?q=is%3Apr+is%3Amerged+amd+OR+rocm+OR+hip" target="_blank" class="btn btn-outline-danger">
+                    <i class="bi bi-search"></i> Search AMD PRs
+                </a>
+            </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div id="repo-sglang">
+<!-- Left: sections, then merges per day. Right: PRs by author, as tall as the left column. -->
+<div class="row g-3 mb-3">
+    <div class="col-lg-8 d-flex flex-column gap-3">
+        <!-- Sections: one tile per sub-stream; picking one filters the chart and every table -->
+        <div class="card">
+            <div class="card-header py-2">
+                <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+                    <h6 class="mb-0"><i class="bi bi-diagram-3"></i> By Section</h6>
+                    <small class="text-muted" id="section-window"></small>
+                </div>
+            </div>
+            <div class="card-body py-2">
+                <div class="section-tiles" id="section-tiles"></div>
+                <p class="text-muted small mb-0 mt-2">
+                    A PR is in a section when its author is a member (<i class="bi bi-person-fill"></i>)
+                    or its title matches the topic, so one PR can be in several. Hover a tile for both.
+                </p>
+            </div>
+        </div>
+
+        <!-- Merged per day: every upstream merge, with the AMD ones (in the selected section) in red -->
+        <div class="card flex-grow-1">
+            <div class="card-header py-2">
+                <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+                    <h6 class="mb-0"><i class="bi bi-bar-chart"></i> <span id="trend-title">Merged per Day</span></h6>
+                    <div class="d-flex flex-wrap gap-2">
+                        <div class="btn-group btn-group-sm" role="group" aria-label="What makes a PR AMD on the chart and in the author table" id="trend-criteria"></div>
+                        <div class="btn-group btn-group-sm" role="group" aria-label="Time range of the chart and the author table">
+                            <button type="button" class="btn btn-outline-danger" id="trend-range-30" onclick="setTrendDays(30)">30d</button>
+                            <button type="button" class="btn btn-outline-danger" id="trend-range-90" onclick="setTrendDays(90)">90d</button>
+                            <button type="button" class="btn btn-outline-danger" id="trend-range-365" onclick="setTrendDays(365)">1y</button>
+                            <button type="button" class="btn btn-outline-danger" id="trend-range-730" onclick="setTrendDays(730)">2y</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="card-body py-2">
+                <div class="small mb-2" id="trend-summary"></div>
+                <div id="trend-status" class="text-muted small py-3">
+                    <span class="spinner-border spinner-border-sm text-danger me-2" role="status"></span>Loading merged PRs per day...
+                </div>
+                <div style="position: relative; height: 240px; display: none;" id="trend-chart-box">
+                    <canvas id="trend-chart" aria-label="Upstream and AMD PRs merged per day"></canvas>
+                </div>
+                <p class="text-muted small mb-0 mt-2">
+                    Every PR merged into upstream <code>main</code> per UTC day, or per week (from Monday) when the
+                    range is too wide for a bar a day; red is the AMD PRs among them in the selected section.
+                    A PR is AMD when it meets any criterion switched on: <strong>People</strong> (an AMD
+                    author), <strong>Tag</strong> (an AMD or ROCm label), <strong>Title</strong> or
+                    <strong>Related</strong> (an AMD term such as ROCm, HIP, MI3xx, gfx or AITER in the title or
+                    the description). Today is a partial day.
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <!-- PRs by author: each person's part in the AMD PRs of the chart's range, ranked by any column -->
+    
+    <div class="col-lg-4 author-col">
+        <div class="card author-card">
+            <div class="card-header py-2">
+                <div class="d-flex justify-content-between align-items-center flex-wrap gap-1">
+                    <h6 class="mb-0"><i class="bi bi-people"></i> PRs by Author</h6>
+                    <small class="text-muted" id="author-window"></small>
+                </div>
+            </div>
+            <div class="card-body py-2">
+                <div id="author-status" class="text-muted small py-3">
+                    <span class="spinner-border spinner-border-sm text-danger me-2" role="status"></span>Loading PRs by author...
+                </div>
+                <div id="author-table" class="flex-column" style="display: none; flex: 1 1 auto; min-height: 0;">
+                    <div class="small mb-1" id="author-summary"></div>
+                    <div class="author-scroll">
+                        <table class="table table-sm table-hover mb-0" style="font-size: 0.82rem;">
+                            <thead>
+                                <tr>
+                                    <th style="width: 2.6em;">#</th>
+                                    <th>Person</th>
+                                    <th class="rank-col text-end" data-rank="total" onclick="rankAuthorsBy('total')" title="AMD PRs merged into main in the chart&#39;s range that they authored or co-authored">Total</th>
+                                    <th class="rank-col text-end" data-rank="authored" onclick="rankAuthorsBy('authored')" title="AMD PRs they authored that merged into main in the chart&#39;s range">Author</th>
+                                    <th class="rank-col text-end" data-rank="coauthored" onclick="rankAuthorsBy('coauthored')" title="Those merged AMD PRs that list them as a co-author">Co-auth</th>
+                                    <th class="rank-col text-end" data-rank="reviewed" onclick="rankAuthorsBy('reviewed')" title="Those merged AMD PRs they reviewed (not their own)">Review</th>
+                                    <th class="rank-col text-end" data-rank="merger" onclick="rankAuthorsBy('merger')" title="Those merged AMD PRs they pressed merge on">Merged</th>
+                                </tr>
+                            </thead>
+                            <tbody id="author-rows"></tbody>
+                        </table>
+                    </div>
+                </div>
+                <p class="text-muted small mb-0 mt-2">
+                    
+        Over the AMD PRs merged into <code>main</code> in the chart's range: <strong>Total</strong>
+        authored or co-authored, <strong>Author</strong> authored, <strong>Co-auth</strong> a co-author of,
+        <strong>Review</strong> reviewed, <strong>Merged</strong> pressed merge on. Open PRs don't count.
+        Click a column to rank by it, and a person to list their PRs. Follows the selected section.
+    
+                </p>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<!-- Main Two-Column Layout -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card border-danger">
+            <div class="card-header bg-danger text-white py-2">
+                <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+                    <div class="d-flex align-items-center gap-2">
+                        <h6 class="mb-0"><i class="bi bi-git"></i> AMD PRs</h6>
+                        <small class="opacity-75" id="prs-updated-time"></small>
+                    </div>
+                    <button class="btn btn-light btn-sm" onclick="refreshAllPRs()" title="Refresh">
+                        <i class="bi bi-arrow-clockwise"></i>
+                    </button>
+                </div>
+            </div>
+            <!-- Tabs Navigation -->
+            <ul class="nav nav-tabs nav-fill" id="prTabs" role="tablist" style="margin-top: -1px;">
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link active" id="merged-tab" data-bs-toggle="tab" data-bs-target="#merged-pane" type="button" role="tab">
+                        <i class="bi bi-check-circle text-success"></i> Merged <span class="badge bg-danger" id="merged-count">0</span>
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="open-tab" data-bs-toggle="tab" data-bs-target="#open-pane" type="button" role="tab">
+                        <i class="bi bi-hourglass-split text-warning"></i> Open <span class="badge bg-warning text-dark" id="open-count">0</span>
+                    </button>
+                </li>
+            </ul>
+            <!-- Tabs Content -->
+            <div class="tab-content" id="prTabsContent">
+                <!-- Merged PRs Tab -->
+                <div class="tab-pane fade show active" id="merged-pane" role="tabpanel">
+                    <div class="card-body py-2">
+                        <div class="d-flex justify-content-between align-items-center mb-2 gap-2 flex-wrap">
+                            <p class="text-muted mb-0" id="prs-filter-info">
+                                <small><i class="bi bi-funnel"></i> Showing PRs with <strong>AMD/ROCm labels</strong></small>
+                            </p>
+                            <div class="d-flex align-items-center gap-2">
+                                <div class="btn-group btn-group-sm" role="group" aria-label="Merged PR time range">
+                                    <button type="button" class="btn btn-outline-danger" id="merged-range-7" onclick="setMergedDays(7)">7d</button>
+                                    <button type="button" class="btn btn-outline-danger" id="merged-range-14" onclick="setMergedDays(14)">14d</button>
+                                </div>
+                                <div id="prs-pagination" class="btn-group btn-group-sm"></div>
+                            </div>
+                        </div>
+                        <div id="prs-loading" class="py-3">
+                            <div class="d-flex align-items-center mb-2">
+                                <div class="spinner-border spinner-border-sm text-danger me-2" role="status"></div>
+                                <span>Loading merged PRs from GitHub...</span>
+                            </div>
+                            <div class="progress" style="height: 6px;">
+                                <div class="progress-bar progress-bar-striped progress-bar-animated bg-danger" role="progressbar" style="width: 100%"></div>
+                            </div>
+                        </div>
+                        <div id="prs-empty" style="display: none;">
+                            <div class="alert alert-info mb-0">
+                                <i class="bi bi-info-circle"></i> No AMD-related merged PRs in the selected time range.
+                            </div>
+                        </div>
+                        <div id="prs-table" style="display: none;">
+                            <div>
+                                <table class="table table-sm table-striped table-hover table-wrap mb-0" style="font-size: 0.85rem;">
+                                    <thead class="table-danger">
+                                        <tr>
+                                            <th style="width: 70px;">PR</th>
+                                            <th>Title</th>
+                                            <th style="width: 190px;">Section</th>
+                                            <th style="width: 120px;">Author</th>
+                                            <th style="width: 90px;">Merged</th>
+                                            <th>Labels</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="prs-rows">
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <!-- Open PRs Tab -->
+                <div class="tab-pane fade" id="open-pane" role="tabpanel">
+                    <div class="card-body py-2">
+                        <div id="open-prs-loading" class="py-3">
+                            <div class="d-flex align-items-center mb-2">
+                                <div class="spinner-border spinner-border-sm text-warning me-2" role="status"></div>
+                                <span>Loading open PRs from GitHub...</span>
+                            </div>
+                            <div class="progress" style="height: 6px;">
+                                <div class="progress-bar progress-bar-striped progress-bar-animated bg-warning" role="progressbar" style="width: 100%"></div>
+                            </div>
+                        </div>
+                        <div id="open-prs-empty" style="display: none;">
+                            <div class="alert alert-info mb-0">
+                                <i class="bi bi-info-circle"></i> No open AMD-related PRs found with current filter.
+                            </div>
+                        </div>
+                        <div id="open-prs-table" style="display: none;">
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <p class="text-muted mb-0" id="open-prs-filter-info">
+                                    <small><i class="bi bi-funnel"></i> Showing open PRs with <strong>AMD/ROCm labels</strong></small>
+                                </p>
+                                <div id="open-prs-pagination" class="btn-group btn-group-sm"></div>
+                            </div>
+                            <div>
+                                <table class="table table-sm table-striped table-hover table-wrap mb-0" style="font-size: 0.85rem;">
+                                    <thead class="table-warning">
+                                        <tr>
+                                            <th style="width: 70px;">PR</th>
+                                            <th>Title</th>
+                                            <th style="width: 190px;">Section</th>
+                                            <th style="width: 120px;">Author</th>
+                                            <th style="width: 80px;">Created</th>
+                                            <th style="width: 80px;">Updated</th>
+                                            <th>Labels</th>
+                                            <th style="width: 80px;">AI Review</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="open-prs-rows">
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+</div>
+
+<!-- Another tracked repo (Miles, AITER, InferenceX, Mono, MORI): its merged and open PRs, and its own PRs by author; the sections and chart above are SGLang's -->
+<div class="row g-3 mb-4 repo-other-row" id="repo-other" style="display: none;">
+    <div class="col-lg-8">
+        <div class="card border-danger h-100">
+            <div class="card-header bg-danger text-white py-2">
+                <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+                    <div class="d-flex align-items-center gap-2">
+                        <h6 class="mb-0"><i class="bi bi-git"></i> <span id="repo-title"></span></h6>
+                        <small class="opacity-75" id="repo-name"></small>
+                    </div>
+                    <a href="#" id="repo-link" target="_blank" class="btn btn-light btn-sm">
+                        <i class="bi bi-github"></i> Repo
+                    </a>
+                </div>
+            </div>
+            <ul class="nav nav-tabs nav-fill" role="tablist" style="margin-top: -1px;">
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link active" id="repo-merged-tab" data-bs-toggle="tab" data-bs-target="#repo-merged-pane" type="button" role="tab">
+                        <i class="bi bi-check-circle text-success"></i> Merged <span class="badge bg-danger" id="repo-merged-count">&hellip;</span>
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="repo-open-tab" data-bs-toggle="tab" data-bs-target="#repo-open-pane" type="button" role="tab">
+                        <i class="bi bi-hourglass-split text-warning"></i> Open <span class="badge bg-warning text-dark" id="repo-open-count">&hellip;</span>
+                    </button>
+                </li>
+            </ul>
+            <div class="card-body py-2">
+                <div id="repo-status" class="text-muted small py-3"></div>
+                <div class="tab-content" id="repo-content" style="display: none;">
+                    <div class="tab-pane fade show active" id="repo-merged-pane" role="tabpanel">
+                        <div class="d-flex justify-content-between align-items-center mb-2 gap-2 flex-wrap">
+                            <p class="text-muted small mb-0" id="repo-merged-info"></p>
+                            <div class="btn-group btn-group-sm" role="group" aria-label="Merged PR time range" id="repo-ranges"></div>
+                        </div>
+                        <div style="max-height: 600px; overflow-y: auto;">
+                            <table class="table table-sm table-striped table-hover table-wrap mb-0" style="font-size: 0.85rem;">
+                                <thead class="table-danger">
+                                    <tr>
+                                        <th style="width: 70px;">PR</th>
+                                        <th>Title</th>
+                                        <th style="width: 120px;">Author</th>
+                                        <th style="width: 90px;">Merged</th>
+                                        <th>Labels</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="repo-merged-rows"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                    <div class="tab-pane fade" id="repo-open-pane" role="tabpanel">
+                        <p class="text-muted small mb-2" id="repo-open-info"></p>
+                        <div style="max-height: 600px; overflow-y: auto;">
+                            <table class="table table-sm table-striped table-hover table-wrap mb-0" style="font-size: 0.85rem;">
+                                <thead class="table-warning">
+                                    <tr>
+                                        <th style="width: 70px;">PR</th>
+                                        <th>Title</th>
+                                        <th style="width: 120px;">Author</th>
+                                        <th style="width: 80px;">Created</th>
+                                        <th style="width: 80px;">Updated</th>
+                                        <th>Labels</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="repo-open-rows"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+                <p class="text-muted small mb-0 mt-2" id="repo-rule"></p>
+            </div>
+        </div>
+    </div>
+
+    <!-- PRs by author over this repo's listed PRs, with the Merged tab's range -->
+    
+    <div class="col-lg-4 author-col">
+        <div class="card author-card">
+            <div class="card-header py-2">
+                <div class="d-flex justify-content-between align-items-center flex-wrap gap-1">
+                    <h6 class="mb-0"><i class="bi bi-people"></i> PRs by Author</h6>
+                    <small class="text-muted" id="repo-author-window"></small>
+                </div>
+            </div>
+            <div class="card-body py-2">
+                <div id="repo-author-status" class="text-muted small py-3">
+                    <span class="spinner-border spinner-border-sm text-danger me-2" role="status"></span>Loading PRs by author...
+                </div>
+                <div id="repo-author-table" class="flex-column" style="display: none; flex: 1 1 auto; min-height: 0;">
+                    <div class="small mb-1" id="repo-author-summary"></div>
+                    <div class="author-scroll">
+                        <table class="table table-sm table-hover mb-0" style="font-size: 0.82rem;">
+                            <thead>
+                                <tr>
+                                    <th style="width: 2.6em;">#</th>
+                                    <th>Person</th>
+                                    <th class="rank-col text-end" data-rank="total" onclick="rankRepoAuthorsBy('total')" title="listed PRs merged in the range picked on the Merged tab that they authored or co-authored">Total</th>
+                                    <th class="rank-col text-end" data-rank="authored" onclick="rankRepoAuthorsBy('authored')" title="listed PRs they authored that merged in the range picked on the Merged tab">Author</th>
+                                    <th class="rank-col text-end" data-rank="coauthored" onclick="rankRepoAuthorsBy('coauthored')" title="Those merged listed PRs that list them as a co-author">Co-auth</th>
+                                    <th class="rank-col text-end" data-rank="reviewed" onclick="rankRepoAuthorsBy('reviewed')" title="Those merged listed PRs they reviewed (not their own)">Review</th>
+                                    <th class="rank-col text-end" data-rank="merger" onclick="rankRepoAuthorsBy('merger')" title="Those merged listed PRs they pressed merge on">Merged</th>
+                                </tr>
+                            </thead>
+                            <tbody id="repo-author-rows"></tbody>
+                        </table>
+                    </div>
+                </div>
+                <p class="text-muted small mb-0 mt-2">
+                    
+        Over the PRs listed here that merged in the range picked on the Merged tab: <strong>Total</strong>
+        authored or co-authored, <strong>Author</strong> authored, <strong>Co-auth</strong> a co-author of,
+        <strong>Review</strong> reviewed, <strong>Merged</strong> pressed merge on. Open PRs don't count.
+        Click a column to rank by it, and a person to list their PRs.
+    
+                </p>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+
+    </main>
+
+    <!-- Footer -->
+    <footer class="bg-light text-center text-muted py-3 mt-5">
+        <div class="container">
+            <p class="mb-0">
+                SGLang Dashboard
+                <span class="ms-3"><a href="https://www.githubstatus.com/" target="_blank" rel="noopener" class="text-decoration-none"><i class="bi bi-broadcast-pin"></i> GitHub Status</a></span>
+                <span class="ms-3"><i class="bi bi-people-fill"></i> <span id="visitor-count">...</span> visitors</span>
+            </p>
+        </div>
+    </footer>
+
+    <script>
+        // Shared timestamp formatting and the "Last Updated" stamp. Defined
+        // before any page script runs so pages can use them as soon as their
+        // data lands.
+        (function () {
+            let pageReported = false;
+            let lastStamp = null;
+
+            // Times are shown in the zone picked in the select above every
+            // page: the viewer's own by default, or Beijing, Pacific or UTC,
+            // remembered across visits. The zone is always named, so a time
+            // copied into a chat still means the same thing to a reader
+            // elsewhere. Format every wall-clock time through these helpers
+            // (or zoneOptions) so it follows the choice.
+            const TIME_ZONE_KEY = 'display_time_zone';
+            const TIME_ZONES = {
+                local: undefined,
+                beijing: 'Asia/Shanghai',
+                pt: 'America/Los_Angeles',
+                utc: 'UTC',
+            };
+            let zoneChoice = 'local';
+            try {
+                const saved = localStorage.getItem(TIME_ZONE_KEY);
+                if (saved in TIME_ZONES) zoneChoice = saved;
+            } catch (e) { /* private mode */ }
+
+            window.getDisplayTimeZone = () => zoneChoice;
+            // The IANA zone to pass as `timeZone`, or undefined for the viewer's.
+            window.displayTimeZoneId = () => TIME_ZONES[zoneChoice];
+
+            // A page that can redraw its times in place registers here; one
+            // that doesn't is reloaded, so nothing is left in the old zone.
+            const zoneHandlers = [];
+            window.onTimeZoneChange = fn => { zoneHandlers.push(fn); };
+
+            window.setDisplayTimeZone = function (choice) {
+                if (!(choice in TIME_ZONES) || choice === zoneChoice) return;
+                zoneChoice = choice;
+                try { localStorage.setItem(TIME_ZONE_KEY, choice); } catch (e) { /* private mode */ }
+                const select = document.getElementById('timeZoneSelect');
+                if (select) select.value = choice;
+                if (!zoneHandlers.length) { location.reload(); return; }
+                if (lastStamp) render(lastStamp);
+                localizeClocks();
+                zoneHandlers.forEach(fn => fn(choice));
+            };
+
+            // `toLocaleString` options with the chosen zone applied and named.
+            window.zoneOptions = function (options) {
+                return { ...options, timeZone: TIME_ZONES[zoneChoice], timeZoneName: 'short' };
+            };
+
+            // Single definition of how an absolute moment is shown, so a new
+            // one can't be added without the zone. Values that aren't dates are
+            // passed through untouched.
+            window.formatTimestamp = function (value) {
+                const parsed = new Date(value);
+                return isNaN(parsed.getTime())
+                    ? String(value)
+                    : parsed.toLocaleString(undefined, window.zoneOptions({}));
+            };
+
+            // The compact form for table cells, e.g. "Oct 8, 14:02 PDT"; put
+            // formatTimestamp in the tooltip when the full one matters.
+            window.formatShortTime = function (value) {
+                const parsed = value ? new Date(value) : null;
+                if (!parsed || isNaN(parsed.getTime())) return '';
+                return parsed.toLocaleString(undefined, window.zoneOptions({
+                    month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', hourCycle: 'h23',
+                }));
+            };
+
+            // The calendar date of a moment in the chosen zone, in the viewer's
+            // locale (formatDate) or as YYYY-MM-DD (formatIsoDate). No zone
+            // name: it is a day, not a clock time. A bare "2026-11-03" is a
+            // day already and is not shifted.
+            const BARE_DATE = /^\d{4}-\d{2}-\d{2}$/;
+            function zonedDate(value, locale) {
+                if (!value) return '';
+                const parsed = new Date(BARE_DATE.test(value) ? `${value}T12:00:00Z` : value);
+                if (isNaN(parsed.getTime())) return String(value);
+                const timeZone = BARE_DATE.test(value) ? 'UTC' : TIME_ZONES[zoneChoice];
+                return parsed.toLocaleDateString(locale, { timeZone });
+            }
+            window.formatDate = value => zonedDate(value, undefined);
+            window.formatIsoDate = value => zonedDate(value, 'en-CA');
+
+            // A UTC clock time ("16:00") as the chosen zone reads it on `on`
+            // (default today, which decides DST): its clock, the zone's short
+            // name, and how many days it moved (-1, 0, +1).
+            window.zonedClock = function (hhmm, on) {
+                const [h, m] = String(hhmm).split(':').map(Number);
+                const ref = on ? new Date(on) : new Date();
+                const at = new Date(Date.UTC(ref.getUTCFullYear(), ref.getUTCMonth(), ref.getUTCDate(), h, m || 0));
+                const parts = {};
+                new Intl.DateTimeFormat('en-US', window.zoneOptions({
+                    year: 'numeric', month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit', hourCycle: 'h23',
+                })).formatToParts(at).forEach(p => { parts[p.type] = p.value; });
+                const zonedDay = Date.UTC(Number(parts.year), Number(parts.month) - 1, Number(parts.day));
+                const utcDay = Date.UTC(at.getUTCFullYear(), at.getUTCMonth(), at.getUTCDate());
+                return {
+                    clock: `${parts.hour}:${parts.minute}`,
+                    zone: parts.timeZoneName,
+                    dayShift: Math.round((zonedDay - utcDay) / 86400000),
+                };
+            };
+
+            // Cron summaries are written in UTC ("16:00 UTC daily", "01:00 &
+            // 13:00 UTC daily", "20:00 UTC Sat", "21:00 UTC odd days", joined
+            // with " + "). Each clock time is shown in the chosen zone. A time
+            // that lands on another date moves its weekdays with it; odd/even
+            // and every-N-days counts are UTC dates and can't move, so those
+            // keep the UTC schedule and give the zone's time beside it.
+            const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+            const WEEKDAY_LIST = /^ ((?:Sun|Mon|Tue|Wed|Thu|Fri|Sat)(?:, (?:Sun|Mon|Tue|Wed|Thu|Fri|Sat))*(?: & (?:Sun|Mon|Tue|Wed|Thu|Fri|Sat))?)$/;
+            window.localizeSchedule = function (text) {
+                if (!text || zoneChoice === 'utc') return text;
+                return String(text).split(' + ').map(segment => {
+                    const match = /^(\d{1,2}:\d{2}(?: & \d{1,2}:\d{2})*) UTC(.*)$/.exec(segment);
+                    if (!match) return segment;
+                    const clocks = match[1].split(' & ').map(c => window.zonedClock(c));
+                    const times = `${clocks.map(c => c.clock).join(' & ')} ${clocks[0].zone}`;
+                    const suffix = match[2];
+                    const shifts = new Set(clocks.map(c => c.dayShift));
+                    const shift = shifts.size === 1 ? [...shifts][0] : null;
+                    if (shift === 0 || suffix.trim() === 'daily') return times + suffix;
+                    if (shift !== null && WEEKDAY_LIST.test(suffix)) {
+                        return times + suffix.replace(/Sun|Mon|Tue|Wed|Thu|Fri|Sat/g,
+                            d => WEEKDAYS[(WEEKDAYS.indexOf(d) + shift + 7) % 7]);
+                    }
+                    const when = shift === 1 ? ' next day' : shift === -1 ? ' previous day' : '';
+                    return `${segment} (${times}${when})`;
+                }).join(' + ');
+            };
+
+            // Static markup names a time that recurs every day as
+            // <span data-utc-clock="16:00">16:00 UTC</span>; it is rewritten
+            // here, on load and on every change. (Prose that ties a time to
+            // UTC dates, like "even dates", should stay in UTC.)
+            function localizeClocks() {
+                document.querySelectorAll('[data-utc-clock]').forEach(el => {
+                    el.textContent = window.localizeSchedule(`${el.dataset.utcClock} UTC daily`).replace(/ daily$/, '');
+                });
+            }
+
+            function render(value) {
+                const bar = document.getElementById('page-updated-stamp');
+                const out = document.getElementById('page-last-updated');
+                if (!bar || !out || !value) return;
+                lastStamp = value;
+                out.textContent = window.formatTimestamp(value);
+                bar.style.display = '';
+            }
+
+            // "Local time" names the viewer's zone so it can be told apart
+            // from the others.
+            const select = document.getElementById('timeZoneSelect');
+            if (select) {
+                select.value = zoneChoice;
+                const local = new Intl.DateTimeFormat('en-US', { timeZoneName: 'short' })
+                    .formatToParts(new Date()).find(p => p.type === 'timeZoneName');
+                if (local) select.querySelector('option[value="local"]').textContent = `Local time (${local.value})`;
+            }
+            localizeClocks();
+
+            window.setPageLastUpdated = function (value) {
+                if (!value) return;
+                pageReported = true;
+                render(value);
+            };
+
+            fetch('/api/build-info')
+                .then(response => response.json())
+                .then(data => { if (!pageReported) render(data.generated_at); })
+                .catch(() => {});
+        })();
+
+        // Shared "Copy as image" button: a picture of part of a page, as it is
+        // shown now, for a chat or an email. Copied to the clipboard where the
+        // browser allows images there (a secure page and ClipboardItem),
+        // downloaded as a PNG otherwise. html2canvas (~45 KB) is loaded from the
+        // CDN on the first click, so a page pays nothing for it until then.
+        // Anything tagged data-no-capture (the button itself, selects, show/hide
+        // toggles) is left out of the image.
+        (function () {
+            let html2canvasLoad = null;
+            function loadHtml2canvas() {
+                if (window.html2canvas) return Promise.resolve(window.html2canvas);
+                if (!html2canvasLoad) {
+                    html2canvasLoad = new Promise((resolve, reject) => {
+                        const s = document.createElement('script');
+                        s.src = 'https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js';
+                        s.onload = () => resolve(window.html2canvas);
+                        s.onerror = () => { html2canvasLoad = null; reject(new Error('could not load html2canvas')); };
+                        document.head.appendChild(s);
+                    });
+                }
+                return html2canvasLoad;
+            }
+
+            function downloadBlob(blob, fileName) {
+                const a = document.createElement('a');
+                a.href = URL.createObjectURL(blob);
+                a.download = fileName;
+                document.body.appendChild(a);
+                a.click();
+                setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1000);
+            }
+
+            // `region` is one element, or [first, last] for everything from the
+            // top of `first` to the bottom of `last` -- for a section that is not
+            // one element, like a page header plus the cards below it. `name` is
+            // the file name, without .png, used when the image is downloaded.
+            // `ready`, if given, is a promise the picture waits for, so a page
+            // still loading its data is pictured once it has finished.
+            // The button's <span> (or the button) reports how it went.
+            window.copyScreenshot = function (btn, region, name, ready) {
+                const [first, last] = Array.isArray(region) ? region : [region, region];
+                const opts = {
+                    backgroundColor: '#ffffff',
+                    scale: Math.min(2, window.devicePixelRatio || 1),
+                    ignoreElements: el => el.hasAttribute && el.hasAttribute('data-no-capture'),
+                    windowWidth: document.documentElement.scrollWidth,
+                };
+                let target = first;
+                if (last !== first) {
+                    // Their common parent, cropped to the span between them.
+                    // The crop is measured on the copy html2canvas renders, not
+                    // at the click: anything that finishes loading in between
+                    // (the library itself is fetched on the first click) grows
+                    // the page, and a crop measured earlier cut off its bottom.
+                    // html2canvas measures the crop from the captured element's
+                    // own top, not the page's.
+                    while (!target.contains(last)) target = target.parentElement;
+                    opts.onclone = (doc, clonedTarget) => {
+                        const f = doc.querySelector('[data-shot-first]');
+                        const l = doc.querySelector('[data-shot-last]');
+                        const top = f.getBoundingClientRect().top;
+                        // `last` not rendered yet (page still loading): just `first`.
+                        opts.y = top - clonedTarget.getBoundingClientRect().top;
+                        opts.height = (l.getClientRects().length ? l : f).getBoundingClientRect().bottom - top;
+                    };
+                }
+
+                const label = btn.querySelector('span') || btn;
+                const idle = label.textContent;
+                btn.disabled = true;
+                label.textContent = 'Rendering…';
+
+                const png = Promise.all([loadHtml2canvas(), ready])
+                    .then(([h2c]) => {
+                        // The clone is taken when html2canvas starts, so the
+                        // markers only need to outlive that call.
+                        first.setAttribute('data-shot-first', '');
+                        last.setAttribute('data-shot-last', '');
+                        const shot = h2c(target, opts);
+                        first.removeAttribute('data-shot-first');
+                        last.removeAttribute('data-shot-last');
+                        return shot;
+                    })
+                    .then(canvas => new Promise((resolve, reject) =>
+                        canvas.toBlob(b => (b ? resolve(b) : reject(new Error('empty image'))), 'image/png')));
+                const download = () => png.then(blob => { downloadBlob(blob, `${name}.png`); return 'Downloaded PNG'; });
+                let done;
+                try {
+                    // The clipboard write starts now, inside the click, with the
+                    // image still rendering: a browser that only lets a page write
+                    // the clipboard straight after a click (Safari, and Chrome
+                    // once a render runs long) would refuse a write made later.
+                    if (!(window.isSecureContext && navigator.clipboard && window.ClipboardItem)) throw 0;
+                    done = navigator.clipboard.write([new ClipboardItem({'image/png': png})])
+                        .then(() => 'Copied image', download);
+                } catch (e) {
+                    done = download();
+                }
+                done.then(text => text, () => 'Image failed').then(text => {
+                    label.textContent = text;
+                    btn.disabled = false;
+                    setTimeout(() => { label.textContent = idle; }, 2500);
+                });
+            };
+        })();
+
+        // GitHub's own incident status, read straight from its public Statuspage
+        // in the browser: no backend involved, so the live server and the
+        // static snapshot both show a current value. The dot next to the
+        // GitHub menu is what makes an ongoing incident visible without
+        // opening the menu -- a GitHub outage is a common reason for the CI
+        // results on these pages to look broken.
+        (function () {
+            // Muted enough to sit on the navbar, bright enough to read on it.
+            const DOT_COLORS = {
+                none: '#5cd97b',
+                minor: '#ffd43b',
+                major: '#ff922b',
+                critical: '#ff6b6b',
+            };
+
+            const text = document.getElementById('github-status-text');
+            const dot = document.getElementById('github-status-dot');
+            const link = document.getElementById('github-status-link');
+
+            fetch('https://www.githubstatus.com/api/v2/status.json')
+                .then(response => response.ok ? response.json() : Promise.reject())
+                .then(data => {
+                    const status = data.status || {};
+                    const description = status.description || 'Status unknown';
+                    if (text) text.textContent = description;
+                    if (link) link.title = 'GitHub Status: ' + description;
+                    const color = DOT_COLORS[status.indicator];
+                    if (dot && color) {
+                        dot.style.color = color;
+                        dot.classList.remove('d-none');
+                    }
+                })
+                .catch(() => {
+                    // Ignore: the link itself still works, and a failed check
+                    // here says nothing about GitHub (it is just as likely to
+                    // be the viewer's network).
+                    if (text) text.textContent = 'check on githubstatus.com';
+                });
+        })();
+
+        // Load visitor count
+        fetch('/api/visitor-count')
+            .then(response => response.json())
+            .then(data => {
+                document.getElementById('visitor-count').textContent = data.count.toLocaleString();
+            })
+            .catch(() => {
+                document.getElementById('visitor-count').textContent = '-';
+            });
+    </script>
+
+    <!-- Bootstrap JS Bundle -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+    <!-- Custom JS -->
+    <script src="/sglang-ci/static/js/dashboard.js"></script>
+
+    
+<script>
+    const ITEMS_PER_PAGE = 50;       // Items per page
+    const CACHE_EXPIRY_MS = 24 * 60 * 60 * 1000;  // 24 hours in milliseconds
+    const MERGED_DAY_RANGES = [7, 14];
+    const DEFAULT_MERGED_DAYS = 14;
+
+    // Defined in dashboard/pr_sections.py.
+    const PR_SECTIONS = [{"id": "npi", "members": [], "name": "NPI", "title_patterns": ["\\bgfx125\\d\\b", "\\bmi45\\d?x?\\b", "\\bhelios\\b", "\\bmulti-arch\\b", "\\bgfx1[12]\\d\\d\\b", "\\brdna\\d?\\b", "\\bnavi\\d*\\b", "\\bintegrated gpus?\\b"], "topic": "new hardware bring-up: gfx1250 / MI45x, RDNA and integrated GPUs, multi-arch builds"}, {"id": "di", "members": [], "name": "DI | Rack Scaling", "replaces": ["di-scale-up", "di-scale-out"], "title_patterns": ["\\bmori[- ]?ep\\b", "\\bwide[- ]?ep\\d*\\b", "\\bdp[-_ ]attention\\b", "\\beplb\\b", "\\bintra-?node\\b", "\\bscale[- ]?up\\b", "\\bDI\\b", "\\bPD\\b", "disagg", "\\b\\d+P\\d+D\\b", "\\bmooncake\\b", "\\bnixl\\b", "\\bucx\\b", "\\brdma\\b", "\\broce\\b", "\\bmori[- ]?io\\b", "\\bkv transfer\\b", "\\bmulti-node\\b", "\\bscale[- ]?out\\b"], "topic": "disaggregated inference inside and across racks: expert parallelism and DP attention (MoRI-EP, wide EP, EPLB), PD disaggregation and KV transfer (Mooncake, MoRI-IO, UCX, RDMA)"}, {"id": "perf", "members": [], "name": "Performance", "title_patterns": ["\\bperf(ormance)?\\b", "\\boptimi[sz]", "\\b(re-?)?tun(e|ed|es|ing)\\b", "\\bspeed(s|ing)?[- ]?ups?\\b", "\\bfaster\\b", "\\blatency\\b", "\\bthroughput\\b", "\\bTPOT\\b", "\\bTTFT\\b", "\\bbubbles?\\b", "\\bhost sync\\b", "\\bfuses?\\b", "\\bfusion\\b", "\\bmulti-?stream\\b", "\\boverlap\\b"], "topic": "tuning, fusion, latency and throughput work"}, {"id": "ci", "members": ["michaelzhang-ai", "kangwangamd", "bingxche", "yctseng0211"], "name": "CI/CD", "title_patterns": ["\\bCI\\b", "\\btest(s|cases?)?\\b", "\\bpre-?commit\\b", "\\bnightl(y|ies)\\b", "\\bworkflows?\\b", "\\bdocker(file)?\\b", "\\bwheels?\\b", "\\bimage release\\b", "\\brelease images?\\b"], "topic": "CI, tests, nightlies, workflows, Docker images and release builds"}, {"id": "kernels", "members": [], "name": "Kernels", "title_patterns": ["\\bkernels?\\b(?!\\s+wheels?\\b)", "\\baiter\\b", "(?\u003c![a-z0-9])triton(?![a-z0-9])", "\\btilelang\\b", "(?\u003c![a-z0-9])gluon(?![a-z0-9])", "\\bfly[- ]?dsl\\b", "gemms?(?![a-z0-9])", "\\bmfma\\b", "\\bjit\\b", "\\bhipblas(lt)?\\b", "(?\u003c![a-z0-9])asm(?![a-z0-9])", "\\bassembly\\b", "\\btop-?[kp]\\b", "\\bsplit-?kv?\\b", "\\battention backends?\\b", "\\bdecode attention\\b", "\\bpaged[- ]decode\\b", "\\btlx\\b"], "topic": "kernel work: AITER, Triton, TileLang, FlyDSL, GEMM, JIT, attention backends, top-k"}, {"id": "comm", "members": [], "name": "Comm | Parallelism", "replaces": ["cp"], "title_patterns": ["all-?reduce", "quick-?reduce", "all-?gather", "reduce-?scatter", "all-?to-?all", "a2a", "\\brccl\\b", "\\b(py)?nccl\\b", "\\bcustom[- ]?ar\\b", "\\bsymmetric memory\\b", "\\bxgmi\\b", "\\bcollectives?\\b", "\\bcomm\\b", "\\bcommunicat", "\\b[dp]?cp\\b", "\\bcp[- ]?v\\d\\b", "\\bcontext[- ]parallel"], "topic": "collectives (all-reduce, all-gather, all-to-all, RCCL) and context parallelism (CP, DCP, PCP)"}, {"id": "models", "members": [], "name": "Models | Day-0", "replaces": ["day0"], "title_patterns": ["\\bdeepseek", "\\bdsv\\d", "\\bqwen", "\\bglm", "\\bkimi", "\\bminimax", "\\bgrok", "\\bday[- ]?0\\b", "\\bcookbooks?\\b", "\\bdocs?\\b", "\\bagentic\\b"], "topic": "model enablement and model-specific fixes (DeepSeek, Qwen, GLM, Kimi, MiniMax), day-0 support, cookbooks, docs and workload recipes"}, {"id": "quant", "members": [], "name": "Quantization", "title_patterns": ["\\bfp[468]\\b", "\\bmxfp\\d\\b", "\\bnvfp4\\b", "\\bint[48]\\b", "\\bw\\d+a\\d+\\b", "\\bptpc\\b", "\\bquark\\b", "\\bcompressed-tensors\\b", "\\bquanti[sz]"], "topic": "FP8 / FP4 / MXFP4 / NVFP4, Quark and quantized checkpoints"}, {"id": "spec", "members": [], "name": "Speculative Decoding", "title_patterns": ["\\bspec(ulative)?\\b", "\\beagle\\d?\\b", "\\bmtp\\b", "\\bnextn\\b", "\\bdspark\\b", "\\bdflash\\b", "\\bdraft\\b", "\\bverify\\b"], "topic": "EAGLE, MTP / NextN, DSpark, DFlash and draft verification"}, {"id": "kv-cache", "members": [], "name": "KV Cache | HiCache", "title_patterns": ["\\bhi-?cache\\b", "\\bhi-?sparse\\b", "\\bunified[-_ ](kv|memory|cache)\\b", "\\bumbp\\b", "\\bradix\\b", "\\bkv[- ]cache\\b", "\\bkv (pool|layout)s?\\b", "\\bmamba cache\\b", "\\bswa\\b"], "topic": "KV cache layouts and pools, HiCache / HiSparse offload, radix and unified memory"}, {"id": "miles", "members": [], "name": "Miles | RL", "title_patterns": ["\\bmiles\\b"], "topic": "Miles RL on the SGLang side: the Miles nightlies and images, sglang-miles fixes (radixark/miles PRs are under the Miles button)"}, {"id": "diffusion", "members": [], "name": "Diffusion", "title_patterns": ["\\bdiffusion\\b", "\\bdit\\b", "\\bwan\\d", "\\bt2[iv]\\b"], "topic": "diffusion serving: DiT, Wan, image and video generation"}];
+    const SECTIONS = PR_SECTIONS.map(s => ({
+        ...s,
+        memberSet: new Set(s.members.map(m => m.toLowerCase())),
+        titleRe: s.title_patterns.length ? new RegExp(s.title_patterns.join('|'), 'i') : null,
+    }));
+    const SECTION_BY_ID = new Map(SECTIONS.map(s => [s.id, s]));
+    // Ids of sections merged into another, so an old link lands on the merged one.
+    const MERGED_SECTION_IDS = new Map(SECTIONS.flatMap(s => (s.replaces || []).map(old => [old, s.id])));
+    const SECTION_ALL = 'all';
+    const SECTION_NONE = 'none';
+
+    // Store all PRs for pagination
+    let mergedPRsRaw = [];   // everything the API returned, before any filter
+    let allMergedPRs = [];   // what the table currently shows
+    let openPRsRaw = [];
+    let allOpenPRs = [];
+    let mergedLoaded = false;
+    let openLoaded = false;
+    let mergedPage = 1;
+    let openPage = 1;
+    let mergedDays = DEFAULT_MERGED_DAYS;
+    let selectedSection = SECTION_ALL;
+
+    function escapeHtml(value) {
+        return String(value == null ? '' : value).replace(/[&<>"']/g, c =>
+            ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+    }
+
+    // Cache management functions
+    function getCachedData(key) {
+        try {
+            const cached = localStorage.getItem(key);
+            if (!cached) return null;
+            const { data, timestamp, filter } = JSON.parse(cached);
+            const age = Date.now() - timestamp;
+            if (age > CACHE_EXPIRY_MS) {
+                localStorage.removeItem(key);
+                return null;
+            }
+            return { data, age, filter };
+        } catch (e) {
+            return null;
+        }
+    }
+
+    function setCachedData(key, data, filter) {
+        try {
+            localStorage.setItem(key, JSON.stringify({
+                data,
+                filter,
+                timestamp: Date.now()
+            }));
+        } catch (e) {
+            console.warn('Failed to cache data:', e);
+        }
+    }
+
+    function formatCacheAge(ms) {
+        const minutes = Math.floor(ms / 60000);
+        const hours = Math.floor(minutes / 60);
+        if (hours > 0) return `${hours}h ${minutes % 60}m ago`;
+        return `${minutes}m ago`;
+    }
+
+    document.addEventListener('DOMContentLoaded', function() {
+        selectedSection = sectionFromHash();
+        renderMergedRangeButtons();
+        renderSectionTiles();
+        loadRecentPRs();  // Load recent merged PRs using current filter
+        loadOpenPRs();    // Load open PRs
+        loadMergedTrend();
+        setRepo(repoFromUrl());
+    });
+
+    window.addEventListener('hashchange', () => selectSection(sectionFromHash()));
+
+    function getSelectedFilter() {
+        return 'label';  // Always use label-only filter
+    }
+
+    // =====================
+    // Sections
+    // =====================
+
+    // Matched on every load rather than cached with the payload, so a rule
+    // change reaches visitors whose localStorage copy predates it.
+    function matchSections(pr) {
+        const author = (pr.author || '').toLowerCase();
+        const title = pr.title || '';
+        const matches = [];
+        for (const s of SECTIONS) {
+            const member = s.memberSet.has(author);
+            const hit = s.titleRe ? title.match(s.titleRe) : null;
+            if (member || hit) matches.push({ id: s.id, member, topic: hit ? hit[0] : '' });
+        }
+        return matches;
+    }
+
+    function withSections(prs) {
+        return prs.map(pr => ({ ...pr, sections: matchSections(pr) }));
+    }
+
+    function inSection(pr, id) {
+        if (id === SECTION_ALL) return true;
+        if (id === SECTION_NONE) return pr.sections.length === 0;
+        return pr.sections.some(match => match.id === id);
+    }
+
+    function sectionFromHash() {
+        const match = /^#section=([\w-]+)$/.exec(location.hash || '');
+        const asked = match ? match[1] : SECTION_ALL;
+        const id = MERGED_SECTION_IDS.get(asked) || asked;
+        return id === SECTION_NONE || SECTION_BY_ID.has(id) ? id : SECTION_ALL;
+    }
+
+    function sectionLabel(id) {
+        if (id === SECTION_ALL) return 'AMD';
+        if (id === SECTION_NONE) return 'unassigned';
+        return SECTION_BY_ID.get(id).name;
+    }
+
+    function selectSection(id) {
+        selectedSection = id;
+        renderSectionTiles();
+        if (mergedLoaded) applyMergedFilters();
+        if (openLoaded) applyOpenFilters();
+        if (trendData) renderTrend();
+        renderAuthors();
+    }
+
+    function mergedInWindow() {
+        const cutoff = new Date();
+        cutoff.setDate(cutoff.getDate() - mergedDays);
+        return mergedPRsRaw.filter(pr => new Date(pr.merged_at) >= cutoff);
+    }
+
+    function sectionTooltip(s) {
+        const members = s.members.length
+            ? `Members: ${s.members.join(', ')}`
+            : 'No members listed yet, so only titles match';
+        return `Title topic: ${s.topic}\n${members}`;
+    }
+
+    function renderSectionTiles() {
+        const container = document.getElementById('section-tiles');
+        const merged = mergedLoaded ? mergedInWindow() : [];
+        const tiles = [
+            { id: SECTION_ALL, name: 'All AMD PRs', note: 'every PR on this page', tooltip: 'Every AMD PR on this page' },
+            ...SECTIONS.map(s => ({
+                id: s.id,
+                name: s.name,
+                note: s.members.length
+                    ? `<i class="bi bi-person-fill"></i> ${s.members.length} member${s.members.length === 1 ? '' : 's'}`
+                    : 'title match only',
+                tooltip: sectionTooltip(s),
+            })),
+            {
+                id: SECTION_NONE,
+                name: 'Unassigned',
+                note: 'no member or topic match',
+                tooltip: 'PRs no section claims. Each one is a member or title rule missing from dashboard/pr_sections.py.',
+            },
+        ];
+
+        container.innerHTML = tiles.map(tile => {
+            const nMerged = mergedLoaded ? merged.filter(pr => inSection(pr, tile.id)).length : '&hellip;';
+            const nOpen = openLoaded ? openPRsRaw.filter(pr => inSection(pr, tile.id)).length : '&hellip;';
+            const active = tile.id === selectedSection ? ' active' : '';
+            return `
+                <a class="section-tile${active}" href="#section=${tile.id}" title="${escapeHtml(tile.tooltip)}">
+                    <div class="section-name">${escapeHtml(tile.name)}</div>
+                    <div class="section-counts"><strong>${nMerged}</strong> merged &middot; <strong>${nOpen}</strong> open</div>
+                    <div class="section-members">${tile.note}</div>
+                </a>
+            `;
+        }).join('');
+
+        document.getElementById('section-window').textContent =
+            `Merged in the last ${mergedDays} days \u00b7 open now`;
+    }
+
+    function sectionBadges(pr) {
+        if (!pr.sections.length) return '<span class="text-muted">-</span>';
+        return pr.sections.map(match => {
+            const s = SECTION_BY_ID.get(match.id);
+            const why = [];
+            if (match.member) why.push(`${pr.author} is a ${s.name} member`);
+            if (match.topic) why.push(`title mentions "${match.topic}"`);
+            const icon = match.member ? '<i class="bi bi-person-fill"></i> ' : '';
+            return `<span class="badge rounded-pill text-bg-light border section-badge me-1" title="${escapeHtml(why.join('; '))}">${icon}${escapeHtml(s.name)}</span>`;
+        }).join('');
+    }
+
+    function labelBadges(labels) {
+        return labels
+            .map(l => {
+                const isAmd = l.toLowerCase().includes('amd') || l.toLowerCase().includes('rocm');
+                const bgClass = isAmd ? 'bg-danger' : 'bg-secondary';
+                return `<span class="badge ${bgClass} bg-opacity-75 me-1" style="font-size: 0.7em; white-space: nowrap;">${escapeHtml(l)}</span>`;
+            })
+            .join('');
+    }
+
+    // =====================
+    // Merged per Day chart
+    // =====================
+
+    const TREND_DAY_RANGES = [30, 90, 365, 730];
+
+    // What makes a merged PR AMD, as the collector records it on each one: a
+    // PR counts when it meets any criterion switched on. Related starts off:
+    // a description names AMD in passing about as often as for AMD work.
+    // A copy from before the criteria were recorded counts every PR.
+    const TREND_CRITERIA = {
+        people: { label: 'People', title: 'Authored by someone on the AMD author list' },
+        tag: { label: 'Tag', title: 'Has an AMD or ROCm label' },
+        title: { label: 'Title', title: 'An AMD term (AMD, ROCm, HIP, MI3xx, gfx, AITER, ...) in the title' },
+        related: { label: 'Related', title: 'An AMD term in the description' },
+    };
+    const trendCriteria = new Set(['people', 'tag', 'title']);
+
+    function meetsCriteria(pr) {
+        return !pr.criteria || pr.criteria.some(c => trendCriteria.has(c));
+    }
+
+    function rangeLabel(days) {
+        return days % 365 === 0 ? `${days / 365}y` : `${days}d`;
+    }
+    const AMD_COLOR = '#dc3545';
+    const OTHER_COLOR = '#ced4da';
+    let trendData = null;    // payload, with amd_prs carrying their sections
+    let trendDays = 30;
+    let trendChart = null;
+    let trendWeekly = null;  // whether the chart on screen has a bar per week
+
+    // Below this many pixels a day the bars turn to hairlines, so the chart
+    // switches to a bar per week: the 1y range beside the author table, or
+    // 90d on a phone.
+    const MIN_DAY_BAR_PX = 4;
+
+    function wantsWeekly() {
+        const width = document.getElementById('trend-chart-box').clientWidth || window.innerWidth;
+        return trendDays * MIN_DAY_BAR_PX > width - 60;  // less the y axis
+    }
+
+    let resizeTimer = null;
+    window.addEventListener('resize', () => {
+        clearTimeout(resizeTimer);
+        resizeTimer = setTimeout(() => {
+            if (trendData && wantsWeekly() !== trendWeekly) renderTrend();
+        }, 200);
+    });
+
+    function loadMergedTrend() {
+        renderTrendRangeButtons();
+        renderTrendCriteria();
+        fetch('/api/amd-pr-tracker/merged-trend')
+            .then(r => {
+                // A static site serves a missing snapshot as its HTML 404 page.
+                if (!r.ok) throw new Error(r.status === 404 ? 'not published yet' : `HTTP ${r.status}`);
+                return r.json();
+            })
+            .then(data => {
+                if (data.error) throw new Error(data.error);
+                trendData = {
+                    ...data,
+                    amd_prs: withSections(data.amd_prs || []),
+                };
+                renderTrend();
+                renderAuthors();
+            })
+            .catch(error => {
+                const message = `<i class="bi bi-exclamation-triangle"></i> Data unavailable: ${escapeHtml(error.message)}`;
+                document.getElementById('trend-status').innerHTML = message;
+                document.getElementById('author-status').innerHTML = message;
+            });
+    }
+
+    // One range for the chart and the author table, set from the chart's header.
+    function renderTrendRangeButtons() {
+        TREND_DAY_RANGES.forEach(days => {
+            const btn = document.getElementById(`trend-range-${days}`);
+            if (btn) btn.className = days === trendDays ? 'btn btn-danger' : 'btn btn-outline-danger';
+        });
+    }
+
+    function renderTrendCriteria() {
+        document.getElementById('trend-criteria').innerHTML = Object.entries(TREND_CRITERIA)
+            .map(([key, c]) => `<button type="button" class="btn ${trendCriteria.has(key) ? 'btn-danger' : 'btn-outline-danger'}"
+                title="${escapeHtml(c.title)}" aria-pressed="${trendCriteria.has(key)}"
+                onclick="toggleTrendCriterion('${key}')">${c.label}</button>`)
+            .join('');
+    }
+
+    // At least one criterion stays on: with none the chart would have no AMD.
+    function toggleTrendCriterion(key) {
+        if (trendCriteria.has(key)) {
+            if (trendCriteria.size === 1) return;
+            trendCriteria.delete(key);
+        } else {
+            trendCriteria.add(key);
+        }
+        renderTrendCriteria();
+        if (trendData) renderTrend();
+        renderAuthors();
+    }
+
+    function setTrendDays(days) {
+        trendDays = days;
+        renderTrendRangeButtons();
+        if (trendData) renderTrend();
+        renderAuthors();
+    }
+
+    function renderTrend() {
+        // The window ends today; a day the collector has not reached yet
+        // (the window fills in over a few refreshes) is a gap, not a zero.
+        const end = new Date(`${trendData.end}T00:00:00Z`);
+        const days = [];
+        for (let i = trendDays - 1; i >= 0; i--) {
+            days.push(new Date(end.getTime() - i * 86400000).toISOString().slice(0, 10));
+        }
+        const collected = d => d in trendData.upstream;
+        const amdByDay = {};
+        const byCriterion = Object.fromEntries(Object.keys(TREND_CRITERIA).map(c => [c, 0]));
+        trendData.amd_prs
+            .filter(pr => inSection(pr, selectedSection) && meetsCriteria(pr))
+            .forEach(pr => {
+                const day = pr.merged_at.slice(0, 10);
+                if (day < days[0]) return;
+                amdByDay[day] = (amdByDay[day] || 0) + 1;
+                (pr.criteria || []).forEach(c => { if (c in byCriterion) byCriterion[c] += 1; });
+            });
+        const upstream = days.map(d => collected(d) ? trendData.upstream[d] : null);
+        const amd = days.map(d => collected(d) ? (amdByDay[d] || 0) : null);
+        const today = trendData.end;
+        const amdLabel = selectedSection === SECTION_ALL ? 'AMD' : `AMD · ${sectionLabel(selectedSection)}`;
+
+        const shown = days.filter(collected);
+        const totalUp = upstream.reduce((a, b) => a + (b || 0), 0);
+        const totalAmd = amd.reduce((a, b) => a + (b || 0), 0);
+        const share = totalUp ? (100 * totalAmd / totalUp).toFixed(1) : '0.0';
+        const perDay = n => (shown.length ? n / shown.length : 0).toFixed(1);
+        // A PR meeting several criteria counts under each, so these can sum
+        // past the total.
+        const breakdown = Object.entries(TREND_CRITERIA)
+            .filter(([key]) => trendCriteria.has(key))
+            .map(([key, c]) => `${c.label} ${byCriterion[key].toLocaleString()}`)
+            .join(', ');
+        const pending = shown.length < days.length
+            ? ` <span class="text-muted">&middot; days before ${escapeHtml(trendData.covered_from)} are still being collected</span>`
+            : '';
+        document.getElementById('trend-summary').innerHTML =
+            `Last ${days.length} days (${days[0]} &rarr; ${days[days.length - 1]} UTC): ` +
+            `<strong>${totalUp.toLocaleString()}</strong> merged into upstream main (${perDay(totalUp)}/day) &middot; ` +
+            `<strong>${totalAmd.toLocaleString()}</strong> ${escapeHtml(amdLabel)} (${perDay(totalAmd)}/day, ${share}% of upstream; ${breakdown})` +
+            pending;
+
+        document.getElementById('trend-status').style.display = 'none';
+        document.getElementById('trend-chart-box').style.display = 'block';
+
+        // One bar per day, or per week (from Monday, UTC) when that is too
+        // narrow. A week at either end of the range can be partial, and a
+        // bucket with no collected day is a gap.
+        trendWeekly = wantsWeekly();
+        document.getElementById('trend-title').textContent = trendWeekly ? 'Merged per Week' : 'Merged per Day';
+        const buckets = [];
+        days.forEach((d, i) => {
+            const date = new Date(`${d}T00:00:00Z`);
+            const key = trendWeekly
+                ? new Date(date.getTime() - ((date.getUTCDay() + 6) % 7) * 86400000).toISOString().slice(0, 10)
+                : d;
+            let bucket = buckets[buckets.length - 1];
+            if (!bucket || bucket.key !== key) {
+                bucket = { key, first: d, last: d, n: 0, upstream: null, amd: null };
+                buckets.push(bucket);
+            }
+            bucket.last = d;
+            bucket.n += 1;
+            if (upstream[i] != null) {
+                bucket.upstream = (bucket.upstream || 0) + upstream[i];
+                bucket.amd = (bucket.amd || 0) + amd[i];
+            }
+        });
+        const up = buckets.map(b => b.upstream);
+        const red = buckets.map(b => b.amd);
+        const grey = buckets.map(b => b.upstream == null ? null : Math.max(b.upstream - b.amd, 0));
+        const bucketTitle = b => {
+            if (!trendWeekly) return b.first === today ? `${b.first} (today, so far)` : b.first;
+            const span = `Week of ${b.key}`;
+            if (b.last === today) return `${span} (this week, so far)`;
+            return b.n < 7 ? `${span} (${b.n} of its days in range)` : span;
+        };
+
+        // A year or more of days leaves ~3px a bar or less: no gaps or
+        // rounding at that width, and the year in the axis labels.
+        const dense = buckets.length > 90;
+        const labels = buckets.map(b => (dense || trendWeekly) && trendDays > 90 ? b.key : b.key.slice(5));
+        const datasets = [
+            { label: amdLabel, data: red, backgroundColor: AMD_COLOR, stack: 'merged', borderRadius: dense ? 0 : 2 },
+            { label: 'Other upstream', data: grey, backgroundColor: OTHER_COLOR, stack: 'merged', borderRadius: dense ? 0 : 4 },
+        ];
+        const barFill = dense ? 1.0 : 0.9;
+        // Rebuilt rather than updated: the tooltip callbacks close over this
+        // render's series.
+        if (trendChart) trendChart.destroy();
+        trendChart = new Chart(document.getElementById('trend-chart'), {
+            type: 'bar',
+            data: { labels, datasets },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                interaction: { mode: 'index', intersect: false },
+                datasets: { bar: { categoryPercentage: barFill, barPercentage: barFill } },
+                scales: {
+                    x: { stacked: true, grid: { display: false }, ticks: { autoSkip: true, maxRotation: 0 } },
+                    y: { stacked: true, beginAtZero: true, ticks: { precision: 0 }, title: { display: true, text: 'PRs merged' } },
+                },
+                plugins: {
+                    legend: { position: 'bottom', labels: { boxWidth: 12 } },
+                    tooltip: {
+                        callbacks: {
+                            title: items => bucketTitle(buckets[items[0].dataIndex]),
+                            label: item => {
+                                const i = item.dataIndex;
+                                if (item.datasetIndex === 1) return ` Other upstream: ${grey[i]}`;
+                                const pct = up[i] ? ` (${(100 * red[i] / up[i]).toFixed(0)}%)` : '';
+                                return ` ${amdLabel}: ${red[i]}${pct}`;
+                            },
+                            footer: items => up[items[0].dataIndex] == null
+                                ? 'Not collected yet'
+                                : `Upstream total: ${up[items[0].dataIndex]}`,
+                        },
+                    },
+                },
+            },
+        });
+    }
+
+    // =====================
+    // PRs by Author
+    // =====================
+
+    // Per column: the heading of its group in a person's dropdown, the summary
+    // above the ranking (people on it, the column's total, the merged PRs in
+    // range) and the GitHub search a name links to.
+    const AUTHOR_RANKS = {
+        total: {
+            heading: 'Authored or co-authored',
+            summary: (n, total, prs) => `<strong>${n}</strong> people &middot; <strong>${total}</strong> author and co-author credits on <strong>${prs}</strong> merged PRs`,
+            search: login => `is:merged author:${login}`,
+        },
+        authored: {
+            heading: 'Authored, merged',
+            summary: (n, total) => `<strong>${n}</strong> people authored <strong>${total}</strong> merged PRs`,
+            search: login => `is:merged author:${login}`,
+        },
+        coauthored: {
+            heading: 'Co-authored',
+            summary: (n, total, prs) => `<strong>${n}</strong> people &middot; <strong>${total}</strong> co-author credits on <strong>${prs}</strong> merged PRs`,
+            search: login => `is:merged author:${login}`,
+        },
+        reviewed: {
+            heading: 'Reviewed',
+            summary: (n, total, prs) => `<strong>${n}</strong> people &middot; <strong>${total}</strong> reviews of <strong>${prs}</strong> merged PRs`,
+            search: login => `is:merged reviewed-by:${login}`,
+        },
+        merger: {
+            heading: 'Merged by them',
+            summary: (n, total) => `<strong>${n}</strong> people merged <strong>${total}</strong> PRs`,
+            search: login => `is:merged author:${login}`,
+        },
+    };
+    // The table's columns, in order. Total is the authored and co-authored
+    // PRs together, so a dropdown lists those under the two roles instead.
+    const AUTHOR_COLUMNS = Object.keys(AUTHOR_RANKS);
+    const AUTHOR_ROLES = AUTHOR_COLUMNS.filter(key => key !== 'total');
+    // One table per view: SGLang's beside the chart, and the other repo
+    // shown. ``prefix`` starts its element ids; ``open`` holds the people
+    // whose dropdown is open, by lower-case login, so it stays open across a
+    // change of range, section or ranking; ``rows`` is the ranking on screen.
+    const AUTHOR_TABLES = {
+        sglang: { prefix: 'author', rank: 'total', open: new Set(), rows: [] },
+        repo: { prefix: 'repo-author', rank: 'total', open: new Set(), rows: [] },
+    };
+
+    function rankAuthorsBy(key) {
+        AUTHOR_TABLES.sglang.rank = key;
+        renderAuthors();
+    }
+
+    function rankRepoAuthorsBy(key) {
+        AUTHOR_TABLES.repo.rank = key;
+        renderRepoAuthors();
+    }
+
+    function toggleAuthorDetail(index, which = 'sglang') {
+        const table = AUTHOR_TABLES[which];
+        const key = table.rows[index].login.toLowerCase();
+        if (table.open.has(key)) table.open.delete(key);
+        else table.open.add(key);
+        if (which === 'sglang') renderAuthors();
+        else renderRepoAuthors();
+    }
+
+    // One PR in a dropdown: number, title and the day it merged (or opened).
+    function authorDetailLine(pr) {
+        const url = pr.url || `https://github.com/sgl-project/sglang/pull/${pr.number}`;
+        const day = (pr.merged_at || pr.created_at || '').slice(0, 10);
+        return `<li class="text-truncate" title="${escapeHtml(pr.title)}">
+            <a href="${escapeHtml(url)}" target="_blank">#${pr.number}</a>
+            ${escapeHtml(pr.title)} <span class="text-muted">${day}</span></li>`;
+    }
+
+    // A person's PRs grouped by role, the ranked role first; empty roles left out.
+    function authorDetailRow(r, rank) {
+        const groups = [...AUTHOR_ROLES.filter(key => key === rank), ...AUTHOR_ROLES.filter(key => key !== rank)]
+            .filter(key => r.prs[key].length)
+            .map(key => `<div class="author-detail-group">
+                <div class="fw-semibold">${AUTHOR_RANKS[key].heading} (${r.prs[key].length})</div>
+                <ul class="list-unstyled mb-1">${r.prs[key].map(authorDetailLine).join('')}</ul>
+            </div>`)
+            .join('');
+        return `<tr class="author-detail"><td></td><td colspan="6"><div class="author-detail-body">${groups}</div></td></tr>`;
+    }
+
+    function renderAuthors() {
+        if (!trendData) return;
+        const end = new Date(`${trendData.end}T00:00:00Z`);
+        const from = new Date(end.getTime() - (trendDays - 1) * 86400000).toISOString().slice(0, 10);
+        // Older merges are still being collected while the window fills in.
+        const notes = trendData.covered_from > from ? [`merges from ${escapeHtml(trendData.covered_from)}`] : [];
+        renderAuthorTable('sglang', {
+            merged: trendData.amd_prs
+                .filter(pr => pr.merged_at.slice(0, 10) >= from && inSection(pr, selectedSection) && meetsCriteria(pr)),
+            repo: 'sgl-project/sglang',
+            window: `${rangeLabel(trendDays)} \u00b7 ${sectionLabel(selectedSection)}`,
+            windowTitle: `${from} \u2192 ${trendData.end} UTC`,
+            empty: sectionLabel(selectedSection),
+            notes,
+        });
+    }
+
+    // The other repo shown, over its merges in the Merged tab's range.
+    function renderRepoAuthors() {
+        const data = repoData[selectedRepo];
+        if (!data) return;
+        const days = repoRangeDays(data);
+        const cutoff = new Date();
+        cutoff.setDate(cutoff.getDate() - days);
+        renderAuthorTable('repo', {
+            merged: data.merged.filter(pr => new Date(pr.merged_at) >= cutoff),
+            repo: data.repo,
+            window: `${days === 365 ? '1y' : `${days}d`} \u00b7 ${data.name}`,
+            windowTitle: `Merged since ${cutoff.toISOString().slice(0, 10)}`,
+            empty: data.name,
+            notes: [],
+        });
+    }
+
+    // One author table. ``view`` holds the merged PRs that count, the repo a
+    // name links into, the header's range label, what an empty ranking names,
+    // and notes for the summary.
+    function renderAuthorTable(which, view) {
+        const table = AUTHOR_TABLES[which];
+        const el = suffix => document.getElementById(`${table.prefix}-${suffix}`);
+
+        // Each person's PRs in each role. Logins are case-insensitive; the
+        // first spelling seen is shown.
+        const people = new Map();
+        const person = login => {
+            const key = login.toLowerCase();
+            if (!people.has(key)) {
+                people.set(key, { login, prs: Object.fromEntries(AUTHOR_ROLES.map(role => [role, []])) });
+            }
+            return people.get(key);
+        };
+        view.merged.forEach(pr => {
+            person(pr.author).prs.authored.push(pr);
+            (pr.coauthors || []).forEach(login => person(login).prs.coauthored.push(pr));
+            (pr.reviewers || []).forEach(login => person(login).prs.reviewed.push(pr));
+            if (pr.merged_by) person(pr.merged_by).prs.merger.push(pr);
+        });
+        people.forEach(r => {
+            AUTHOR_ROLES.forEach(role => { r[role] = r.prs[role].length; });
+            // A PR they both authored and co-authored counts once.
+            r.total = new Set([...r.prs.authored, ...r.prs.coauthored]).size;
+        });
+
+        // Ranked by the chosen column; a person with none of it is not on that ranking.
+        const rank = table.rank;
+        const rows = [...people.values()]
+            .filter(r => r[rank] > 0)
+            .sort((a, b) => b[rank] - a[rank] || b.total - a.total || b.authored - a.authored
+                || a.login.localeCompare(b.login));
+        table.rows = rows;
+
+        el('status').style.display = 'none';
+        el('table').style.display = 'flex';
+        el('window').textContent = view.window;
+        el('window').title = view.windowTitle;
+        document.querySelectorAll(`#${table.prefix}-table th.rank-col`).forEach(th =>
+            th.classList.toggle('active', th.dataset.rank === rank));
+
+        // Co-authors, reviewers and mergers are still being looked up for PRs
+        // that have none yet.
+        const notes = [...view.notes];
+        const unlooked = view.merged.filter(pr => !('reviewers' in pr)).length;
+        if (unlooked) notes.push(`roles for ${unlooked} PRs still being looked up`);
+        const total = rows.reduce((sum, r) => sum + r[rank], 0);
+        el('summary').innerHTML =
+            AUTHOR_RANKS[rank].summary(rows.length, total.toLocaleString(), view.merged.length.toLocaleString()) +
+            (notes.length ? ` <span class="text-muted">(${notes.join('; ')})</span>` : '');
+
+        // The ranked column gets a bar behind its number, scaled to the top person.
+        const top = Math.max(1, ...rows.map(r => r[rank]));
+        const cell = (r, key) => {
+            const n = r[key] ? `${r[key]}` : '<span class="text-muted">0</span>';
+            if (key !== rank || !r[key]) return `<td class="rank-col">${n}</td>`;
+            const pct = (100 * r[key] / top).toFixed(1);
+            return `<td class="rank-col fw-semibold" style="background: linear-gradient(to left, rgba(220, 53, 69, 0.22) ${pct}%, transparent ${pct}%);">${n}</td>`;
+        };
+        el('rows').innerHTML = rows.length
+            ? rows.map((r, i) => {
+                const q = encodeURIComponent(`is:pr ${AUTHOR_RANKS[rank].search(r.login)}`);
+                const url = `https://github.com/${view.repo}/pulls?q=${q}`;
+                const expanded = table.open.has(r.login.toLowerCase());
+                return `<tr class="author-row${expanded ? ' expanded' : ''}" onclick="toggleAuthorDetail(${i}, '${which}')" title="Show ${escapeHtml(r.login)}'s PRs">
+                    <td class="text-muted text-nowrap"><i class="bi bi-chevron-${expanded ? 'down' : 'right'}"></i>${i + 1}</td>
+                    <td class="text-truncate" style="max-width: 8rem;"><a href="${escapeHtml(url)}" target="_blank" title="${escapeHtml(r.login)}" onclick="event.stopPropagation()">${escapeHtml(r.login)}</a></td>
+                    ${AUTHOR_COLUMNS.map(key => cell(r, key)).join('')}
+                </tr>${expanded ? authorDetailRow(r, rank) : ''}`;
+            }).join('')
+            : `<tr><td colspan="7" class="text-muted">No ${escapeHtml(view.empty)} PRs in this range.</td></tr>`;
+    }
+
+    // =====================
+    // Merged PRs Functions
+    // =====================
+
+    function renderMergedRangeButtons() {
+        MERGED_DAY_RANGES.forEach(days => {
+            const btn = document.getElementById(`merged-range-${days}`);
+            if (btn) btn.className = days === mergedDays ? 'btn btn-danger' : 'btn btn-outline-danger';
+        });
+    }
+
+    function setMergedDays(days) {
+        mergedDays = days;
+        renderMergedRangeButtons();
+        renderSectionTiles();
+        applyMergedFilters();
+    }
+
+    // Re-filter the already-fetched PRs, so switching range or section costs no API call
+    function applyMergedFilters() {
+        allMergedPRs = mergedInWindow().filter(pr => inSection(pr, selectedSection));
+        mergedPage = 1;
+        document.getElementById('merged-count').textContent = allMergedPRs.length;
+
+        if (allMergedPRs.length === 0) {
+            const label = escapeHtml(sectionLabel(selectedSection));
+            document.getElementById('prs-empty').innerHTML =
+                `<div class="alert alert-info mb-0"><i class="bi bi-info-circle"></i> No merged ${label} PRs in the last ${mergedDays} days.</div>`;
+            document.getElementById('prs-empty').style.display = 'block';
+            document.getElementById('prs-table').style.display = 'none';
+            document.getElementById('prs-pagination').innerHTML = '';
+            document.getElementById('prs-filter-info').innerHTML =
+                `<small><i class="bi bi-funnel"></i> <strong>0</strong> merged ${label} PRs in the last ${mergedDays} days</small>`;
+            return;
+        }
+
+        document.getElementById('prs-empty').style.display = 'none';
+        renderRecentPRs();
+    }
+
+    // Update the "last updated" timestamp
+    function updateTimestamp(cacheAge = 0) {
+        const timeEl = document.getElementById('prs-updated-time');
+        if (cacheAge > 0) {
+            timeEl.innerHTML = `<i class="bi bi-database"></i> Cached ${formatCacheAge(cacheAge)}`;
+            timeEl.title = 'Using cached data. Click refresh to fetch latest.';
+        } else {
+            const now = new Date();
+            const timeStr = now.toLocaleTimeString([], zoneOptions({
+                hour: '2-digit', minute: '2-digit'
+            }));
+            timeEl.innerHTML = `<i class="bi bi-cloud-check"></i> ${timeStr}`;
+            timeEl.title = 'Fresh data from GitHub';
+        }
+    }
+
+    // Refresh both merged and open PRs (force fetch from API)
+    function refreshAllPRs() {
+        loadRecentPRs(true);
+        loadOpenPRs(true);
+    }
+
+    // Load recent PRs - uses cache unless forceRefresh=true or cache expired.
+    // Each key suffix retires caches of a shorter list: _14d those written
+    // before the payload covered a full 14 days, _all those capped at 100
+    // PRs. The refresh button is hidden in static mode, so a returning
+    // visitor would otherwise sit on the short list for another day.
+    function loadRecentPRs(forceRefresh = false) {
+        const filter = getSelectedFilter();
+        const cacheKey = `amd_merged_prs_14d_all_${filter}`;
+
+        // Check cache first (unless forcing refresh)
+        if (!forceRefresh) {
+            const cached = getCachedData(cacheKey);
+            if (cached && cached.filter === filter) {
+                console.log('Using cached merged PRs:', formatCacheAge(cached.age));
+                processMergedPRs(cached.data, cached.age);
+                return;
+            }
+        }
+
+        document.getElementById('prs-loading').style.display = 'block';
+        document.getElementById('prs-table').style.display = 'none';
+        document.getElementById('prs-empty').style.display = 'none';
+
+        let url = `/api/upstream-ci/recent-prs?filter=${filter}&limit=1000`;
+
+        fetch(url)
+            .then(response => response.json())
+            .then(data => {
+                document.getElementById('prs-loading').style.display = 'none';
+
+                if (data.error) {
+                    document.getElementById('prs-empty').innerHTML = `<div class="alert alert-danger mb-0"><i class="bi bi-exclamation-triangle"></i> ${escapeHtml(data.error)}</div>`;
+                    document.getElementById('prs-empty').style.display = 'block';
+                    document.getElementById('merged-count').textContent = '0';
+                    return;
+                }
+
+                const prs = data.prs || [];
+
+                // Cache the raw data
+                setCachedData(cacheKey, prs, filter);
+
+                processMergedPRs(prs, 0);
+            })
+            .catch(error => {
+                document.getElementById('prs-loading').style.display = 'none';
+                document.getElementById('merged-count').textContent = '0';
+                document.getElementById('prs-empty').innerHTML = `<div class="alert alert-danger mb-0"><i class="bi bi-exclamation-triangle"></i> ${escapeHtml(error.message)}</div>`;
+                document.getElementById('prs-empty').style.display = 'block';
+            });
+    }
+
+    function processMergedPRs(prs, cacheAge) {
+        updateTimestamp(cacheAge);
+
+        // Hide loading
+        document.getElementById('prs-loading').style.display = 'none';
+
+        mergedPRsRaw = withSections(prs);
+        mergedLoaded = true;
+        renderSectionTiles();
+        applyMergedFilters();
+    }
+
+    function renderRecentPRs() {
+        const totalCount = allMergedPRs.length;
+        const totalPages = Math.ceil(totalCount / ITEMS_PER_PAGE);
+        const startIdx = (mergedPage - 1) * ITEMS_PER_PAGE;
+        const endIdx = Math.min(startIdx + ITEMS_PER_PAGE, totalCount);
+        const prs = allMergedPRs.slice(startIdx, endIdx);
+
+        document.getElementById('prs-table').style.display = 'block';
+
+        // Calculate date range from ALL PR data
+        let dateRangeText = '';
+        if (allMergedPRs.length > 0) {
+            const dates = allMergedPRs.map(pr => new Date(pr.merged_at));
+            const minDate = new Date(Math.min(...dates));
+            const maxDate = new Date(Math.max(...dates));
+            dateRangeText = ` | <i class="bi bi-calendar-range"></i> ${formatDate(minDate)} - ${formatDate(maxDate)}`;
+        }
+
+        const filterInfo = document.getElementById('prs-filter-info');
+        const showingText = totalCount > ITEMS_PER_PAGE ? `${startIdx + 1}-${endIdx} of ${totalCount}` : `${totalCount}`;
+        const label = escapeHtml(sectionLabel(selectedSection));
+        filterInfo.innerHTML = `<small><i class="bi bi-funnel"></i> <strong>${showingText}</strong> merged ${label} PRs in the last ${mergedDays} days${dateRangeText}</small>`;
+
+        // Render pagination
+        const pagination = document.getElementById('prs-pagination');
+        if (totalPages > 1) {
+            let paginationHtml = '';
+            paginationHtml += `<button class="btn btn-outline-danger btn-sm" onclick="goToMergedPage(${mergedPage - 1})" ${mergedPage === 1 ? 'disabled' : ''}><i class="bi bi-chevron-left"></i></button>`;
+            for (let i = 1; i <= totalPages; i++) {
+                if (i === mergedPage) {
+                    paginationHtml += `<button class="btn btn-danger btn-sm">${i}</button>`;
+                } else if (i === 1 || i === totalPages || Math.abs(i - mergedPage) <= 1) {
+                    paginationHtml += `<button class="btn btn-outline-danger btn-sm" onclick="goToMergedPage(${i})">${i}</button>`;
+                } else if (Math.abs(i - mergedPage) === 2) {
+                    paginationHtml += `<span class="btn btn-outline-secondary btn-sm disabled">...</span>`;
+                }
+            }
+            paginationHtml += `<button class="btn btn-outline-danger btn-sm" onclick="goToMergedPage(${mergedPage + 1})" ${mergedPage === totalPages ? 'disabled' : ''}><i class="bi bi-chevron-right"></i></button>`;
+            pagination.innerHTML = paginationHtml;
+        } else {
+            pagination.innerHTML = '';
+        }
+
+        const tbody = document.getElementById('prs-rows');
+        tbody.innerHTML = prs.map(pr => {
+            const mergedDate = formatDate(pr.merged_at);
+            const url = escapeHtml(pr.url);
+
+            return `
+                <tr>
+                    <td><a href="${url}" target="_blank">#${pr.number}</a></td>
+                    <td>
+                        <a href="${url}" target="_blank" class="text-decoration-none text-dark">
+                            ${escapeHtml(pr.title)}
+                        </a>
+                    </td>
+                    <td>${sectionBadges(pr)}</td>
+                    <td><small>${escapeHtml(pr.author)}</small></td>
+                    <td><small>${mergedDate}</small></td>
+                    <td><div style="max-width: 280px; overflow-x: auto; white-space: nowrap; scrollbar-width: thin;">${labelBadges(pr.labels)}</div></td>
+                </tr>
+            `;
+        }).join('');
+    }
+
+    function goToMergedPage(page) {
+        const totalPages = Math.ceil(allMergedPRs.length / ITEMS_PER_PAGE);
+        if (page >= 1 && page <= totalPages) {
+            mergedPage = page;
+            renderRecentPRs();
+        }
+    }
+
+    // =====================
+    // Open PRs Functions
+    // =====================
+
+    function loadOpenPRs(forceRefresh = false) {
+        const filter = getSelectedFilter();
+        // _all retires caches of the list that was read off only the 300
+        // most recently updated open PRs.
+        const cacheKey = `amd_open_prs_all_${filter}`;
+
+        // Check cache first (unless forcing refresh)
+        if (!forceRefresh) {
+            const cached = getCachedData(cacheKey);
+            if (cached && cached.filter === filter) {
+                console.log('Using cached open PRs:', formatCacheAge(cached.age));
+                processOpenPRs(cached.data);
+                return;
+            }
+        }
+
+        document.getElementById('open-prs-loading').style.display = 'block';
+        document.getElementById('open-prs-table').style.display = 'none';
+        document.getElementById('open-prs-empty').style.display = 'none';
+
+        fetch(`/api/upstream-ci/open-prs?filter=${filter}&limit=1000`)
+        .then(response => response.json())
+        .then(data => {
+                document.getElementById('open-prs-loading').style.display = 'none';
+                setPageLastUpdated(data.generated_at);
+
+                if (data.error) {
+                    document.getElementById('open-prs-empty').innerHTML = `<div class="alert alert-danger mb-0"><i class="bi bi-exclamation-triangle"></i> ${escapeHtml(data.error)}</div>`;
+                    document.getElementById('open-prs-empty').style.display = 'block';
+                    document.getElementById('open-count').textContent = '0';
+                    return;
+                }
+
+                const prs = data.prs || [];
+
+                // Cache the data
+                setCachedData(cacheKey, prs, filter);
+
+                processOpenPRs(prs);
+        })
+        .catch(error => {
+                document.getElementById('open-prs-loading').style.display = 'none';
+                document.getElementById('open-count').textContent = '0';
+                document.getElementById('open-prs-empty').innerHTML = `<div class="alert alert-danger mb-0"><i class="bi bi-exclamation-triangle"></i> ${escapeHtml(error.message)}</div>`;
+                document.getElementById('open-prs-empty').style.display = 'block';
+            });
+    }
+
+    function processOpenPRs(prs) {
+        openPRsRaw = withSections(prs);
+        openLoaded = true;
+        renderSectionTiles();
+        applyOpenFilters();
+        renderAuthors();
+    }
+
+    function applyOpenFilters() {
+        allOpenPRs = openPRsRaw.filter(pr => inSection(pr, selectedSection));
+        openPage = 1;
+        document.getElementById('open-count').textContent = allOpenPRs.length;
+
+        if (allOpenPRs.length === 0) {
+            document.getElementById('open-prs-empty').innerHTML =
+                `<div class="alert alert-info mb-0"><i class="bi bi-info-circle"></i> No open ${escapeHtml(sectionLabel(selectedSection))} PRs.</div>`;
+            document.getElementById('open-prs-empty').style.display = 'block';
+            document.getElementById('open-prs-table').style.display = 'none';
+            return;
+        }
+
+        document.getElementById('open-prs-empty').style.display = 'none';
+        renderOpenPRs();
+    }
+
+    function renderOpenPRs() {
+        const totalCount = allOpenPRs.length;
+        const totalPages = Math.ceil(totalCount / ITEMS_PER_PAGE);
+        const startIdx = (openPage - 1) * ITEMS_PER_PAGE;
+        const endIdx = Math.min(startIdx + ITEMS_PER_PAGE, totalCount);
+        const prs = allOpenPRs.slice(startIdx, endIdx);
+
+        document.getElementById('open-prs-table').style.display = 'block';
+
+        let dateRangeText = '';
+        if (allOpenPRs.length > 0) {
+            const dates = allOpenPRs.map(pr => new Date(pr.updated_at));
+            const minDate = new Date(Math.min(...dates));
+            const maxDate = new Date(Math.max(...dates));
+            dateRangeText = ` | <i class="bi bi-calendar-range"></i> Updated: ${formatDate(minDate)} - ${formatDate(maxDate)}`;
+        }
+
+        const filterInfo = document.getElementById('open-prs-filter-info');
+        const showingText = totalCount > ITEMS_PER_PAGE ? `${startIdx + 1}-${endIdx} of ${totalCount}` : `${totalCount}`;
+        filterInfo.innerHTML = `<small><i class="bi bi-funnel"></i> <strong>${showingText}</strong> open ${escapeHtml(sectionLabel(selectedSection))} PRs${dateRangeText}</small>`;
+
+        // Render pagination
+        const pagination = document.getElementById('open-prs-pagination');
+        if (totalPages > 1) {
+            let paginationHtml = '';
+            paginationHtml += `<button class="btn btn-outline-warning btn-sm" onclick="goToOpenPage(${openPage - 1})" ${openPage === 1 ? 'disabled' : ''}><i class="bi bi-chevron-left"></i></button>`;
+            for (let i = 1; i <= totalPages; i++) {
+                if (i === openPage) {
+                    paginationHtml += `<button class="btn btn-warning btn-sm">${i}</button>`;
+                } else if (i === 1 || i === totalPages || Math.abs(i - openPage) <= 1) {
+                    paginationHtml += `<button class="btn btn-outline-warning btn-sm" onclick="goToOpenPage(${i})">${i}</button>`;
+                } else if (Math.abs(i - openPage) === 2) {
+                    paginationHtml += `<span class="btn btn-outline-secondary btn-sm disabled">...</span>`;
+                }
+            }
+            paginationHtml += `<button class="btn btn-outline-warning btn-sm" onclick="goToOpenPage(${openPage + 1})" ${openPage === totalPages ? 'disabled' : ''}><i class="bi bi-chevron-right"></i></button>`;
+            pagination.innerHTML = paginationHtml;
+        } else {
+            pagination.innerHTML = '';
+        }
+
+        const tbody = document.getElementById('open-prs-rows');
+        tbody.innerHTML = prs.map(pr => {
+            const createdDate = formatDate(pr.created_at);
+            const updatedDate = formatDate(pr.updated_at);
+            const url = escapeHtml(pr.url);
+
+            return `
+                <tr>
+                    <td><a href="${url}" target="_blank">#${pr.number}</a></td>
+                    <td>
+                        <a href="${url}" target="_blank" class="text-decoration-none text-dark">
+                            ${escapeHtml(pr.title)}
+                        </a>
+                    </td>
+                    <td>${sectionBadges(pr)}</td>
+                    <td><small>${escapeHtml(pr.author)}</small></td>
+                    <td><small>${createdDate}</small></td>
+                    <td><small>${updatedDate}</small></td>
+                    <td><div style="max-width: 250px; overflow-x: auto; white-space: nowrap; scrollbar-width: thin;">${labelBadges(pr.labels)}</div></td>
+                    <td><button class="btn btn-outline-info btn-sm py-0 px-1" style="font-size:0.75rem" onclick="reviewPR(${pr.number}, this)"><i class="bi bi-robot"></i> Review</button></td>
+                </tr>
+            `;
+        }).join('');
+    }
+
+    function goToOpenPage(page) {
+        const totalPages = Math.ceil(allOpenPRs.length / ITEMS_PER_PAGE);
+        if (page >= 1 && page <= totalPages) {
+            openPage = page;
+            renderOpenPRs();
+        }
+    }
+
+    // =====================
+    // Other repos (Miles, AITER, InferenceX, Mono, MORI)
+    // =====================
+
+    // Defined in dashboard/fetch_github_data.py.
+    const TRACKER_REPOS = {"aiter": {"days": 90, "match": "all", "name": "AITER", "repo": "ROCm/aiter"}, "inferencex": {"days": 365, "match": "amd", "name": "InferenceX", "repo": "SemiAnalysisAI/InferenceX"}, "miles": {"days": 365, "match": "amd", "name": "Miles", "repo": "radixark/miles"}, "mono": {"days": 365, "match": "all", "name": "Mono", "repo": "sgl-project/sgl-amd-mono"}, "mori": {"days": 365, "match": "all", "name": "MORI", "repo": "ROCm/mori"}};
+    const REPO_DAY_RANGES = [30, 90, 365];
+    const repoData = {};     // payload per repo key, fetched the first time it is shown
+    let selectedRepo = 'sglang';
+    let repoDays = 30;
+
+    // ?repo=<key> rather than a hash: the hash is the section link.
+    function repoFromUrl() {
+        const asked = new URLSearchParams(location.search || '').get('repo');
+        return asked && Object.prototype.hasOwnProperty.call(TRACKER_REPOS, asked) ? asked : 'sglang';
+    }
+
+    function setRepo(key) {
+        selectedRepo = key;
+        const sglang = key === 'sglang';
+        document.getElementById('repo-sglang').style.display = sglang ? '' : 'none';
+        document.getElementById('sglang-links').style.display = sglang ? '' : 'none';
+        document.getElementById('repo-other').style.display = sglang ? 'none' : '';
+        document.querySelectorAll('#repo-buttons [data-repo]').forEach(btn => {
+            btn.className = btn.dataset.repo === key ? 'btn btn-danger' : 'btn btn-outline-danger';
+        });
+        if (window.history && history.replaceState) {
+            const params = new URLSearchParams(location.search || '');
+            if (sglang) params.delete('repo'); else params.set('repo', key);
+            const query = params.toString();
+            history.replaceState(null, '', `${location.pathname}${query ? `?${query}` : ''}${location.hash || ''}`);
+        }
+        if (!sglang) loadRepoPRs(key);
+    }
+
+    function loadRepoPRs(key) {
+        const config = TRACKER_REPOS[key];
+        document.getElementById('repo-title').textContent = `${config.name} PRs`;
+        document.getElementById('repo-name').textContent = config.repo;
+        document.getElementById('repo-link').href = `https://github.com/${config.repo}/pulls`;
+        document.getElementById('repo-rule').innerHTML = config.match === 'all'
+            ? `Every PR in <code>${escapeHtml(config.repo)}</code>, an AMD repo. Not split by section: the sections are SGLang's.`
+            : `A ${escapeHtml(config.name)} PR is AMD when it has an AMD label, an AMD author, or a title naming AMD hardware or
+               software (AMD, ROCm, HIP, AITER, MI3xx, gfx9xx); <code>run-*</code> labels such as <code>run-ci-amd</code>
+               only ask for a CI run, so they do not count. Not split by section: the sections are SGLang's.`;
+        // A person open in one repo's table is not carried to another's.
+        AUTHOR_TABLES.repo.open.clear();
+        if (repoData[key]) {
+            renderRepo();
+            return;
+        }
+        document.getElementById('repo-status').style.display = 'block';
+        document.getElementById('repo-status').innerHTML =
+            `<span class="spinner-border spinner-border-sm text-danger me-2" role="status"></span>Loading ${escapeHtml(config.name)} PRs...`;
+        document.getElementById('repo-content').style.display = 'none';
+        document.getElementById('repo-author-status').style.display = 'block';
+        document.getElementById('repo-author-status').innerHTML =
+            '<span class="spinner-border spinner-border-sm text-danger me-2" role="status"></span>Loading PRs by author...';
+        document.getElementById('repo-author-table').style.display = 'none';
+        document.getElementById('repo-author-window').textContent = '';
+        document.getElementById('repo-merged-count').innerHTML = '&hellip;';
+        document.getElementById('repo-open-count').innerHTML = '&hellip;';
+        fetch(`/api/amd-pr-tracker/${key}-prs`)
+            .then(r => {
+                // A static site serves a missing snapshot as its HTML 404 page.
+                if (!r.ok) throw new Error(r.status === 404 ? 'not published yet' : `HTTP ${r.status}`);
+                return r.json();
+            })
+            .then(data => {
+                if (data.error) throw new Error(data.error);
+                repoData[key] = data;
+                if (selectedRepo === key) renderRepo();
+            })
+            .catch(error => {
+                if (selectedRepo !== key) return;
+                const message = `<i class="bi bi-exclamation-triangle"></i> Data unavailable: ${escapeHtml(error.message)}`;
+                document.getElementById('repo-status').innerHTML = message;
+                document.getElementById('repo-author-status').innerHTML = message;
+                document.getElementById('repo-merged-count').textContent = '0';
+                document.getElementById('repo-open-count').textContent = '0';
+            });
+    }
+
+    function setRepoDays(days) {
+        repoDays = days;
+        if (repoData[selectedRepo]) renderRepo();
+    }
+
+    // The ranges this repo's payload covers; a shorter payload clamps the choice.
+    function repoRanges(data) {
+        return REPO_DAY_RANGES.filter(days => days <= data.days);
+    }
+
+    function repoRangeDays(data) {
+        const ranges = repoRanges(data);
+        return Math.min(repoDays, ranges[ranges.length - 1]);
+    }
+
+    function renderRepo() {
+        const data = repoData[selectedRepo];
+        document.getElementById('repo-status').style.display = 'none';
+        document.getElementById('repo-content').style.display = 'block';
+        const days = repoRangeDays(data);
+        document.getElementById('repo-ranges').innerHTML = repoRanges(data).map(d => `
+            <button type="button" class="btn ${d === days ? 'btn-danger' : 'btn-outline-danger'}" id="repo-range-${d}" onclick="setRepoDays(${d})">${d === 365 ? '1y' : `${d}d`}</button>
+        `).join('');
+        renderRepoMerged(data, days);
+        renderRepoOpen(data);
+        renderRepoAuthors();
+    }
+
+    function repoRow(pr, dates) {
+        const url = escapeHtml(pr.url);
+        const draft = pr.draft ? ' <span class="badge text-bg-light border section-badge">draft</span>' : '';
+        return `
+            <tr>
+                <td><a href="${url}" target="_blank">#${pr.number}</a></td>
+                <td><a href="${url}" target="_blank" class="text-decoration-none text-dark">${escapeHtml(pr.title)}</a>${draft}</td>
+                <td><small>${escapeHtml(pr.author)}</small></td>
+                ${dates.map(d => `<td><small>${formatDate(pr[d])}</small></td>`).join('')}
+                <td><div style="max-width: 280px; overflow-x: auto; white-space: nowrap; scrollbar-width: thin;">${labelBadges(pr.labels)}</div></td>
+            </tr>
+        `;
+    }
+
+    // Miles and InferenceX list only their AMD PRs; AITER, an AMD repo, all of them.
+    function repoKind(data) {
+        return data.match === 'all' ? 'PRs' : 'AMD PRs';
+    }
+
+    function renderRepoMerged(data, days) {
+        const cutoff = new Date();
+        cutoff.setDate(cutoff.getDate() - days);
+        const prs = data.merged.filter(pr => new Date(pr.merged_at) >= cutoff);
+        const range = days === 365 ? 'year' : `${days} days`;
+        const what = `${repoKind(data)} merged into ${escapeHtml(data.name)}`;
+        document.getElementById('repo-merged-count').textContent = prs.length;
+        document.getElementById('repo-merged-info').innerHTML =
+            `<i class="bi bi-funnel"></i> <strong>${prs.length}</strong> ${what} in the last ${range}`;
+        document.getElementById('repo-merged-rows').innerHTML = prs.length
+            ? prs.map(pr => repoRow(pr, ['merged_at'])).join('')
+            : `<tr><td colspan="5" class="text-muted">No ${what} in the last ${range}.</td></tr>`;
+    }
+
+    function renderRepoOpen(data) {
+        const prs = data.open;
+        const what = `open ${repoKind(data)} in ${escapeHtml(data.name)}`;
+        document.getElementById('repo-open-count').textContent = prs.length;
+        document.getElementById('repo-open-info').innerHTML =
+            `<i class="bi bi-funnel"></i> <strong>${prs.length}</strong> ${what}, most recently updated first`;
+        document.getElementById('repo-open-rows').innerHTML = prs.length
+            ? prs.map(pr => repoRow(pr, ['created_at', 'updated_at'])).join('')
+            : `<tr><td colspan="6" class="text-muted">No ${what}.</td></tr>`;
+    }
+
+    const reviewCache = {};
+    function reviewPR(prNumber, btn) {
+        if (reviewCache[prNumber]) {
+            showReviewResult(btn, reviewCache[prNumber]);
+            return;
+        }
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
+        fetch(`/api/amd-pr-tracker/review/${prNumber}`)
+            .then(r => r.json())
+            .then(d => {
+                const text = d.review || 'No review available.';
+                reviewCache[prNumber] = text;
+                showReviewResult(btn, text);
+            })
+            .catch(() => {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="bi bi-robot"></i> Review';
+            });
+    }
+
+    function showReviewResult(btn, text) {
+        const td = btn.parentElement;
+        const row = td.parentElement;
+        let reviewRow = row.nextElementSibling;
+        if (reviewRow && reviewRow.classList.contains('review-row')) {
+            reviewRow.remove();
+            btn.innerHTML = '<i class="bi bi-robot"></i> Review';
+            btn.disabled = false;
+            return;
+        }
+        const tr = document.createElement('tr');
+        tr.className = 'review-row';
+        tr.innerHTML = `<td colspan="8" style="background:#f0f7ff;"><small style="white-space:pre-wrap;">${escapeHtml(text)}</small></td>`;
+        row.after(tr);
+        btn.innerHTML = '<i class="bi bi-robot"></i> Hide';
+        btn.disabled = false;
+    }
+</script>
+
+<script>
+document.addEventListener('DOMContentLoaded',function(){
+  // Hide refresh buttons that need a backend
+  document.querySelectorAll('[onclick*="loadStatus"],[onclick*="refreshAllPRs"]').forEach(function(el){el.classList.add('static-hidden')});
+  // Hide refresh buttons next to cache status on nightly/pr-test
+  document.querySelectorAll('[onclick*="loadData(true)"]').forEach(function(el){el.classList.add('static-hidden')});
+  // Replace visitor count with dash
+  var vc=document.getElementById('visitor-count');if(vc)vc.textContent='-';
+});
+</script>
+</body>
+</html>

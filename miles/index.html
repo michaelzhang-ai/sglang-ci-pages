@@ -1,0 +1,2538 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MILES Pipeline - SGLang CI</title>
+
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+
+    <!-- Bootstrap Icons -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
+
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+
+    <!-- Flatpickr Date Picker -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr@4.6.13/dist/flatpickr.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr@4.6.13/dist/flatpickr.min.js"></script>
+
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="/sglang-ci/static/css/style.css">
+
+    
+<style>
+    .status-badge { text-transform: capitalize; }
+    .status-badge.success, .status-badge.pass { background-color: #d1e7dd; color: #0f5132; }
+    .status-badge.failure, .status-badge.fail { background-color: #f8d7da; color: #842029; }
+    .status-badge.skipped { background-color: #e2e3e5; color: #41464b; }
+    .status-badge.cancelled, .status-badge.timed_out { background-color: #fff3cd; color: #664d03; }
+    .status-badge.running, .status-badge.in_progress, .status-badge.queued {
+        background-color: #cfe2ff; color: #084298;
+    }
+    .status-badge.scheduled { background-color: #ede7f6; color: #4527a0; }
+    .run-row { cursor: pointer; }
+    .run-row:hover { background-color: rgba(var(--bs-primary-rgb), 0.04); }
+    .run-row.selected { background-color: rgba(var(--bs-primary-rgb), 0.08); }
+    .chart-container { position: relative; height: 190px; }
+    /* Daily Run Overview: the Nightly CI page's table. */
+    .overview-table { font-size: 0.8rem; }
+    .overview-table > :not(caption) > * > * { padding-left: 0.25rem; padding-right: 0.25rem; }
+    .overview-table .badge { padding: 0.3em 0.45em; }
+    .overview-table td[rowspan] { background: #fff; vertical-align: top; white-space: nowrap; }
+    .run-row.selected > td:not([rowspan]) { background-color: rgba(var(--bs-primary-rgb), 0.1); }
+    .job-row-fail { background-color: #fff5f5; }
+    .wf-section-header { background: #f8f9fa; font-weight: 600; font-size: 0.85rem; }
+    .matrix-run { cursor: pointer; font-size: 0.75rem; }
+    .matrix-run:hover { background-color: rgba(var(--bs-primary-rgb), 0.08) !important; }
+    .matrix-run.selected { box-shadow: inset 0 0 0 2px var(--bs-primary); }
+
+    /* Today's images: one card per image, its day as Build -> Image -> Nightly.
+       A tone is one stage's state; the card takes the worst of its stages. */
+    .today-card { border-top: 4px solid var(--tone-fg, #adb5bd); }
+    /* Every image shares one row from md up. A column may shrink below its
+       unbreakable tag line (that ellipsizes), or the row wraps 2 + 1. */
+    #today-cards > .col-md { min-width: 0; }
+    .tone-pass { --tone-fg: #198754; --tone-bg: #d1e7dd; }
+    .tone-fail { --tone-fg: #dc3545; --tone-bg: #f8d7da; }
+    .tone-warn { --tone-fg: #e0a800; --tone-bg: #fff3cd; }
+    .tone-run  { --tone-fg: #0d6efd; --tone-bg: #cfe2ff; }
+    .tone-wait { --tone-fg: #6c757d; --tone-bg: #f1f3f5; }
+    .tone-muted { --tone-fg: #adb5bd; --tone-bg: #f8f9fa; }
+    .today-verdict { background: var(--tone-bg); color: var(--tone-fg); border: 1px solid var(--tone-fg); font-weight: 600; }
+    /* Each track's tint, so the two ROCm 10 images read as one family. */
+    .track-accent-rocm10 { background: #eaf1fd; }
+    .stepper { display: flex; list-style: none; padding: 0; margin: 0 0 0.75rem; }
+    .stepper .step { flex: 1 1 0; min-width: 0; position: relative; text-align: center; padding: 0 4px; }
+    /* The connector into a stage is solid once the stage before it passed. */
+    .stepper .step::before { content: ''; position: absolute; top: 17px; left: -50%; width: 100%; height: 2px; background: #dee2e6; }
+    .stepper .step:first-child::before { display: none; }
+    .stepper .step.after-pass::before { background: #198754; }
+    .step-dot { position: relative; z-index: 1; display: inline-flex; align-items: center; justify-content: center;
+        width: 36px; height: 36px; border-radius: 50%; border: 2px solid var(--tone-fg); background: var(--tone-bg);
+        color: var(--tone-fg); font-size: 1.05rem; }
+    .step-name { font-size: 0.66rem; text-transform: uppercase; letter-spacing: 0.05em; color: #6c757d; margin-top: 4px; }
+    .step-title { font-weight: 600; font-size: 0.85rem; color: var(--tone-fg); }
+    .tone-wait .step-title, .tone-muted .step-title { color: #6c757d; }
+    .step-detail { font-size: 0.72rem; color: #6c757d; overflow-wrap: anywhere; }
+    .step.clickable { cursor: pointer; }
+    .step.clickable:hover .step-dot { box-shadow: 0 0 0 3px var(--tone-bg); }
+    .today-tag { display: flex; align-items: center; gap: 4px; background: #f8f9fa; border: 1px solid #e9ecef;
+        border-radius: 4px; padding: 2px 4px 2px 8px; font-size: 0.75rem; }
+    .today-tag code { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .suite-pill { display: inline-block; font-size: 0.7rem; padding: 1px 6px; border-radius: 10px; margin: 2px 2px 0 0;
+        text-decoration: none; border: 1px solid var(--tone-fg); background: var(--tone-bg); color: var(--tone-fg); }
+    .suite-pill:hover { text-decoration: underline; }
+    .today-chip { font-size: 0.78rem; font-weight: 500; }
+
+    /* Cause & Fix PRs: the Nightly CI card's look, so the two read alike. */
+    .pr-badge { text-decoration: none; font-weight: 600; border: 1px solid transparent; }
+    .pr-badge:hover { text-decoration: underline; }
+    .pr-badge.cause { background: #f8d7da; color: #842029; border-color: #f1aeb5; }
+    .pr-badge.cause-weak { background: #fdf1f2; color: #842029; border-color: #f1aeb5; border-style: dashed; }
+    .pr-badge.fix { background: #d1e7dd; color: #0f5132; border-color: #a3cfbb; }
+    .pr-badge.fix-candidate { background: #fff3cd; color: #664d03; border-color: #ffe69c; }
+    .pr-state { font-size: 0.68rem; font-weight: 600; padding: 0 4px; border-radius: 3px; border: 1px solid; white-space: nowrap; }
+    .pr-state.draft { color: #6c757d; border-color: #ced4da; background: #f8f9fa; }
+    .pr-state.open { color: #0a58ca; border-color: #9ec5fe; background: #f0f6ff; }
+    .pr-state.merged { color: #6f42c1; border-color: #c5b3e6; background: #f5f0fc; }
+    .pr-state.closed { color: #b02a37; border-color: #f1aeb5; background: #fdf1f2; }
+    .pr-legend { font-size: 0.75rem; }
+    .pr-why { font-size: 0.72rem; color: #6c757d; margin-bottom: 4px; }
+    .pr-followup { font-size: 0.72rem; margin-top: 2px; }
+    .pr-followup.verified, .pr-followup.recovered { color: #0f5132; }
+    .pr-followup.awaiting { color: #6c757d; }
+    .pr-followup.failing { color: #b02a37; font-weight: 600; }
+    tr.pr-fixed-head th { background: #e8f3ee !important; }
+    .pr-job { line-height: 1.35; margin-bottom: 3px; }
+    .pr-window { font-size: 0.75rem; }
+    .report-table { font-size: 0.78rem; }
+    .report-table td, .report-table th { vertical-align: top; }
+    /* Test ids have no spaces to wrap at, so the columns are fixed and a test
+       or error is cut to one line, opening in place on a click. */
+    .pr-table { table-layout: fixed; width: 100%; }
+    .pr-table td { overflow-wrap: anywhere; }
+    .pr-test > summary { display: block; cursor: pointer; }
+    .pr-test > summary::-webkit-details-marker { display: none; }
+    .pr-test > summary > div { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .pr-test[open] > summary > div { white-space: normal; }
+    .pr-test:not([open]) .pr-test-dir, .pr-test:not([open]) .pr-test-more { display: none; }
+    .pr-test .bi-chevron-right { display: inline-block; font-size: 0.7em; transition: transform 0.15s; }
+    .pr-test[open] .bi-chevron-right { transform: rotate(90deg); }
+    .pr-frames { font-size: 0.72rem; color: #6c757d; }
+    /* The CI monitor bot's analysis: set apart from the log-based candidates,
+       which follow it under their own label. */
+    .pr-bot { border-left: 3px solid #6f42c1; background: #f8f5fd; padding: 3px 6px; margin-bottom: 6px; border-radius: 0 3px 3px 0; }
+    .pr-bot-head { font-size: 0.72rem; font-weight: 600; color: #6f42c1; }
+    .pr-bot-head a { color: inherit; }
+    .pr-bot-hyp { font-size: 0.75rem; line-height: 1.35; margin-top: 3px; }
+    .pr-bot-meta { font-size: 0.7rem; color: #6c757d; margin-top: 2px; }
+    .pr-bot code, .pr-bot-inflight code { font-size: 0.95em; }
+    /* A long analysis opens on a click; closed, it shows its lead hypothesis
+       cut to four lines, so one row no longer runs a screen tall. */
+    details.pr-bot > summary { display: block; cursor: pointer; list-style: none; }
+    details.pr-bot > summary::-webkit-details-marker { display: none; }
+    details.pr-bot:not([open]) > summary .pr-bot-hyp {
+        display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; overflow: hidden; }
+    .pr-bot-more { font-size: 0.7rem; color: #6f42c1; font-weight: 600; }
+    details.pr-bot[open] .pr-bot-more { display: none; }
+    .cf-fold { font-size: 0.8rem; font-weight: 600; text-decoration: none; }
+    .pr-bot-inflight { font-size: 0.72rem; margin-bottom: 4px; }
+    .pr-conf { font-size: 0.62rem; font-weight: 700; padding: 0 3px; border-radius: 3px; border: 1px solid; margin-right: 3px; }
+    .pr-conf.FACT, .pr-conf.HIGH { color: #0f5132; border-color: #a3cfbb; background: #d1e7dd; }
+    .pr-conf.MEDIUM { color: #664d03; border-color: #ffe69c; background: #fff3cd; }
+    .pr-conf.LOW, .pr-conf.SPECULATION { color: #6c757d; border-color: #ced4da; background: #f8f9fa; }
+    .pr-from-logs { font-size: 0.68rem; color: #6c757d; text-transform: uppercase; letter-spacing: 0.03em; margin: 2px 0; }
+    @media (max-width: 767.98px) {
+        /* On a phone a row is a block: jobs, then the error, then the rest. */
+        .pr-table, .pr-table tbody { display: block; }
+        .pr-table colgroup, .pr-table thead { display: none; }
+        .pr-table tr { display: flex; flex-wrap: wrap; gap: 0.3rem 0.75rem; padding: 0.5rem 0.6rem; border-width: 0 0 1px; }
+        .pr-table > tbody > tr > * { display: block; flex: 0 0 100%; min-width: 0; padding: 0; border: 0; }
+        .pr-table > tbody > tr > td:nth-child(n+4) { flex: 0 1 auto; }
+        .pr-table tr.table-secondary { padding: 0; }
+        .pr-table tr.table-secondary > th { padding: 0.35rem 0.6rem; }
+    }
+</style>
+
+<script>
+(function(){
+var B='/sglang-ci/';
+var _f=window.fetch;
+window.fetch=function(u,o){
+if(typeof u!=='string')return _f.apply(this,arguments);
+if(o&&o.method&&o.method.toUpperCase()==='POST')
+  return Promise.resolve(new Response(
+    JSON.stringify({error:'Not available in static mode',success:false}),
+    {status:405,headers:{'Content-Type':'application/json'}}));
+if(u.startsWith('/api/')){
+  var p=u.substring(1),q=p.indexOf('?');
+  if(q>=0){var sp=new URLSearchParams(p.substring(q));p=p.substring(0,q);
+    Array.from(sp.entries()).sort(function(a,b){return a[0].localeCompare(b[0])})
+    .forEach(function(e){p+='-'+e[0]+'-'+e[1];});}
+  p+='.json';
+  return _f.call(this,B+p,o);}
+return _f.apply(this,arguments);
+};
+})();
+</script>
+<style>
+.static-hidden{display:none!important}
+.static-banner{background:#e8f4fd;border-bottom:1px solid #bee5eb;padding:0.35rem 1rem;text-align:center;font-size:0.82rem;color:#0c5460}
+@media(max-width:768px){.static-banner{font-size:0.75rem;padding:0.3rem 0.5rem}}
+</style>
+</head>
+<body>
+    <!-- Navigation Bar -->
+    <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="/sglang-ci/summary/">
+                <i class="bi bi-graph-up"></i> SGLang Dashboard
+            </a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav me-auto">
+                    <li class="nav-item">
+                        <a class="nav-link " href="/sglang-ci/summary/">
+                            <i class="bi bi-grid-1x2"></i> Summary
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link " href="/sglang-ci/coverage/">
+                            <i class="bi bi-bar-chart-steps"></i> Coverage
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link " href="/sglang-ci/benchmark-dashboard/">
+                            <i class="bi bi-speedometer2"></i> Benchmarks
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link " href="/sglang-ci/nightly-ci/">
+                            <i class="bi bi-moon-stars"></i> Nightly CI
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link " href="/sglang-ci/day0/">
+                            <i class="bi bi-rocket-takeoff"></i> <span class="text-nowrap">Day-0</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link " href="/sglang-ci/docker-images/">
+                            <i class="bi bi-box-seam"></i> Docker Images
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link " href="/sglang-ci/aiter/">
+                            <i class="bi bi-cpu"></i> AITER
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link active" href="/sglang-ci/miles/">
+                            <i class="bi bi-signpost-split"></i> MILES
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link " href="/sglang-ci/mono/">
+                            <i class="bi bi-lightning-charge"></i> Mono
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link " href="/sglang-ci/runner-health/">
+                            <i class="bi bi-heart-pulse"></i> Runner Health
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link " href="/sglang-ci/amd-pr-tracker/">
+                            <i class="bi bi-git"></i> AMD PRs
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link " href="/sglang-ci/amd-bot/">
+                            <i class="bi bi-robot"></i> AMD Bot
+                        </a>
+                    </li>
+                </ul>
+                <ul class="navbar-nav">
+                    
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle " href="#" id="githubDropdown" role="button" data-bs-toggle="dropdown">
+                            <i class="bi bi-github"></i> GitHub
+                            <i class="bi bi-circle-fill d-none" id="github-status-dot" style="font-size:0.5rem;vertical-align:middle"></i>
+                        </a>
+                        <ul class="dropdown-menu dropdown-menu-end">
+                            <li><a class="dropdown-item " href="/sglang-ci/pr-test/">
+                                <i class="bi bi-check2-square"></i> PR Test (AMD)
+                            </a></li>
+                            
+                            <li><hr class="dropdown-divider"></li>
+                            <li><a class="dropdown-item " href="/sglang-ci/sglang-info/">
+                                <i class="bi bi-info-circle"></i> SGLang Info
+                            </a></li>
+                            <li><a class="dropdown-item" href="https://github.com/sgl-project/sglang" target="_blank" rel="noopener">
+                                <i class="bi bi-git"></i> SGLang Repo
+                            </a></li>
+                            <li><hr class="dropdown-divider"></li>
+                            
+                            <li><a class="dropdown-item" href="https://www.githubstatus.com/" target="_blank" rel="noopener" id="github-status-link">
+                                <i class="bi bi-broadcast-pin"></i> GitHub Status
+                                <span class="d-block small text-muted" id="github-status-text">checking...</span>
+                            </a></li>
+                        </ul>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Internal-only banner: live dashboard link. Rendered only when
+         DASHBOARD_URL is configured, and stripped from the public GitHub Pages
+         static build so the internal address is never published. -->
+    
+
+    <!-- Main Content -->
+    <div class="static-banner"><i class="bi bi-clock-history"></i> This is a static snapshot. Data auto-updates every 20 minutes. Please reach out to CI dashboard owner Zhang, Michael or Chen, Bingxu for any question.</div>
+    <main class="container-fluid py-4">
+        <!-- Shared data-freshness stamp and time zone choice, in the same spot
+             on every page. Pages report the timestamp of the data they render
+             via setPageLastUpdated(); the rest fall back to the site-wide
+             refresh time from /api/build-info. -->
+        <div class="d-flex justify-content-end align-items-center gap-2 mb-2" id="page-updated-bar">
+            <small class="text-muted" id="page-updated-stamp" style="display:none">
+                <i class="bi bi-clock-history"></i> Last Updated: <span id="page-last-updated"></span>
+            </small>
+            <select class="form-select form-select-sm py-0" id="timeZoneSelect" style="width: auto;"
+                onchange="setDisplayTimeZone(this.value)" data-no-capture aria-label="Time zone"
+                title="Time zone for every time on the site. Remembered for your next visit.">
+                <option value="local">Local time</option>
+                <option value="beijing">Beijing time</option>
+                <option value="pt">Pacific time</option>
+                <option value="utc">UTC</option>
+            </select>
+        </div>
+        
+<div class="row mb-3">
+    <div class="col">
+        <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+            <div>
+                <h1 class="display-6"><i class="bi bi-signpost-split"></i> MILES Pipeline</h1>
+                <p class="text-muted mb-0">
+                    <a href="https://github.com/radixark/miles" target="_blank" class="text-decoration-none">Miles</a>
+                    (RL post-training framework) on AMD. Every image builds daily<span id="milesBuildTime"></span>;
+                    the ROCm 10 <code>stage-c</code> nightlies then test the newest image of each
+                    GPU<span id="milesNightlyTimes"></span>.
+                    Miles' own <a href="https://github.com/radixark/miles/actions/workflows/pr-test-rocm.yml" target="_blank"
+                        class="text-decoration-none">PR Test (ROCm)</a> also runs on <code>main</code> every
+                    day<span id="milesPrTime"></span>.
+                </p>
+            </div>
+            <div class="d-flex gap-2 align-items-center flex-wrap">
+                <small class="text-muted" id="cache-status"></small>
+                <button class="btn btn-outline-secondary btn-sm" onclick="loadData(true)" title="Refresh from GitHub">
+                    <i class="bi bi-arrow-clockwise"></i>
+                </button>
+                <div class="btn-group btn-group-sm" role="group" title="Days of runs in Daily Run Overview, the trend and the matrix">
+                    <button class="btn btn-outline-secondary active" data-days="7" onclick="changeDays(7)">7d</button>
+                    <button class="btn btn-outline-secondary" data-days="14" onclick="changeDays(14)">14d</button>
+                </div>
+                <div class="btn-group btn-group-sm" role="group">
+                    <a href="https://github.com/radixark/miles" target="_blank" class="btn btn-outline-dark">
+                        <i class="bi bi-github"></i> Miles Repo
+                    </a>
+                    <a href="https://github.com/radixark/miles/actions/workflows/pr-test-rocm.yml" target="_blank" class="btn btn-outline-primary">
+                        <i class="bi bi-github"></i> PR Test ROCm
+                    </a>
+                    <a href="https://github.com/sgl-project/sglang/actions/workflows/nightly-test-amd-miles-rocm10.yml" target="_blank" class="btn btn-outline-primary">
+                        <i class="bi bi-github"></i> Test 10 MI35X
+                    </a>
+                    <a href="https://github.com/sgl-project/sglang/actions/workflows/nightly-test-amd-miles-rocm10-mi30x.yml" target="_blank" class="btn btn-outline-primary">
+                        <i class="bi bi-github"></i> Test 10 MI30X
+                    </a>
+                    <a href="https://github.com/sgl-project/sglang/actions/workflows/release-docker-amd-miles-rocm10-nightly.yml" target="_blank" class="btn btn-outline-secondary">
+                        <i class="bi bi-box-seam"></i> Image 10
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="alert alert-warning d-flex align-items-center d-none" id="apiDegradedAlert" role="alert">
+    <i class="bi bi-exclamation-triangle-fill me-2 fs-5"></i>
+    <div>
+        <strong>GitHub Actions API is degraded.</strong>
+        Per-job details couldn't be refreshed, so job-level results come from the last cached
+        snapshot and may be stale. Run-level status is still live. Check
+        <a href="https://www.githubstatus.com/" target="_blank" rel="noopener" class="alert-link">GitHub Status</a>.
+    </div>
+</div>
+
+<div class="alert alert-secondary d-none" id="dockerUnavailableAlert" role="alert">
+    <i class="bi bi-cloud-slash"></i>
+    Docker Hub tags couldn't be listed, so image availability is unknown for this refresh.
+    Build-workflow and test results below are unaffected.
+</div>
+
+<div id="main-loading" class="text-center py-5">
+    <div class="spinner-border text-primary" role="status"></div>
+    <p class="mt-2 text-muted">Fetching MILES pipeline data from GitHub and Docker Hub...</p>
+</div>
+<div id="main-error" style="display: none;"></div>
+
+<div id="dashboard" style="display: none;">
+
+    <!-- Today's images: each image's build, publish and nightly for the
+         current UTC day, and nothing older. -->
+    <div class="card mb-4">
+        <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
+            <h5 class="mb-0"><i class="bi bi-box-seam"></i> Today's Images
+                <span class="text-muted fw-normal fs-6" id="today-date"></span></h5>
+            <div class="d-flex gap-2 align-items-center flex-wrap" id="today-summary"></div>
+        </div>
+        <div class="card-body">
+            <div class="row g-3" id="today-cards"></div>
+        </div>
+    </div>
+
+    <!-- Miles' own PR CI runners: radixark/miles's PR Test (ROCm) runs on
+         MI350 runners registered to that repo, not the sglang fleet the
+         nightlies above use. Same data as the Runner Health panel. -->
+    <div class="card mb-4 d-none" id="prCiRunnersCard">
+        <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
+            <h5 class="mb-0"><i class="bi bi-cpu"></i> PR CI Runners
+                <span id="prCiRunnersStatus"></span>
+                <span class="text-muted fw-normal fs-6"><code id="prCiRunnersLabels"></code> &middot;
+                    <a href="https://github.com/radixark/miles/actions/workflows/pr-test-rocm.yml" target="_blank" id="prCiRunnersWorkflow">radixark/miles PR Test (ROCm)</a></span></h5>
+            <div class="d-flex gap-2 align-items-center flex-wrap">
+                <small id="prCiRunnersMeta" class="text-muted"></small>
+                <a href="/sglang-ci/runner-health/" class="btn btn-outline-secondary btn-sm" title="Runner Health page">
+                    <i class="bi bi-heart-pulse"></i> Runner Health
+                </a>
+            </div>
+        </div>
+        <div class="card-body p-0" id="prCiRunnersBody"></div>
+    </div>
+
+    <!-- Daily Run Overview + Test Results, as on the Nightly CI page: pick a
+         date's run on the left, its suites and their cause / fix PRs on the
+         right. -->
+    <div class="row g-4 mb-4" id="runDetailCard">
+        <div class="col-lg-6">
+            <div class="card mb-3">
+                <div class="card-header">
+                    <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-2">
+                        <h5 class="mb-0 text-nowrap"><i class="bi bi-calendar3"></i> Daily Run Overview</h5>
+                        <div class="d-flex flex-wrap justify-content-end align-items-center gap-2">
+                            <select class="form-select form-select-sm py-0" id="imageFilter" style="width: auto;"
+                                onchange="setImageFilter(this.value)" title="Which scheduled workflow's runs to list"></select>
+                            <span class="badge bg-secondary" id="selectedRunLabel">&mdash;</span>
+                        </div>
+                    </div>
+                    <div id="selectedRunSummary" class="row g-2 text-center"></div>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive" style="max-height: 460px;">
+                        <table class="table table-hover table-sm mb-0 overview-table">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Date</th>
+                                    <th>Workflow</th>
+                                    <th class="text-center">Jobs Passed</th>
+                                    <th class="text-center">Failed</th>
+                                    <th class="text-center" title="Jobs skipped or cancelled">Skip/<wbr>Cncl</th>
+                                    <th class="text-center" title="The dated image the run tested">Image</th>
+                                    <th class="text-center">Pass Rate</th>
+                                    <th class="text-center">Duration</th>
+                                    <th class="text-center">Run</th>
+                                </tr>
+                            </thead>
+                            <tbody id="daily-rows"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center py-2">
+                    <h6 class="mb-0"><i class="bi bi-graph-up"></i> Suite Pass Rate Trend</h6>
+                    <span class="text-muted small"><i class="bi bi-calendar3"></i> Last <span id="rangeLabel">7</span> days</span>
+                </div>
+                <div class="card-body py-2">
+                    <div class="chart-container"><canvas id="trendChart"></canvas></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-6">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
+                    <h5 class="mb-0"><i class="bi bi-list-check"></i> Test Results</h5>
+                    <div class="d-flex gap-2 align-items-center">
+                        <a class="btn btn-outline-secondary btn-sm d-none" id="runLink" href="#" target="_blank" rel="noopener">
+                            <i class="bi bi-github"></i> <span id="runLinkLabel">Run</span></a>
+                        <span class="badge bg-light text-dark" id="selectedJobsLabel">Select a run</span>
+                    </div>
+                </div>
+                <div class="card-body p-0">
+                    <div id="jobs-placeholder" class="text-center text-muted py-4">
+                        <i class="bi bi-arrow-left-circle" style="font-size: 2rem;"></i>
+                        <p class="mt-2">Click a row in Daily Run Overview to see its suites</p>
+                    </div>
+                    <div id="jobs-content" style="display: none;">
+                        <div class="table-responsive" style="max-height: 760px;">
+                            <!-- Fixed layout: a long test file name ellipsizes in
+                                 its column instead of pushing the PRs off the card. -->
+                            <table class="table table-sm table-hover mb-0" style="font-size: 0.82rem; table-layout: fixed; width: 100%;">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>Suite</th>
+                                        <th class="text-center" style="width: 52px;">Status</th>
+                                        <th class="text-center text-nowrap" style="width: 68px;">Duration</th>
+                                        <th class="text-center" style="width: 34px;">Log</th>
+                                        <th style="width: 25%;" title="Commits between the image the test last passed on and the first it failed on that changed the failing test or its traceback">Cause PR</th>
+                                        <th style="width: 25%;" title="Later commits that change the same code (green), and open PRs that name the test (yellow)">In-flight fix</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="job-rows"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Cause & Fix PRs: what fails now, since when, and the commits that
+         changed it. Hidden until /api/miles/cause-fix answers. -->
+    <div class="card mb-4 d-none" id="cfCard">
+        <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
+            <h5 class="mb-0"><i class="bi bi-git"></i> Cause &amp; Fix PRs <span class="text-muted fw-normal fs-6" id="cfCount"></span>
+                <span class="badge bg-light text-dark border fw-normal fs-6 text-wrap d-none" id="cfFilterLabel"></span></h5>
+            <div class="d-flex align-items-center gap-2 flex-wrap">
+                <small class="text-muted text-nowrap" id="cfMeta" data-no-capture></small>
+                <select class="form-select form-select-sm" id="cfFilter" style="width: auto;" onchange="filterCauseFix(this.value)"
+                    data-no-capture title="Which failures to list">
+                    <option value="all" selected>All failures</option>
+                    <option value="mi35x">MI35X nightly</option>
+                    <option value="mi30x">MI30X nightly</option>
+                    <option value="build">Image builds</option>
+                </select>
+                <button class="btn btn-outline-secondary btn-sm" id="cfShot" onclick="copyCauseFixImage()" disabled data-no-capture
+                    title="Copy a picture of this card, as filtered, to paste into a chat or email (downloads a PNG where the browser cannot copy images)">
+                    <i class="bi bi-image"></i> <span>Copy as image</span></button>
+            </div>
+        </div>
+        <div class="pr-legend text-muted px-3 py-1 border-bottom">
+            <span class="pr-bot-head"><i class="bi bi-robot"></i> CI monitor</span> the
+            <a href="https://github.com/bingxche/sglang-ci-bot" target="_blank" rel="noopener">CI monitor bot</a>'s analysis of the job,
+            with its confidence (<span class="pr-conf HIGH">HIGH</span> <span class="pr-conf MEDIUM">MEDIUM</span> <span class="pr-conf LOW">LOW</span>), when it has posted one.
+            The rest is read from the job logs and the commits each image build recorded:
+            a failing test is walked back to its last pass, and the commits between the two images are searched.
+            <span class="badge pr-badge cause">Cause</span> changed the failing test, or a function or line on its traceback ·
+            <span class="badge pr-badge cause-weak">Cause?</span> only touched a file on the traceback, or the workflow / Dockerfile ·
+            <span class="badge pr-badge fix">Fix</span> later commit on the branch the image builds from that changes the same code ·
+            <span class="badge pr-badge fix-candidate">Fix?</span> open PR that names the test ·
+            status on GitHub: <span class="pr-state open">open</span> <span class="pr-state merged">merged</span>
+        </div>
+        <div class="card-body p-0" id="cfBody"></div>
+    </div>
+
+    <!-- Suite Status Matrix: every suite of every nightly, per day. -->
+    <div class="card mb-4">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <h5 class="mb-0"><i class="bi bi-table"></i> Suite Status Matrix</h5>
+            <div class="form-check form-switch mb-0">
+                <input class="form-check-input" type="checkbox" id="showAllJobsToggle" checked>
+                <label class="form-check-label small" for="showAllJobsToggle">Show passing suites</label>
+            </div>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive" style="max-height: 400px; overflow: auto;">
+                <table class="table table-sm table-striped mb-0 small" id="matrixTable">
+                    <thead class="table-light" id="matrix-head"></thead>
+                    <tbody id="matrix-body"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Test inventory: how many tests each backend runs, and the week's change -->
+    <div class="card mb-4">
+        <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
+            <h5 class="mb-0"><i class="bi bi-list-check"></i> Test Coverage</h5>
+            <div class="d-flex gap-2 align-items-center">
+                <small class="text-muted" id="coverage-source"></small>
+                <a href="https://github.com/radixark/miles/tree/main/tests" target="_blank"
+                   class="btn btn-outline-secondary btn-sm"><i class="bi bi-github"></i> tests/</a>
+            </div>
+        </div>
+        <div class="card-body">
+            <div id="coverage-loading" class="text-center text-muted py-3">
+                <span class="spinner-border spinner-border-sm"></span> Reading the Miles CI registry...
+            </div>
+            <div id="coverage-error" class="d-none"></div>
+            <div id="coverage-content" class="d-none">
+                <div class="row g-3" id="coverage-cards"></div>
+                <div class="row g-4 mt-1">
+                    <div class="col-lg-6">
+                        <h6 class="text-muted small mt-2 mb-2">Tests per CI suite</h6>
+                        <div class="table-responsive" style="max-height: 340px;">
+                            <table class="table table-sm table-striped mb-0" style="font-size: 0.82rem;">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>Backend</th>
+                                        <th>Suite</th>
+                                        <th class="text-center">Enabled</th>
+                                        <th class="text-center">Registered</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="coverage-suites"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                    <div class="col-lg-6">
+                        <h6 class="text-muted small mt-2 mb-2">
+                            Added in the last <span id="coverage-window">7</span> days
+                            (<span id="coverage-added-count">0</span>)
+                        </h6>
+                        <div class="table-responsive" style="max-height: 340px;">
+                            <table class="table table-sm table-hover mb-0" style="font-size: 0.8rem;">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>Backend</th>
+                                        <th>Suite</th>
+                                        <th>Test file</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="coverage-added"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+    </main>
+
+    <!-- Footer -->
+    <footer class="bg-light text-center text-muted py-3 mt-5">
+        <div class="container">
+            <p class="mb-0">
+                SGLang Dashboard
+                <span class="ms-3"><a href="https://www.githubstatus.com/" target="_blank" rel="noopener" class="text-decoration-none"><i class="bi bi-broadcast-pin"></i> GitHub Status</a></span>
+                <span class="ms-3"><i class="bi bi-people-fill"></i> <span id="visitor-count">...</span> visitors</span>
+            </p>
+        </div>
+    </footer>
+
+    <script>
+        // Shared timestamp formatting and the "Last Updated" stamp. Defined
+        // before any page script runs so pages can use them as soon as their
+        // data lands.
+        (function () {
+            let pageReported = false;
+            let lastStamp = null;
+
+            // Times are shown in the zone picked in the select above every
+            // page: the viewer's own by default, or Beijing, Pacific or UTC,
+            // remembered across visits. The zone is always named, so a time
+            // copied into a chat still means the same thing to a reader
+            // elsewhere. Format every wall-clock time through these helpers
+            // (or zoneOptions) so it follows the choice.
+            const TIME_ZONE_KEY = 'display_time_zone';
+            const TIME_ZONES = {
+                local: undefined,
+                beijing: 'Asia/Shanghai',
+                pt: 'America/Los_Angeles',
+                utc: 'UTC',
+            };
+            let zoneChoice = 'local';
+            try {
+                const saved = localStorage.getItem(TIME_ZONE_KEY);
+                if (saved in TIME_ZONES) zoneChoice = saved;
+            } catch (e) { /* private mode */ }
+
+            window.getDisplayTimeZone = () => zoneChoice;
+            // The IANA zone to pass as `timeZone`, or undefined for the viewer's.
+            window.displayTimeZoneId = () => TIME_ZONES[zoneChoice];
+
+            // A page that can redraw its times in place registers here; one
+            // that doesn't is reloaded, so nothing is left in the old zone.
+            const zoneHandlers = [];
+            window.onTimeZoneChange = fn => { zoneHandlers.push(fn); };
+
+            window.setDisplayTimeZone = function (choice) {
+                if (!(choice in TIME_ZONES) || choice === zoneChoice) return;
+                zoneChoice = choice;
+                try { localStorage.setItem(TIME_ZONE_KEY, choice); } catch (e) { /* private mode */ }
+                const select = document.getElementById('timeZoneSelect');
+                if (select) select.value = choice;
+                if (!zoneHandlers.length) { location.reload(); return; }
+                if (lastStamp) render(lastStamp);
+                localizeClocks();
+                zoneHandlers.forEach(fn => fn(choice));
+            };
+
+            // `toLocaleString` options with the chosen zone applied and named.
+            window.zoneOptions = function (options) {
+                return { ...options, timeZone: TIME_ZONES[zoneChoice], timeZoneName: 'short' };
+            };
+
+            // Single definition of how an absolute moment is shown, so a new
+            // one can't be added without the zone. Values that aren't dates are
+            // passed through untouched.
+            window.formatTimestamp = function (value) {
+                const parsed = new Date(value);
+                return isNaN(parsed.getTime())
+                    ? String(value)
+                    : parsed.toLocaleString(undefined, window.zoneOptions({}));
+            };
+
+            // The compact form for table cells, e.g. "Oct 8, 14:02 PDT"; put
+            // formatTimestamp in the tooltip when the full one matters.
+            window.formatShortTime = function (value) {
+                const parsed = value ? new Date(value) : null;
+                if (!parsed || isNaN(parsed.getTime())) return '';
+                return parsed.toLocaleString(undefined, window.zoneOptions({
+                    month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', hourCycle: 'h23',
+                }));
+            };
+
+            // The calendar date of a moment in the chosen zone, in the viewer's
+            // locale (formatDate) or as YYYY-MM-DD (formatIsoDate). No zone
+            // name: it is a day, not a clock time. A bare "2026-11-03" is a
+            // day already and is not shifted.
+            const BARE_DATE = /^\d{4}-\d{2}-\d{2}$/;
+            function zonedDate(value, locale) {
+                if (!value) return '';
+                const parsed = new Date(BARE_DATE.test(value) ? `${value}T12:00:00Z` : value);
+                if (isNaN(parsed.getTime())) return String(value);
+                const timeZone = BARE_DATE.test(value) ? 'UTC' : TIME_ZONES[zoneChoice];
+                return parsed.toLocaleDateString(locale, { timeZone });
+            }
+            window.formatDate = value => zonedDate(value, undefined);
+            window.formatIsoDate = value => zonedDate(value, 'en-CA');
+
+            // A UTC clock time ("16:00") as the chosen zone reads it on `on`
+            // (default today, which decides DST): its clock, the zone's short
+            // name, and how many days it moved (-1, 0, +1).
+            window.zonedClock = function (hhmm, on) {
+                const [h, m] = String(hhmm).split(':').map(Number);
+                const ref = on ? new Date(on) : new Date();
+                const at = new Date(Date.UTC(ref.getUTCFullYear(), ref.getUTCMonth(), ref.getUTCDate(), h, m || 0));
+                const parts = {};
+                new Intl.DateTimeFormat('en-US', window.zoneOptions({
+                    year: 'numeric', month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit', hourCycle: 'h23',
+                })).formatToParts(at).forEach(p => { parts[p.type] = p.value; });
+                const zonedDay = Date.UTC(Number(parts.year), Number(parts.month) - 1, Number(parts.day));
+                const utcDay = Date.UTC(at.getUTCFullYear(), at.getUTCMonth(), at.getUTCDate());
+                return {
+                    clock: `${parts.hour}:${parts.minute}`,
+                    zone: parts.timeZoneName,
+                    dayShift: Math.round((zonedDay - utcDay) / 86400000),
+                };
+            };
+
+            // Cron summaries are written in UTC ("16:00 UTC daily", "01:00 &
+            // 13:00 UTC daily", "20:00 UTC Sat", "21:00 UTC odd days", joined
+            // with " + "). Each clock time is shown in the chosen zone. A time
+            // that lands on another date moves its weekdays with it; odd/even
+            // and every-N-days counts are UTC dates and can't move, so those
+            // keep the UTC schedule and give the zone's time beside it.
+            const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+            const WEEKDAY_LIST = /^ ((?:Sun|Mon|Tue|Wed|Thu|Fri|Sat)(?:, (?:Sun|Mon|Tue|Wed|Thu|Fri|Sat))*(?: & (?:Sun|Mon|Tue|Wed|Thu|Fri|Sat))?)$/;
+            window.localizeSchedule = function (text) {
+                if (!text || zoneChoice === 'utc') return text;
+                return String(text).split(' + ').map(segment => {
+                    const match = /^(\d{1,2}:\d{2}(?: & \d{1,2}:\d{2})*) UTC(.*)$/.exec(segment);
+                    if (!match) return segment;
+                    const clocks = match[1].split(' & ').map(c => window.zonedClock(c));
+                    const times = `${clocks.map(c => c.clock).join(' & ')} ${clocks[0].zone}`;
+                    const suffix = match[2];
+                    const shifts = new Set(clocks.map(c => c.dayShift));
+                    const shift = shifts.size === 1 ? [...shifts][0] : null;
+                    if (shift === 0 || suffix.trim() === 'daily') return times + suffix;
+                    if (shift !== null && WEEKDAY_LIST.test(suffix)) {
+                        return times + suffix.replace(/Sun|Mon|Tue|Wed|Thu|Fri|Sat/g,
+                            d => WEEKDAYS[(WEEKDAYS.indexOf(d) + shift + 7) % 7]);
+                    }
+                    const when = shift === 1 ? ' next day' : shift === -1 ? ' previous day' : '';
+                    return `${segment} (${times}${when})`;
+                }).join(' + ');
+            };
+
+            // Static markup names a time that recurs every day as
+            // <span data-utc-clock="16:00">16:00 UTC</span>; it is rewritten
+            // here, on load and on every change. (Prose that ties a time to
+            // UTC dates, like "even dates", should stay in UTC.)
+            function localizeClocks() {
+                document.querySelectorAll('[data-utc-clock]').forEach(el => {
+                    el.textContent = window.localizeSchedule(`${el.dataset.utcClock} UTC daily`).replace(/ daily$/, '');
+                });
+            }
+
+            function render(value) {
+                const bar = document.getElementById('page-updated-stamp');
+                const out = document.getElementById('page-last-updated');
+                if (!bar || !out || !value) return;
+                lastStamp = value;
+                out.textContent = window.formatTimestamp(value);
+                bar.style.display = '';
+            }
+
+            // "Local time" names the viewer's zone so it can be told apart
+            // from the others.
+            const select = document.getElementById('timeZoneSelect');
+            if (select) {
+                select.value = zoneChoice;
+                const local = new Intl.DateTimeFormat('en-US', { timeZoneName: 'short' })
+                    .formatToParts(new Date()).find(p => p.type === 'timeZoneName');
+                if (local) select.querySelector('option[value="local"]').textContent = `Local time (${local.value})`;
+            }
+            localizeClocks();
+
+            window.setPageLastUpdated = function (value) {
+                if (!value) return;
+                pageReported = true;
+                render(value);
+            };
+
+            fetch('/api/build-info')
+                .then(response => response.json())
+                .then(data => { if (!pageReported) render(data.generated_at); })
+                .catch(() => {});
+        })();
+
+        // Shared "Copy as image" button: a picture of part of a page, as it is
+        // shown now, for a chat or an email. Copied to the clipboard where the
+        // browser allows images there (a secure page and ClipboardItem),
+        // downloaded as a PNG otherwise. html2canvas (~45 KB) is loaded from the
+        // CDN on the first click, so a page pays nothing for it until then.
+        // Anything tagged data-no-capture (the button itself, selects, show/hide
+        // toggles) is left out of the image.
+        (function () {
+            let html2canvasLoad = null;
+            function loadHtml2canvas() {
+                if (window.html2canvas) return Promise.resolve(window.html2canvas);
+                if (!html2canvasLoad) {
+                    html2canvasLoad = new Promise((resolve, reject) => {
+                        const s = document.createElement('script');
+                        s.src = 'https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js';
+                        s.onload = () => resolve(window.html2canvas);
+                        s.onerror = () => { html2canvasLoad = null; reject(new Error('could not load html2canvas')); };
+                        document.head.appendChild(s);
+                    });
+                }
+                return html2canvasLoad;
+            }
+
+            function downloadBlob(blob, fileName) {
+                const a = document.createElement('a');
+                a.href = URL.createObjectURL(blob);
+                a.download = fileName;
+                document.body.appendChild(a);
+                a.click();
+                setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1000);
+            }
+
+            // `region` is one element, or [first, last] for everything from the
+            // top of `first` to the bottom of `last` -- for a section that is not
+            // one element, like a page header plus the cards below it. `name` is
+            // the file name, without .png, used when the image is downloaded.
+            // `ready`, if given, is a promise the picture waits for, so a page
+            // still loading its data is pictured once it has finished.
+            // The button's <span> (or the button) reports how it went.
+            window.copyScreenshot = function (btn, region, name, ready) {
+                const [first, last] = Array.isArray(region) ? region : [region, region];
+                const opts = {
+                    backgroundColor: '#ffffff',
+                    scale: Math.min(2, window.devicePixelRatio || 1),
+                    ignoreElements: el => el.hasAttribute && el.hasAttribute('data-no-capture'),
+                    windowWidth: document.documentElement.scrollWidth,
+                };
+                let target = first;
+                if (last !== first) {
+                    // Their common parent, cropped to the span between them.
+                    // The crop is measured on the copy html2canvas renders, not
+                    // at the click: anything that finishes loading in between
+                    // (the library itself is fetched on the first click) grows
+                    // the page, and a crop measured earlier cut off its bottom.
+                    // html2canvas measures the crop from the captured element's
+                    // own top, not the page's.
+                    while (!target.contains(last)) target = target.parentElement;
+                    opts.onclone = (doc, clonedTarget) => {
+                        const f = doc.querySelector('[data-shot-first]');
+                        const l = doc.querySelector('[data-shot-last]');
+                        const top = f.getBoundingClientRect().top;
+                        // `last` not rendered yet (page still loading): just `first`.
+                        opts.y = top - clonedTarget.getBoundingClientRect().top;
+                        opts.height = (l.getClientRects().length ? l : f).getBoundingClientRect().bottom - top;
+                    };
+                }
+
+                const label = btn.querySelector('span') || btn;
+                const idle = label.textContent;
+                btn.disabled = true;
+                label.textContent = 'Rendering…';
+
+                const png = Promise.all([loadHtml2canvas(), ready])
+                    .then(([h2c]) => {
+                        // The clone is taken when html2canvas starts, so the
+                        // markers only need to outlive that call.
+                        first.setAttribute('data-shot-first', '');
+                        last.setAttribute('data-shot-last', '');
+                        const shot = h2c(target, opts);
+                        first.removeAttribute('data-shot-first');
+                        last.removeAttribute('data-shot-last');
+                        return shot;
+                    })
+                    .then(canvas => new Promise((resolve, reject) =>
+                        canvas.toBlob(b => (b ? resolve(b) : reject(new Error('empty image'))), 'image/png')));
+                const download = () => png.then(blob => { downloadBlob(blob, `${name}.png`); return 'Downloaded PNG'; });
+                let done;
+                try {
+                    // The clipboard write starts now, inside the click, with the
+                    // image still rendering: a browser that only lets a page write
+                    // the clipboard straight after a click (Safari, and Chrome
+                    // once a render runs long) would refuse a write made later.
+                    if (!(window.isSecureContext && navigator.clipboard && window.ClipboardItem)) throw 0;
+                    done = navigator.clipboard.write([new ClipboardItem({'image/png': png})])
+                        .then(() => 'Copied image', download);
+                } catch (e) {
+                    done = download();
+                }
+                done.then(text => text, () => 'Image failed').then(text => {
+                    label.textContent = text;
+                    btn.disabled = false;
+                    setTimeout(() => { label.textContent = idle; }, 2500);
+                });
+            };
+        })();
+
+        // GitHub's own incident status, read straight from its public Statuspage
+        // in the browser: no backend involved, so the live server and the
+        // static snapshot both show a current value. The dot next to the
+        // GitHub menu is what makes an ongoing incident visible without
+        // opening the menu -- a GitHub outage is a common reason for the CI
+        // results on these pages to look broken.
+        (function () {
+            // Muted enough to sit on the navbar, bright enough to read on it.
+            const DOT_COLORS = {
+                none: '#5cd97b',
+                minor: '#ffd43b',
+                major: '#ff922b',
+                critical: '#ff6b6b',
+            };
+
+            const text = document.getElementById('github-status-text');
+            const dot = document.getElementById('github-status-dot');
+            const link = document.getElementById('github-status-link');
+
+            fetch('https://www.githubstatus.com/api/v2/status.json')
+                .then(response => response.ok ? response.json() : Promise.reject())
+                .then(data => {
+                    const status = data.status || {};
+                    const description = status.description || 'Status unknown';
+                    if (text) text.textContent = description;
+                    if (link) link.title = 'GitHub Status: ' + description;
+                    const color = DOT_COLORS[status.indicator];
+                    if (dot && color) {
+                        dot.style.color = color;
+                        dot.classList.remove('d-none');
+                    }
+                })
+                .catch(() => {
+                    // Ignore: the link itself still works, and a failed check
+                    // here says nothing about GitHub (it is just as likely to
+                    // be the viewer's network).
+                    if (text) text.textContent = 'check on githubstatus.com';
+                });
+        })();
+
+        // Load visitor count
+        fetch('/api/visitor-count')
+            .then(response => response.json())
+            .then(data => {
+                document.getElementById('visitor-count').textContent = data.count.toLocaleString();
+            })
+            .catch(() => {
+                document.getElementById('visitor-count').textContent = '-';
+            });
+    </script>
+
+    <!-- Bootstrap JS Bundle -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+    <!-- Custom JS -->
+    <script src="/sglang-ci/static/js/dashboard.js"></script>
+
+    
+<script>
+    let currentDays = 7;
+    let cachedData = null;
+    let trendChart = null;
+    // { date, wfKey } of the run in Run Detail, redrawn when the cause/fix
+    // data arrives after it.
+    let selectedRun = null;
+    const CACHE_TTL_MS = 10 * 60 * 1000;
+
+    // Display order for the tracks, oldest ROCm first, so columns don't
+    // reshuffle between refreshes as the API returns keys in whatever order.
+    // It sorts, it does not filter -- which tracks exist is the payload's call,
+    // and one this list doesn't name sorts to the end. HTML and data are
+    // published on separate schedules: a merge to main re-renders the page
+    // against the previous refresh's JSON, so for up to 20 minutes the page
+    // runs against a payload older than itself. Filtering by this list is how
+    // the 7.0 track vanished outright for that window instead of reading stale.
+    const TRACK_ORDER = ['rocm10'];
+    const TRACK_COLORS = { rocm10: '#0d6efd' };
+    // A track's second image (ROCm 10 MI30X): a lighter shade of its colour,
+    // since the chart legend cannot show the dash that sets it apart.
+    const TRACK_COLORS_2ND = { rocm10: '#6ea8fe' };
+    // Conclusions that mean "killed before reaching a verdict" -- shown apart
+    // from real failures, and kept out of the pass-rate denominator.
+    const NO_VERDICT = new Set(['cancelled', 'skipped', null]);
+
+    function tracks() {
+        const t = (cachedData && cachedData.tracks) || {};
+        return Object.keys(t).sort((a, b) => {
+            const ia = TRACK_ORDER.indexOf(a), ib = TRACK_ORDER.indexOf(b);
+            return (ia === -1 ? 99 : ia) - (ib === -1 ? 99 : ib);
+        }).map(k => ({ key: k, ...t[k] }));
+    }
+
+    // A track can publish more than one image from one build run — ROCm 10
+    // pushes MI35X and, since sgl-project/sglang#41605, MI30X — and each image
+    // has its own nightly since sgl-project/sglang#42771. The fallback is for a
+    // payload published before those changes: it carries one prefix and one
+    // test_key per track, and the page has to keep drawing it for the 20
+    // minutes between a code deploy and the next data refresh.
+    function trackImages(track) {
+        if (Array.isArray(track.images) && track.images.length) return track.images;
+        return [{
+            hardware: null, prefix: track.image_prefix, primary: true,
+            key: track.key, test_key: track.test_key,
+            test_retired: track.test_retired,
+            latest_image_test: track.latest_image_test,
+        }];
+    }
+
+    // Every image that has a nightly, flattened, paired with its track. This is
+    // what the suite matrix, the trend chart and the run picker iterate: the
+    // unit they report on is a workflow, and ROCm 10 now has two of them.
+    // An image with no nightly contributes nothing here.
+    function testedImages() {
+        const out = [];
+        for (const track of tracks()) {
+            for (const v of trackImages(track)) {
+                if (v.test_key) out.push({ track, variant: v });
+            }
+        }
+        return out;
+    }
+
+    // "MILES ROCm 10 · MI30X" — the track alone stopped identifying a run once
+    // one track had two nightlies.
+    function imageLabel(track, variant) {
+        return `MILES ${track.label}`
+            + (variant.hardware ? ` · ${variant.hardware.toUpperCase()}` : '');
+    }
+
+    // The grid keys an image `<track>:<hardware>`, and the primary one also by
+    // the bare track key so an older payload still resolves.
+    function imageEntry(row, track, variant) {
+        if (!row || !row.images) return null;
+        return row.images[variant.key] || (variant.primary ? row.images[track.key] : null)
+            || null;
+    }
+
+    // available / missing / pending / not_run. The backend already tells a
+    // build that has not run, or is still running, apart from one that failed
+    // to push; this repeats that for a payload published before it did, which
+    // the page runs against for up to 20 minutes after a deploy. A track with
+    // no builds entry at all is one whose run lookup failed, so it stays put.
+    function imageStatus(data, row, track, img) {
+        if (!img) return null;
+        if (img.status !== 'missing') return img.status;
+        const byDate = ((data.builds || {}).days || {})[track.key];
+        if (!byDate || !row) return 'missing';
+        const run = byDate[row.date];
+        if (!run) return 'not_run';
+        if (run.status !== 'completed' || run.any_unfinished) return 'pending';
+        return 'missing';
+    }
+
+    // Upstream job names look like
+    // "test-miles-mi35x (stage-c-2-gpu-mi350, linux-mi35x-gpu-2)". Only the
+    // suite is meaningful on a page that is entirely about one workflow.
+    // Miles' own PR Test names a shard "stage-c-4-gpu-mi350 (0)" instead: the
+    // suite comes first, and the bracket holds only the shard's index.
+    const SHARD_JOB_RE = /^(\S+) \((\d+)\)$/;
+
+    function suiteName(jobName) {
+        const shard = jobName.match(SHARD_JOB_RE);
+        if (shard) return shard[1];
+        const m = jobName.match(/\(\s*([^,)]+)/);
+        return m ? m[1].trim() : jobName;
+    }
+
+    // A partitioned suite runs as several jobs named
+    // "test-miles-mi35x (nightly-stage-c-4-gpu-mi350, linux-mi35x-gpu-8, part 1/2)".
+    // The part is what tells them apart in a list of one run's jobs.
+    function jobLabel(jobName) {
+        if (SHARD_JOB_RE.test(jobName)) return jobName;
+        const part = jobName.match(/\bpart (\d+\/\d+)/);
+        return part ? `${suiteName(jobName)} (${part[1]})` : suiteName(jobName);
+    }
+
+    // The suite's verdict for a day is its worst job: one failed part fails the suite.
+    const SUITE_JOB_RANK = { failure: 0, timed_out: 1, cancelled: 3, success: 4, skipped: 5 };
+    function findSuiteJob(wf, suite) {
+        if (!wf || !wf.jobs) return null;
+        const jobs = wf.jobs.filter(j => suiteName(j.name) === suite);
+        const rank = j => SUITE_JOB_RANK[j.conclusion] ?? 2;
+        return jobs.sort((a, b) => rank(a) - rank(b))[0] || null;
+    }
+
+    // The MI30X nightly's matrix carries a timeout and a skip list as well as
+    // the runner, and GitHub truncates a long name mid-argument, so there is
+    // often no closing paren to anchor on. Pick the runner out by its own
+    // shape rather than by position.
+    function runnerLabel(jobName) {
+        const m = jobName.match(/\blinux-[\w.-]+/);
+        return m ? m[0] : '';
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+        loadData(false);
+        loadTestCoverage();
+        document.getElementById('showAllJobsToggle').addEventListener('change', () => {
+            if (cachedData) renderMatrix(cachedData);
+        });
+    });
+
+    function changeDays(d) {
+        currentDays = d;
+        document.getElementById('rangeLabel').textContent = d;
+        document.querySelectorAll('[data-days]').forEach(btn => {
+            btn.classList.toggle('active', parseInt(btn.dataset.days) === d);
+        });
+        loadData(false);
+    }
+
+    // Bumped whenever the payload gains fields the page reads, so a cached
+    // copy from an older build can't keep rendering stale shapes for its full
+    // 10-minute life. v2: suite-level + cancelled builds. v3: image attribution.
+    // v4: retired-track flag. v5: rocm720 + rocm10 tracks.
+    // v6: rocm724 + rocm10 tracks. v7: per-hardware images within a track.
+    // v8: a nightly, and its latest-image result, per image.
+    // v9: pending / not_run images, reconciled with the build runs.
+    // v10: rocm724 track dropped.
+    // v11: radixark/miles's scheduled PR Test (ROCm) runs.
+    function getCacheKey() { return `miles_v11_${currentDays}`; }
+
+    function loadFromCache() {
+        try {
+            const raw = localStorage.getItem(getCacheKey());
+            if (!raw) return null;
+            const cached = JSON.parse(raw);
+            if (Date.now() - cached._ts > CACHE_TTL_MS) return null;
+            return cached;
+        } catch { return null; }
+    }
+
+    function saveToCache(data) {
+        try {
+            data._ts = Date.now();
+            localStorage.setItem(getCacheKey(), JSON.stringify(data));
+        } catch {}
+    }
+
+    function updateCacheStatus(fromCache, ts) {
+        const el = document.getElementById('cache-status');
+        if (fromCache && ts) {
+            const ago = Math.round((Date.now() - ts) / 1000);
+            const agoStr = ago < 60 ? `${ago}s ago` : `${Math.round(ago / 60)}m ago`;
+            el.innerHTML = `<i class="bi bi-database"></i> cached ${agoStr}`;
+        } else {
+            el.innerHTML = `<i class="bi bi-cloud-check"></i> live`;
+        }
+    }
+
+    function loadData(forceRefresh) {
+        if (!forceRefresh) {
+            const cached = loadFromCache();
+            if (cached) {
+                cachedData = cached;
+                document.getElementById('main-loading').style.display = 'none';
+                document.getElementById('dashboard').style.display = 'block';
+                renderAll(cached);
+                updateCacheStatus(true, cached._ts);
+                return;
+            }
+        }
+
+        document.getElementById('main-loading').style.display = 'block';
+        document.getElementById('dashboard').style.display = 'none';
+        document.getElementById('main-error').style.display = 'none';
+        document.getElementById('cache-status').innerHTML = '';
+
+        fetch(`/api/miles/status?days=${currentDays}`)
+            .then(r => {
+                if (!r.ok) throw new Error(`HTTP ${r.status}`);
+                return r.json();
+            })
+            .then(data => {
+                cachedData = data;
+                saveToCache(data);
+                document.getElementById('main-loading').style.display = 'none';
+                document.getElementById('dashboard').style.display = 'block';
+                renderAll(data);
+                updateCacheStatus(false);
+            })
+            .catch(err => {
+                document.getElementById('main-loading').style.display = 'none';
+                document.getElementById('main-error').innerHTML =
+                    `<div class="alert alert-danger"><i class="bi bi-exclamation-triangle"></i> Failed to load: ${err.message}</div>`;
+                document.getElementById('main-error').style.display = 'block';
+            });
+    }
+
+    // The header's times come from the payload, which reads each cron live
+    // from upstream: they were hardcoded here and went stale when
+    // sgl-project/sglang#47162 moved the build to 11:00 and both nightlies
+    // to 22:00 UTC.
+    function renderScheduleSummary(data) {
+        const builds = Object.values((data.builds && data.builds.workflows) || {})
+            .map(w => cronTime(w.cron)).filter(Boolean);
+        const buildEl = document.getElementById('milesBuildTime');
+        if (buildEl) buildEl.textContent = builds.length ? ` at ${[...new Set(builds)].join(', ')}` : '';
+        const nightly = [['miles_rocm10', 'MI35X'], ['miles_rocm10_mi30x', 'MI30X']]
+            .map(([key, gpu]) => [gpu, cronTime((data.schedules || {})[key])])
+            .filter(([, t]) => t);
+        const nightlyEl = document.getElementById('milesNightlyTimes');
+        if (nightlyEl) {
+            const times = [...new Set(nightly.map(([, t]) => t))];
+            nightlyEl.textContent = !nightly.length ? ''
+                : times.length === 1 ? `, both at ${times[0]}`
+                : ` — ${nightly.map(([gpu, t]) => `${gpu} at ${t}`).join(', ')}`;
+        }
+        const prEl = document.getElementById('milesPrTime');
+        const prTime = cronTime((data.pr_schedule || {}).schedule);
+        if (prEl) prEl.textContent = prTime ? ` at ${prTime}` : '';
+    }
+
+    function renderAll(data) {
+        // A payload cached in localStorage by an older build of this page can
+        // be missing whole sections; fill them in so one stale entry degrades
+        // a panel instead of blanking the page for its 10-minute lifetime.
+        data.health = data.health || { summary: {}, daily: [] };
+        data.images = data.images || { available: false, days: [] };
+        data.builds = data.builds || { workflows: {}, days: {}, summary: {} };
+
+        // Own the global here rather than trusting each caller to set it
+        // first — every render helper below reads it for track metadata.
+        cachedData = data;
+        setPageLastUpdated(data.generated_at);
+        document.getElementById('apiDegradedAlert')
+            .classList.toggle('d-none', !data.github_api_degraded);
+        document.getElementById('dockerUnavailableAlert')
+            .classList.toggle('d-none', !!(data.images && data.images.available));
+
+        renderScheduleSummary(data);
+        renderToday(data);
+        renderImageFilter();
+        renderDailyRuns(data);
+        renderMatrix(data);
+        renderTrendChart(data);
+
+        const target = pickDefaultRun(data);
+        if (target) selectRun(target.date, target.wfKey); else clearSelectedRun();
+    }
+
+    // ── Today's images ─────────────────────────────────────────────────────
+
+    // Images are tagged, and builds and nightlies dated, by UTC day, so that
+    // is what "today" means here — a viewer's local date rolls over hours
+    // early or late. The payload's own newest image row is the day it was
+    // collected on; generated_at covers a payload Docker Hub left without one.
+    function todayUtc(data) {
+        const first = (data.images.days || [])[0];
+        if (first && first.date) return first.date;
+        const at = data.generated_at ? new Date(data.generated_at) : null;
+        return at && !isNaN(at) ? at.toISOString().slice(0, 10) : new Date().toISOString().slice(0, 10);
+    }
+
+    function shortDate(iso) {
+        if (!iso) return '—';
+        const o = new Date(iso + 'T00:00:00');
+        return `${(o.getMonth() + 1).toString().padStart(2, '0')}/${o.getDate().toString().padStart(2, '0')}`;
+    }
+
+    // "17:30 UTC daily" -> "09:30 PST" in the chosen zone: every schedule
+    // here is daily.
+    function cronTime(cron) { return String(localizeSchedule(cron) || '').replace(/\s*daily$/, ''); }
+
+    // One stage of an image's day. `tone` is pass / fail / warn / run / wait /
+    // muted; `detail` is HTML the caller has already made safe.
+    function stage(tone, icon, title, detail) { return { tone, icon, title, detail: detail || '' }; }
+
+    function buildStage(data, track, date, published) {
+        const byDate = (data.builds.days || {})[track.key];
+        if (!byDate) return stage('muted', 'bi-question-lg', 'Unknown', 'Build runs could not be read');
+        const run = byDate[date];
+        const cron = ((data.builds.workflows || {})[track.key] || {}).cron;
+        if (!run) return stage('wait', 'bi-calendar-event', 'Not started', cron ? `Scheduled ${cronTime(cron)}` : '');
+        const link = `<a href="${run.html_url}" target="_blank" rel="noopener">#${run.run_number}</a>`;
+        const manual = run.event === 'workflow_dispatch' ? ' · manual' : '';
+        if (run.status !== 'completed' || run.any_unfinished) {
+            return stage('run', 'bi-hourglass-split', 'Building', link + manual);
+        }
+        const took = run.duration_minutes != null ? ` · ${formatDuration(run.duration_minutes)}` : '';
+        if (run.conclusion === 'success') return stage('pass', 'bi-check-lg', 'Passed', link + took + manual);
+        if (NO_VERDICT.has(run.conclusion)) {
+            return stage('warn', 'bi-slash-circle', run.conclusion ? 'Cancelled' : 'No verdict', link + manual);
+        }
+        // One run builds every image of a track: a failed run can still have
+        // pushed this image, when it was another image's leg that broke.
+        if (published) {
+            return stage('warn', 'bi-exclamation-lg', 'Partly failed', `${link} · another image's leg failed`);
+        }
+        return stage('fail', 'bi-x-lg', 'Failed', link + took + manual);
+    }
+
+    function imageStage(data, track, variant, date) {
+        if (!data.images.available) return stage('muted', 'bi-cloud-slash', 'Unknown', 'Docker Hub unreachable');
+        const row = (data.images.days || []).find(d => d.date === date);
+        const img = imageEntry(row, track, variant);
+        if (!img) {
+            return stage('muted', 'bi-dash-lg', 'Not tracked',
+                variant.tracked_since ? `Built nightly from ${variant.tracked_since}` : '');
+        }
+        const status = imageStatus(data, row, track, img);
+        if (status === 'available') return stage('pass', 'bi-box-seam', 'Published', 'on Docker Hub');
+        if (status === 'pending') return stage('run', 'bi-hourglass-split', 'Pending', 'pushed when the build ends');
+        if (status === 'not_run') return stage('wait', 'bi-calendar-event', 'Not built yet', '');
+        return stage('fail', 'bi-x-lg', 'Not published', 'build ended without a push');
+    }
+
+    function nightlyStage(data, variant, date) {
+        if (!variant.test_key) return stage('muted', 'bi-dash-lg', 'None', 'no nightly runs on this image');
+        const day = (data.health.daily || []).find(d => d.date === date);
+        const wf = day && day.workflows[variant.test_key];
+        if (!wf) {
+            const cron = (data.schedules || {})[variant.test_key];
+            return stage('wait', 'bi-calendar-event', 'Not started', cron ? `Scheduled ${cronTime(cron)}` : '');
+        }
+        const link = `<a href="${wf.html_url}" target="_blank" rel="noopener" onclick="event.stopPropagation()">#${wf.run_number}</a>`;
+        // No image was published today, so the run re-tested an older one.
+        const retest = wf.image_stale ? ` · re-tested the ${shortDate(wf.image_date)} image` : '';
+        if (wf.ongoing) return stage('run', 'bi-hourglass-split', 'Running', link + retest);
+        const total = wf.jobs_total || 0;
+        const passed = wf.jobs_passed || 0;
+        if (!total) return stage('muted', 'bi-dash-lg', 'No jobs', link);
+        const tone = passed === total ? 'pass' : 'fail';
+        const icon = passed === total ? 'bi-check-lg' : 'bi-x-lg';
+        return stage(tone, icon, `${passed}/${total} suites`, link + retest);
+    }
+
+    // The card takes its worst stage: a failure anywhere is what to read first,
+    // and the badge names the stage it came from.
+    const TONE_RANK = ['fail', 'warn', 'run', 'wait', 'muted', 'pass'];
+    const VERDICTS = {
+        fail: { Build: 'Build failed', Image: 'Not published', Nightly: 'Nightly failing' },
+        warn: { Build: 'Build needs a look' },
+        run: { Build: 'Building', Image: 'Publishing', Nightly: 'Nightly running' },
+        wait: { Build: 'Awaiting build', Image: 'Awaiting build', Nightly: 'Awaiting nightly' },
+    };
+
+    function verdict(stages) {
+        // "None" (an image no nightly runs on) is not a reason to call it unknown.
+        const counted = stages.filter(([, s]) => !(s.tone === 'muted' && s.title === 'None'));
+        const tone = TONE_RANK.find(t => counted.some(([, s]) => s.tone === t)) || 'pass';
+        if (tone === 'pass') return { tone, text: 'All green' };
+        if (tone === 'muted') return { tone, text: 'Unknown' };
+        const [name] = counted.find(([, s]) => s.tone === tone);
+        return { tone, text: (VERDICTS[tone] || {})[name] || 'Needs a look' };
+    }
+
+    function suitePills(data, variant, date) {
+        const day = (data.health.daily || []).find(d => d.date === date);
+        const wf = variant.test_key && day && day.workflows[variant.test_key];
+        if (!wf || !(wf.jobs || []).length) return '';
+        const order = { failure: 0, timed_out: 1, cancelled: 2, success: 4, skipped: 5 };
+        const jobs = [...wf.jobs].sort((a, b) =>
+            (order[a.conclusion] ?? 3) - (order[b.conclusion] ?? 3) || suiteName(a.name).localeCompare(suiteName(b.name)));
+        return `<div class="mt-2">${jobs.map(j => {
+            const c = j.conclusion;
+            const tone = c === 'success' ? 'pass' : c === 'failure' || c === 'timed_out' ? 'fail'
+                : NO_VERDICT.has(c) && j.status === 'completed' ? 'muted' : 'run';
+            return `<a class="suite-pill tone-${tone}" href="${j.html_url}" target="_blank" rel="noopener"
+                title="${jobLabel(j.name)}: ${c || j.status || ''}">${jobLabel(j.name)}</a>`;
+        }).join('')}</div>`;
+    }
+
+    // Before today's nightly has run, the newest result is still worth a
+    // line — it is what the image people pull right now last scored.
+    function lastResultLine(variant, date) {
+        const t = variant.latest_image_test;
+        if (!variant.test_key || !t || t.test_date === date || !t.suites_total) return '';
+        const cls = t.suites_passed === t.suites_total ? 'text-success' : 'text-danger';
+        return `<div class="small text-muted mt-2"><i class="bi bi-clock-history"></i> Last nightly:
+            <span class="${cls} fw-semibold">${t.suites_passed}/${t.suites_total}</span> on the
+            ${shortDate(t.image_date)} image${t.html_url
+                ? ` · <a href="${t.html_url}" target="_blank" rel="noopener">#${t.run_number}</a>` : ''}</div>`;
+    }
+
+    function todayTag(data, track, variant, date) {
+        const row = (data.images.days || []).find(d => d.date === date);
+        const img = imageEntry(row, track, variant);
+        if (!img || !img.tag || imageStatus(data, row, track, img) !== 'available') return '';
+        return `<div class="today-tag" title="${img.tag}"><i class="bi bi-tag text-muted"></i><code>${img.tag}</code>
+            <button class="btn btn-sm btn-link p-0 px-1" onclick="copyPull(this, '${img.tag}')" title="Copy the docker pull command">
+                <i class="bi bi-clipboard"></i></button></div>`;
+    }
+
+    function copyPull(btn, tag) {
+        const done = ok => {
+            btn.innerHTML = `<i class="bi ${ok ? 'bi-check-lg text-success' : 'bi-x-lg text-danger'}"></i>`;
+            setTimeout(() => { btn.innerHTML = '<i class="bi bi-clipboard"></i>'; }, 1500);
+        };
+        if (!navigator.clipboard) return done(false);
+        navigator.clipboard.writeText(`docker pull ${tag}`).then(() => done(true), () => done(false));
+    }
+
+    // A click on a nightly (today's card, or a run in the matrix) opens it in
+    // Run Detail, under Today's Images.
+    function showRun(date, wfKey) {
+        selectRun(date, wfKey);
+        const card = document.getElementById('runDetailCard');
+        if (card && card.scrollIntoView) card.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+
+    function renderToday(data) {
+        const date = todayUtc(data);
+        const o = new Date(date + 'T00:00:00');
+        const dayName = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][o.getDay()];
+        const nowUtc = new Date().toISOString().slice(0, 10);
+        document.getElementById('today-date').innerHTML = `${dayName} ${date} (UTC)`
+            + (nowUtc > date ? ` <span class="badge bg-warning text-dark" title="The data has not been refreshed since this day">snapshot from ${date}</span>` : '');
+
+        let published = 0, imagesTotal = 0, nightlies = 0;
+        const nightlyTones = [];
+        // One card per image, not per track: ROCm 10 builds an MI35X and an
+        // MI30X image and tests each with its own nightly, so a track-level
+        // card would hide the one that broke behind the one that did not.
+        const cards = [];
+        for (const track of tracks()) {
+            for (const variant of trackImages(track)) {
+                const img = imageStage(data, track, variant, date);
+                const stages = [
+                    ['Build', buildStage(data, track, date, img.tone === 'pass')],
+                    ['Image', img],
+                    ['Nightly', nightlyStage(data, variant, date)],
+                ];
+                if (img.title !== 'Not tracked') imagesTotal++;
+                if (img.tone === 'pass') published++;
+                const nightly = stages[2][1];
+                if (variant.test_key) {
+                    nightlies++;
+                    nightlyTones.push(nightly.tone);
+                }
+                const { tone, text: verdictText } = verdict(stages);
+                const clickable = variant.test_key && nightly.tone !== 'wait';
+                const stepper = stages.map(([name, s], i) => {
+                    const prev = i ? stages[i - 1][1] : null;
+                    const click = name === 'Nightly' && clickable
+                        ? ` clickable" onclick="showRun('${date}', '${variant.test_key}')" title="Show this run's suites` : '';
+                    return `<li class="step tone-${s.tone}${prev && prev.tone === 'pass' ? ' after-pass' : ''}${click}">
+                        <span class="step-dot"><i class="bi ${s.icon}"></i></span>
+                        <div class="step-name">${name}</div>
+                        <div class="step-title">${s.title}</div>
+                        <div class="step-detail">${s.detail}</div></li>`;
+                }).join('');
+                cards.push(`
+                <div class="col-12 col-md">
+                    <div class="card h-100 today-card tone-${tone}">
+                        <div class="card-header track-accent-${track.key} d-flex justify-content-between align-items-start gap-2">
+                            <div>
+                                <div class="fw-semibold">${imageLabel(track, variant)}</div>
+                                <code class="small text-muted">${variant.prefix || ''}</code>
+                            </div>
+                            <span class="badge today-verdict tone-${tone}">${verdictText}</span>
+                        </div>
+                        <div class="card-body">
+                            <ol class="stepper">${stepper}</ol>
+                            ${todayTag(data, track, variant, date)}
+                            ${suitePills(data, variant, date)}
+                            ${nightly.tone === 'pass' || nightly.tone === 'fail' ? '' : lastResultLine(variant, date)}
+                        </div>
+                    </div>
+                </div>`);
+            }
+        }
+        document.getElementById('today-cards').innerHTML = cards.join('')
+            || '<div class="col text-center text-muted py-3">No images tracked</div>';
+
+        const chip = (cls, icon, text, title) =>
+            `<span class="badge today-chip ${cls}" title="${title}"><i class="bi ${icon}"></i> ${text}</span>`;
+        const chips = [];
+        if (data.images.available) {
+            chips.push(chip(published === imagesTotal ? 'bg-success' : 'bg-light text-dark border', 'bi-box-seam',
+                `${published}/${imagesTotal} images published`, 'Images with a tag for today on Docker Hub'));
+        }
+        if (nightlies) {
+            const n = t => nightlyTones.filter(x => x === t).length;
+            const parts = [[n('pass'), 'passed'], [n('fail'), 'failed'], [n('run'), 'running'], [n('wait'), 'scheduled']]
+                .filter(([c]) => c).map(([c, w]) => `${c} ${w}`).join(' · ');
+            chips.push(chip(n('fail') ? 'bg-danger' : n('pass') === nightlies ? 'bg-success' : 'bg-light text-dark border',
+                'bi-clipboard2-pulse', `Nightlies: ${parts || 'unknown'}`, "Today's nightly runs, one per tested image"));
+        }
+        document.getElementById('today-summary').innerHTML = chips.join('');
+    }
+
+    // ── Test coverage (Miles CI registry) ──────────────────────────────────
+
+    const BACKEND_COLOR = { ROCM: 'primary', CUDA: 'success', CPU: 'secondary' };
+
+    function deltaBadge(n) {
+        if (n == null || n === 0) return '<span class="badge bg-light text-muted">no change</span>';
+        const cls = n > 0 ? 'bg-success' : 'bg-danger';
+        return `<span class="badge ${cls}">${n > 0 ? '+' : ''}${n}</span>`;
+    }
+
+    function loadTestCoverage() {
+        fetch('/api/miles/test-coverage')
+            .then(r => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); })
+            .then(renderTestCoverage)
+            .catch(err => {
+                document.getElementById('coverage-loading').classList.add('d-none');
+                const el = document.getElementById('coverage-error');
+                el.className = 'alert alert-warning mb-0';
+                el.innerHTML = `<i class="bi bi-exclamation-triangle"></i> Test inventory unavailable: ${err.message}`;
+            });
+    }
+
+    function renderTestCoverage(data) {
+        document.getElementById('coverage-loading').classList.add('d-none');
+        document.getElementById('coverage-content').classList.remove('d-none');
+
+        const cur = data.current || {};
+        const base = data.baseline;
+        const delta = (data.delta || {}).enabled || {};
+        const labels = data.backend_labels || {};
+
+        document.getElementById('coverage-source').innerHTML =
+            `<i class="bi bi-git"></i> <code>${data.repo}</code> · registered via <code>tests/ci</code>`;
+        document.getElementById('coverage-window').textContent = data.window_days;
+
+        // One card per backend, plus the AMD-vs-NVIDIA ratio the CI review asks for.
+        const cards = (data.backends || []).map(b => {
+            const enabled = (cur.enabled || {})[b] ?? 0;
+            const registered = (cur.registered || {})[b] ?? 0;
+            const disabled = registered - enabled;
+            const was = base ? (base.enabled || {})[b] : null;
+            return `
+            <div class="col-md-3">
+                <div class="border rounded p-3 h-100">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <span class="badge bg-${BACKEND_COLOR[b] || 'secondary'}">${labels[b] || b}</span>
+                        ${deltaBadge(delta[b])}
+                    </div>
+                    <div class="display-6 mt-2">${enabled}</div>
+                    <div class="small text-muted">enabled tests</div>
+                    <div class="small text-muted mt-1">
+                        ${registered} registered${disabled ? ` · ${disabled} disabled` : ''}
+                    </div>
+                    ${was != null ? `<div class="small text-muted">was ${was} a week ago</div>` : ''}
+                </div>
+            </div>`;
+        }).join('');
+
+        const pct = cur.amd_vs_nvidia_pct;
+        const wasPct = base ? base.amd_vs_nvidia_pct : null;
+        const ratioCard = `
+            <div class="col-md-3">
+                <div class="border rounded p-3 h-100 bg-light">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <span class="badge bg-dark">AMD vs NVIDIA</span>
+                    </div>
+                    <div class="display-6 mt-2">${pct == null ? '—' : pct + '%'}</div>
+                    <div class="small text-muted">of NVIDIA's enabled tests</div>
+                    <div class="small text-muted mt-1">
+                        ${(cur.enabled || {}).ROCM ?? 0} of ${(cur.enabled || {}).CUDA ?? 0}
+                    </div>
+                    ${wasPct != null ? `<div class="small text-muted">was ${wasPct}% a week ago</div>` : ''}
+                </div>
+            </div>`;
+        document.getElementById('coverage-cards').innerHTML = cards + ratioCard;
+
+        // Suites. A suite with registrations but nothing enabled is the case
+        // worth seeing: it is wired into CI but gates nothing.
+        const suites = cur.by_suite || [];
+        document.getElementById('coverage-suites').innerHTML = suites.length
+            ? suites.map(s => {
+                const dead = s.enabled === 0 && s.registered > 0;
+                return `<tr${dead ? ' class="table-warning"' : ''}>
+                    <td><span class="badge bg-${BACKEND_COLOR[s.backend] || 'secondary'}">${s.backend}</span></td>
+                    <td><code>${s.suite || '—'}</code></td>
+                    <td class="text-center">${dead
+                        ? '<span class="text-danger fw-bold" title="Registered but every test is disabled">0</span>'
+                        : `<strong>${s.enabled}</strong>`}</td>
+                    <td class="text-center text-muted">${s.registered}</td>
+                </tr>`;
+              }).join('')
+            : '<tr><td colspan="4" class="text-center text-muted py-3">No suites found</td></tr>';
+
+        const added = data.added || [];
+        document.getElementById('coverage-added-count').textContent = added.length;
+        document.getElementById('coverage-added').innerHTML = added.length
+            ? added.map(a => `<tr>
+                    <td><span class="badge bg-${BACKEND_COLOR[a.backend] || 'secondary'}">${a.backend}</span></td>
+                    <td><code>${(a.suite || '—').replace('nightly-stage-c-', 'n-sc-')}</code></td>
+                    <td><a href="https://github.com/${data.repo}/blob/main/${a.file}" target="_blank"
+                           class="text-decoration-none">${a.file.replace(/^tests\//, '')}</a>
+                        ${a.disabled ? '<span class="badge bg-warning text-dark ms-1">disabled</span>' : ''}</td>
+                </tr>`).join('')
+            : `<tr><td colspan="3" class="text-center text-muted py-3">No tests added in the last ${data.window_days} days</td></tr>`;
+    }
+
+    // ── History helpers ────────────────────────────────────────────────────
+
+    // The days that have a nightly run, newest first, inside the chosen range.
+    function testDates(data) {
+        return (data.health.daily || []).map(d => d.date).sort().reverse().slice(0, data.days);
+    }
+
+    function dateParts(date) {
+        const o = new Date(date + 'T00:00:00');
+        return {
+            display: `${(o.getMonth() + 1).toString().padStart(2, '0')}/${o.getDate().toString().padStart(2, '0')}`,
+            dayName: ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][o.getDay()],
+        };
+    }
+
+    // ── Selected run detail ────────────────────────────────────────────────
+
+    function isRunFinished(wf) { return !!wf && wf.status === 'completed'; }
+
+    // Default to the most recent *finished* run so the panel shows real
+    // numbers instead of today's still-queued 0/0.
+    function pickDefaultRun(data) {
+        const daily = data.health.daily || [];
+        const keys = testedImages().map(t => t.variant.test_key);
+        for (const day of daily) {
+            for (const key of keys) {
+                if (isRunFinished(day.workflows[key])) return { date: day.date, wfKey: key };
+            }
+        }
+        for (const day of daily) {
+            for (const key of keys) {
+                if (day.workflows[key]) return { date: day.date, wfKey: key };
+            }
+        }
+        return null;
+    }
+
+    // The selected run's numbers, one tile each, as on Nightly CI.
+    function summaryTiles(tiles) {
+        return tiles.map(([label, html]) => `<div class="col"><div class="border rounded p-2 bg-light h-100 text-center">
+            <div class="text-muted small text-nowrap">${label}</div><strong class="fs-4">${html}</strong></div></div>`).join('');
+    }
+
+    const EMPTY_TILES = ['Jobs Passed', 'Failed', 'Skip/Cncl', 'Pass Rate', 'Duration'].map(l => [l, '&mdash;']);
+
+    function clearSelectedRun() {
+        document.getElementById('jobs-placeholder').style.display = 'block';
+        document.getElementById('jobs-content').style.display = 'none';
+        document.getElementById('selectedRunLabel').textContent = '—';
+        document.getElementById('selectedJobsLabel').textContent = 'Select a run';
+        document.getElementById('runLink').classList.add('d-none');
+        document.getElementById('selectedRunSummary').innerHTML = summaryTiles(EMPTY_TILES);
+        selectedRun = null;
+        document.querySelectorAll('.run-row.selected').forEach(el => el.classList.remove('selected'));
+    }
+
+    function runPassRate(wf) {
+        return wf.jobs_total ? Math.round((wf.jobs_passed || 0) / wf.jobs_total * 100) : null;
+    }
+
+    function passRateClass(rate) {
+        return rate === 100 ? 'text-success' : rate >= 50 ? 'text-warning' : 'text-danger';
+    }
+
+    // A run still going has no end yet; time it against the clock.
+    function runDuration(wf) {
+        if (wf.ongoing && wf.started_at) {
+            return { text: formatDuration((Date.now() - new Date(wf.started_at)) / 60000), running: true };
+        }
+        return { text: wf.duration_minutes != null ? formatDuration(wf.duration_minutes) : '—', running: false };
+    }
+
+    function selectRun(date, wfKey) {
+        selectedRun = { date, wfKey };
+        // The overview row and the run's cell in the suite matrix.
+        document.querySelectorAll('.run-row.selected').forEach(el => el.classList.remove('selected'));
+        document.querySelectorAll(`[data-run="${date}|${wfKey}"]`).forEach(el => el.classList.add('selected'));
+
+        const wf = runFor(date, wfKey);
+        if (!wf) return;
+
+        document.getElementById('selectedRunLabel').textContent = `${date} · ${workflowTitle(wfKey)} · #${wf.run_number}`;
+
+        const passed = wf.jobs_passed || 0;
+        const total = wf.jobs_total || 0;
+        const rate = runPassRate(wf);
+        const dur = runDuration(wf);
+        document.getElementById('selectedRunSummary').innerHTML = summaryTiles([
+            ['Jobs Passed', `<span class="text-success">${passed}</span><span class="text-muted fs-6">/${total}</span>`],
+            ['Failed', `<span class="${wf.jobs_failed ? 'text-danger' : 'text-muted'}">${wf.jobs_failed || 0}</span>`],
+            ['Skip/Cncl', `<span class="text-secondary">${(wf.jobs_skipped || 0) + (wf.jobs_cancelled || 0)}</span>`],
+            ['Pass Rate', wf.ongoing ? '<span class="text-primary">running</span>'
+                : rate == null ? '—' : `<span class="${passRateClass(rate)}">${rate}%</span>`],
+            ['Duration', `<span class="${dur.running ? 'text-primary' : ''}">${dur.text}</span>`],
+        ]);
+
+        document.getElementById('selectedJobsLabel').textContent = wf.ongoing
+            ? `${passed}/${total} passed so far` : `${passed}/${total} passed`;
+        const link = document.getElementById('runLink');
+        link.href = wf.html_url;
+        link.classList.remove('d-none');
+        document.getElementById('runLinkLabel').textContent = `Run #${wf.run_number}`;
+
+        renderJobDetail(wf.jobs || []);
+    }
+
+    // ── Daily Run Overview ─────────────────────────────────────────────────
+
+    // Which scheduled workflow the overview lists: 'all', a nightly's
+    // test_key, or the PR Test's key.
+    let imageFilter = 'all';
+
+    function setImageFilter(value) {
+        imageFilter = value;
+        if (cachedData) renderDailyRuns(cachedData);
+    }
+
+    // radixark/miles's scheduled PR Test (ROCm), or null when the payload has
+    // none (one published before it, or a refresh that could not list it).
+    function prSchedule() {
+        const pr = cachedData && cachedData.pr_schedule;
+        return pr && pr.available ? pr : null;
+    }
+
+    function isPrKey(key) {
+        const pr = prSchedule();
+        return !!pr && key === pr.key;
+    }
+
+    // A run of any scheduled workflow on the page: a nightly's from health,
+    // the PR Test's from its own series.
+    function runFor(date, key) {
+        if (isPrKey(key)) return prSchedule().days[date] || null;
+        const day = (cachedData.health.daily || []).find(d => d.date === date);
+        return (day && day.workflows[key]) || null;
+    }
+
+    function workflowTitle(key) {
+        if (isPrKey(key)) return `${prSchedule().label} · ${prSchedule().repo}`;
+        return (cachedData.workflows || {})[key] || key;
+    }
+
+    // "ROCm 10 · MI35X": the overview's column already says Workflow, and the
+    // workflow's full name wraps in it.
+    function nightlyName(key) {
+        if (isPrKey(key)) return 'PR Test (ROCm)';
+        const hit = testedImages().find(({ variant }) => variant.test_key === key);
+        if (!hit) return (cachedData.workflows || {})[key] || key;
+        const { track, variant } = hit;
+        return `${track.label}${variant.hardware ? ` · ${variant.hardware.toUpperCase()}` : ''}`;
+    }
+
+    // The workflows the overview lists, in the order a day runs them: the PR
+    // Test at 15:00 UTC, then the image nightlies.
+    function overviewKeys() {
+        const pr = prSchedule();
+        return [...(pr ? [pr.key] : []), ...testedImages().map(({ variant }) => variant.test_key)];
+    }
+
+    function renderImageFilter() {
+        const sel = document.getElementById('imageFilter');
+        const opts = [['all', 'All workflows'], ...overviewKeys().map(key => [key, nightlyName(key)])];
+        if (!opts.some(([v]) => v === imageFilter)) imageFilter = 'all';
+        sel.innerHTML = opts.map(([v, l]) => `<option value="${v}"${v === imageFilter ? ' selected' : ''}>${l}</option>`).join('');
+    }
+
+    // One row per scheduled workflow per date, newest first. Today's runs that
+    // have not started read "Scheduled" with their time; a gap on an older
+    // date is left out, as on Nightly CI.
+    function renderDailyRuns(data) {
+        const tbody = document.getElementById('daily-rows');
+        const daily = data.health.daily || [];
+        const today = todayUtc(data);
+        const keys = overviewKeys().filter(key => imageFilter === 'all' || key === imageFilter);
+        const prDates = Object.keys((prSchedule() || {}).days || {});
+        const dates = [...new Set([today, ...daily.map(d => d.date), ...prDates])].sort().reverse().slice(0, data.days);
+
+        let html = '';
+        for (const date of dates) {
+            const rows = keys.map(key => ({ key, wf: runFor(date, key) }))
+                .filter(r => r.wf || date === today);
+            if (!rows.length) continue;
+            const { display, dayName } = dateParts(date);
+            rows.forEach(({ key, wf }, i) => {
+                const dateCell = i === 0
+                    ? `<td rowspan="${rows.length}"><strong>${display}</strong> <span class="text-muted">${dayName}</span></td>` : '';
+                html += wf ? overviewRow(date, key, wf, dateCell) : scheduledRow(data, key, dateCell);
+            });
+        }
+        tbody.innerHTML = html || '<tr><td colspan="9" class="text-center text-muted py-3">No scheduled runs in this window</td></tr>';
+        if (selectedRun) {
+            document.querySelectorAll(`[data-run="${selectedRun.date}|${selectedRun.wfKey}"]`)
+                .forEach(el => el.classList.add('selected'));
+        }
+    }
+
+    function overviewRow(date, key, wf, dateCell) {
+        const total = wf.jobs_total || 0;
+        const rate = runPassRate(wf);
+        const skipped = (wf.jobs_skipped || 0) + (wf.jobs_cancelled || 0);
+        const rateCell = wf.ongoing
+            ? '<span class="badge status-badge running">running</span>'
+            : rate == null ? '—' : `<strong class="${passRateClass(rate)}">${rate}%</strong>`;
+        const dur = runDuration(wf);
+        const icon = wf.ongoing || wf.status !== 'completed'
+            ? '<i class="bi bi-hourglass-split text-warning"></i>'
+            : wf.conclusion === 'success' ? '<i class="bi bi-check-circle-fill text-success"></i>'
+            : wf.conclusion === 'failure' ? '<i class="bi bi-x-circle-fill text-danger"></i>'
+            : '<i class="bi bi-dash-circle text-secondary"></i>';
+        // The image the run resolved; a re-test of an older one is flagged.
+        // The PR Test runs on Miles' own CI image, not a dated one.
+        const image = isPrKey(key) ? '<span title="Runs on the Miles CI image, not a dated sglang image">CI</span>'
+            : wf.image_date
+            ? `${shortDate(wf.image_date)}${wf.image_stale
+                ? ` <i class="bi bi-arrow-counterclockwise text-warning" title="Re-test: no image was published that day, so it ran the ${wf.image_date} image"></i>` : ''}`
+            : '—';
+        return `<tr class="run-row" data-run="${date}|${key}" onclick="selectRun('${date}', '${key}')">
+            ${dateCell}
+            <td class="text-nowrap" title="${workflowTitle(key)}">${nightlyName(key)}</td>
+            <td class="text-center"><span class="text-success">${wf.jobs_passed || 0}</span>/<span class="text-muted">${total}</span></td>
+            <td class="text-center"><span class="${wf.jobs_failed ? 'text-danger fw-bold' : 'text-muted'}">${wf.jobs_failed || 0}</span></td>
+            <td class="text-center text-muted">${skipped || '—'}</td>
+            <td class="text-center text-nowrap" title="${wf.image_tag || ''}">${image}</td>
+            <td class="text-center">${rateCell}</td>
+            <td class="text-center text-nowrap${dur.running ? ' text-primary' : ''}">${dur.text}${dur.running ? ' <i class="bi bi-hourglass-split"></i>' : ''}</td>
+            <td class="text-center text-nowrap">${icon}
+                <a href="${wf.html_url}" target="_blank" class="text-decoration-none ms-1" onclick="event.stopPropagation()"><small>#${wf.run_number}</small></a></td>
+        </tr>`;
+    }
+
+    function scheduledRow(data, key, dateCell) {
+        const pr = isPrKey(key) ? prSchedule() : null;
+        const cron = cronTime(pr ? pr.schedule : (data.schedules || {})[key]);
+        const url = pr ? pr.url : ((data.health.summary || {})[key] || {}).url;
+        return `<tr class="text-muted"${cron ? ` title="Scheduled ${cron}"` : ''}>
+            ${dateCell}
+            <td class="text-nowrap" title="${workflowTitle(key)}">${nightlyName(key)}</td>
+            <td class="text-center">—</td><td class="text-center">—</td><td class="text-center">—</td><td class="text-center">—</td>
+            <td class="text-center text-nowrap"><span class="badge status-badge scheduled">Scheduled</span>${cron ? ` <span class="small">${cron}</span>` : ''}</td>
+            <td class="text-center">—</td>
+            <td class="text-center"><i class="bi bi-calendar-event text-secondary"></i>${url
+                ? ` <a href="${url}" target="_blank" class="text-decoration-none" title="Open workflow"><small>runs</small></a>` : ''}</td>
+        </tr>`;
+    }
+
+    function renderJobDetail(jobs) {
+        const placeholder = document.getElementById('jobs-placeholder');
+        const content = document.getElementById('jobs-content');
+        const tbody = document.getElementById('job-rows');
+
+        if (!jobs.length) {
+            placeholder.innerHTML = '<p class="text-muted">No job data available for this run.</p>';
+            placeholder.style.display = 'block';
+            content.style.display = 'none';
+            return;
+        }
+
+        const order = { failure: 0, timed_out: 1, cancelled: 2, success: 3, skipped: 4 };
+        const sorted = [...jobs].sort((a, b) =>
+            (order[a.conclusion] ?? 5) - (order[b.conclusion] ?? 5) ||
+            suiteName(a.name).localeCompare(suiteName(b.name)));
+
+        const dash = '<span class="text-muted">\u2014</span>';
+        tbody.innerHTML = sorted.map(job => {
+            const isFailed = job.conclusion === 'failure' || job.conclusion === 'timed_out';
+            // A PR Test shard's name carries no runner; its labels do.
+            const runner = runnerLabel(job.name)
+                || (SHARD_JOB_RE.test(job.name) ? (job.labels || []).filter(l => l !== 'self-hosted').join(', ') : '');
+            const cf = isFailed ? jobCauseFix(job.id) : null;
+            // Before /api/miles/cause-fix answers there is nothing to say yet;
+            // after, a failed job it does not list gets a dash, as on Nightly CI.
+            const pending = isFailed && !cfSettled ? '<span class="text-muted small">loading\u2026</span>' : '';
+            const tests = cf && cf.tests.length
+                ? `<div class="small mt-1">${cf.tests.map(t => `<div class="text-danger-emphasis text-truncate" title="${escapeHtml(t)}">
+                    <i class="bi bi-x-circle"></i> ${escapeHtml(t.slice(t.lastIndexOf('/') + 1))}</div>`).join('')}</div>`
+                : '';
+            return `<tr class="${job.conclusion === 'failure' ? 'job-row-fail' : ''}">
+                <td class="text-break"><code>${jobLabel(job.name)}</code>${runner ? `<div class="text-muted" style="font-size:0.7rem">${runner}</div>` : ''}${tests}</td>
+                <td class="text-center">${statusBadge(job.conclusion || job.status)}</td>
+                <td class="text-center">${job.duration_minutes != null ? formatDuration(job.duration_minutes) : '\u2014'}</td>
+                <td class="text-center"><a href="${job.html_url}" target="_blank" title="View log"><i class="bi bi-box-arrow-up-right"></i></a></td>
+                <td>${isFailed ? pending || (cf && cf.cause) || dash : ''}</td>
+                <td>${isFailed ? pending || (cf && cf.fix) || dash : ''}</td>
+            </tr>`;
+        }).join('');
+
+        placeholder.style.display = 'none';
+        content.style.display = 'block';
+    }
+
+    // A failed job's cause and fix PRs, from the Cause & Fix rows that list
+    // it (one per failing test, so a job can be in several). Drawn with the
+    // card's own badges, the way Nightly CI's Run Detail borrows its card's.
+    // Only the runs the card covers are listed, so an older run reads "\u2014".
+    function jobCauseFix(jobId) {
+        if (!cfData) return null;
+        const rows = (cfData.rows || []).filter(r => (r.jobs || []).some(j => String(j.id) === String(jobId)));
+        if (!rows.length) return null;
+        const seen = new Set();
+        const uniq = prs => prs.filter(pr => {
+            const key = `${pr.repo}#${pr.number || pr.sha}`;
+            return !seen.has(key) && seen.add(key);
+        });
+        const causes = uniq(rows.flatMap(r => r.cause_prs || []));
+        const fixes = uniq(rows.flatMap(r => (r.fix_prs || []).filter(pr => pr.pr_state !== 'closed')));
+        const tests = [...new Set(rows.flatMap(r => (r.tests || []).map(t => t.file)))];
+        const line = html => `<div class="pr-job">${html}</div>`;
+        return {
+            tests,
+            cause: causes.map(pr => line((pr.strong
+                ? cfPrBadge(pr, 'cause', 'Cause', `Changed code this failure runs through \u2014 ${pr.reason || ''}`)
+                : cfPrBadge(pr, 'cause-weak', 'Cause?', `Only touched a file on the traceback, or the workflow or Dockerfile \u2014 ${pr.reason || ''}`))
+                + cfAuthor(pr))).join(''),
+            fix: fixes.map(pr => line((pr.strong
+                ? cfPrBadge(pr, 'fix', 'Fix', 'Later commit on the branch the image builds from that changes the same code')
+                : cfPrBadge(pr, 'fix-candidate', 'Fix?', 'Open PR that names the failing test'))
+                + cfStatePill(pr) + cfAuthor(pr))).join('')
+                + (rows.map(r => cfFollowup(r.followup)).find(Boolean) || ''),
+        };
+    }
+
+    // ── Suite matrix ───────────────────────────────────────────────────────
+
+    function renderMatrix(data) {
+        const daily = data.health.daily || [];
+        const showAll = document.getElementById('showAllJobsToggle').checked;
+        const dates = testDates(data);
+
+        // Keyed by suite, not by the full job name. GitHub builds the name from
+        // every matrix value, so the MI30X nightly's carries a timeout and a
+        // skip list too — and that PR already changed a timeout once. On the
+        // name, each change splits a suite into a row that stops dead and a new
+        // one beside it. The suite is stable, and it is all the page displays
+        // anyway; a suite split into parts gets its worst part's verdict.
+        const groups = testedImages().map(({ track, variant }) => {
+            const key = variant.test_key;
+            const suites = new Set();
+            for (const day of daily) {
+                const wf = day.workflows[key];
+                if (wf && wf.jobs) for (const j of wf.jobs) suites.add(suiteName(j.name));
+            }
+            const kept = [...suites].sort().filter(suite => showAll || daily.some(d => {
+                const job = findSuiteJob(d.workflows[key], suite);
+                return job && job.conclusion !== 'success' && job.conclusion !== 'skipped';
+            }));
+            return { key, label: imageLabel(track, variant), suites: kept };
+        });
+
+        document.getElementById('matrix-head').innerHTML = `<tr>
+            <th style="position: sticky; left: 0; z-index: 2; background: #f8f9fa; min-width: 180px;">Suite</th>
+            ${dates.map(d => {
+                const { display, dayName } = dateParts(d);
+                return `<th class="text-center" style="min-width: 46px; font-size: 0.72rem; padding: 4px 2px;">
+                    <div>${display}</div><div class="text-muted fw-normal">${dayName}</div></th>`;
+            }).join('')}
+        </tr>`;
+
+        const tbody = document.getElementById('matrix-body');
+        if (!groups.length || !dates.length) {
+            tbody.innerHTML = `<tr><td colspan="${dates.length + 1}" class="text-center text-muted py-3">No data</td></tr>`;
+            return;
+        }
+
+        // Each nightly's header row carries its runs: suites passed per day,
+        // a click away from the run's detail. It is drawn even when every
+        // suite row is filtered out, so a green run is still one click away.
+        const runCell = (date, key) => {
+            const day = daily.find(d => d.date === date);
+            const wf = day && day.workflows[key];
+            if (!wf) return '<td class="text-center" style="background: #f0f1f3;"><small class="text-muted">&mdash;</small></td>';
+            const total = wf.jobs_total || 0, passed = wf.jobs_passed || 0;
+            const body = wf.ongoing
+                ? '<i class="bi bi-hourglass-split text-primary"></i>'
+                : `<strong class="${!total ? 'text-muted' : passed === total ? 'text-success' : passed ? 'text-warning' : 'text-danger'}">${passed}/${total}</strong>`;
+            const retest = wf.image_stale
+                ? ` <i class="bi bi-arrow-counterclockwise text-warning" title="Re-test: ran against the ${wf.image_date} image"></i>` : '';
+            return `<td class="text-center matrix-run run-row" style="background: #f0f1f3;" data-run="${date}|${key}"
+                onclick="showRun('${date}', '${key}')" title="Run #${wf.run_number} — click for its suites">${body}${retest}</td>`;
+        };
+
+        let html = '';
+        for (const group of groups) {
+            html += `<tr class="wf-section-header"><td style="position: sticky; left: 0; z-index: 1; background: #f0f1f3; white-space: nowrap;">${group.label}</td>
+                ${dates.map(d => runCell(d, group.key)).join('')}</tr>`;
+            html += group.suites.map(suite => matrixRow(daily, dates, group.key, suite)).join('');
+        }
+        tbody.innerHTML = html;
+    }
+
+    function matrixRow(daily, dates, testKey, suite) {
+        const cells = dates.map(date => {
+            const day = daily.find(d => d.date === date);
+            const job = findSuiteJob(day && day.workflows[testKey], suite);
+            if (!job) return '<td class="text-center"><small class="text-muted">&mdash;</small></td>';
+            if (job.conclusion === 'success') return '<td class="text-center"><span class="text-success" title="Pass">&#10003;</span></td>';
+            if (job.conclusion === 'failure' || job.conclusion === 'timed_out') {
+                return `<td class="text-center"><a href="${job.html_url}" target="_blank" class="text-danger fw-bold text-decoration-none" title="${job.conclusion} — click for logs">&#10007;</a></td>`;
+            }
+            if (job.conclusion === 'skipped') return '<td class="text-center"><span class="text-muted" title="Skipped">○</span></td>';
+            if (job.conclusion === 'cancelled') return '<td class="text-center"><span class="text-warning" title="Cancelled">⊘</span></td>';
+            return `<td class="text-center"><span class="text-info" title="${job.status || ''}">⧖</span></td>`;
+        }).join('');
+        return `<tr><td style="position: sticky; left: 0; z-index: 1; background: #fff; white-space: nowrap;">
+            <small>${suite}</small></td>${cells}</tr>`;
+    }
+
+    // ── Trend chart ────────────────────────────────────────────────────────
+
+    function renderTrendChart(data) {
+        if (trendChart) trendChart.destroy();
+        // Same window as the matrix, so the chart can't show a day the
+        // selected range excludes.
+        const dates = testDates(data).reverse();
+        const daily = data.health.daily || [];
+        const labels = dates.map(d => {
+            const o = new Date(d + 'T00:00:00');
+            return `${o.getMonth() + 1}/${o.getDate()}`;
+        });
+
+        const datasets = testedImages().map(({ track, variant }) => {
+            const points = dates.map(date => {
+                const day = daily.find(d => d.date === date);
+                const wf = day && day.workflows[variant.test_key];
+                if (!wf || wf.ongoing || !wf.jobs_total) return null;
+                return Math.round(wf.jobs_passed / wf.jobs_total * 100);
+            });
+            return {
+                label: imageLabel(track, variant),
+                data: points,
+                borderColor: (variant.primary ? TRACK_COLORS : TRACK_COLORS_2ND)[track.key] || '#6c757d',
+                // The colour is the track's; a track's second image is a
+                // lighter, dashed line of it.
+                borderDash: variant.primary ? [] : [5, 3],
+                borderWidth: 2,
+                pointRadius: 4,
+                pointHoverRadius: 6,
+                pointBackgroundColor: points.map(v => v === 100 ? '#198754' : v != null ? '#dc3545' : '#adb5bd'),
+                fill: false,
+                tension: 0.2,
+                spanGaps: true,
+            };
+        });
+
+        trendChart = new Chart(document.getElementById('trendChart').getContext('2d'), {
+            type: 'line',
+            data: { labels, datasets },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                interaction: { mode: 'index', intersect: false },
+                scales: {
+                    y: {
+                        min: 0, max: 105,
+                        ticks: { callback: v => `${v}%`, stepSize: 20 },
+                        title: { display: true, text: 'Suite Pass Rate %' },
+                    },
+                },
+                plugins: {
+                    tooltip: { callbacks: { label: c => `${c.dataset.label}: ${c.raw != null ? c.raw + '%' : 'N/A'}` } },
+                    // A line sample, solid or dashed: the points are coloured
+                    // by result, so a point marker would key both series red.
+                    legend: { labels: { usePointStyle: true, pointStyle: 'line', font: { size: 11 } } },
+                },
+            },
+        });
+    }
+
+    // ── Utilities ──────────────────────────────────────────────────────────
+
+    function statusBadge(status) {
+        if (!status) return '<span class="badge status-badge">Unknown</span>';
+        const s = status.toLowerCase();
+        let text = s.charAt(0).toUpperCase() + s.slice(1);
+        if (s === 'success') text = 'Pass';
+        if (s === 'failure') text = 'Fail';
+        if (s === 'timed_out') text = 'Timeout';
+        return `<span class="badge status-badge ${s}">${text}</span>`;
+    }
+
+    function formatDuration(minutes) {
+        if (minutes == null) return '\u2014';
+        if (minutes < 1) return '<1m';
+        const h = Math.floor(minutes / 60);
+        const m = Math.round(minutes % 60);
+        return h > 0 ? `${h}h ${m}m` : `${m}m`;
+    }
+
+
+    // ── Cause & Fix PRs ────────────────────────────────────────────────────
+    // The Nightly CI card reads its PRs from the CI monitor bot's report; no
+    // bot watches Miles, so this one is built server-side (miles_cause_fix.py)
+    // from the job logs and the commits each image build printed. A 404 is a
+    // site whose data refresh has not published it yet: the card stays hidden.
+    let cfData = null;
+    let cfSettled = false;
+    let cfFilter = 'all';
+    let cfShowRecovered = false;
+
+    function toggleRecovered() {
+        cfShowRecovered = !cfShowRecovered;
+        if (cfData) renderCauseFix();
+    }
+    const CF_FILTER_LABELS = { mi35x: 'MI35X nightly', mi30x: 'MI30X nightly', build: 'Image builds' };
+    const CF_GROUPS = [
+        { key: 'build', label: 'Image builds' },
+        { key: 'test', label: 'Nightly tests' },
+        { key: 'landed', label: 'Fix landed — awaiting an image built after it' },
+        { key: 'recovered', label: 'Recovered' },
+    ];
+
+    // Log text and commit messages reach the page through here, never raw.
+    function escapeHtml(s) {
+        return String(s == null ? '' : s).replace(/[&<>"']/g, c =>
+            ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+    }
+
+    // The bot writes markdown. Escaped first, then only links to https URLs,
+    // code spans and bold are turned back into markup.
+    function cfMd(s) {
+        return escapeHtml(s)
+            .replace(/\[([^\]]+)\]\((https:\/\/[^)\s]+)\)/g,
+                (_, text, url) => `<a href="${url}" target="_blank" rel="noopener">${text}</a>`)
+            .replace(/`([^`]+)`/g, '<code>$1</code>')
+            .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+    }
+
+    // Short time in the chosen zone, named; the full one is in the tooltip.
+    function shortTime(iso) { return formatShortTime(iso); }
+
+    function loadCauseFix() {
+        fetch('/api/miles/cause-fix')
+            .then(r => (r.ok ? r.json() : null))
+            .then(data => {
+                if (!data || !data.available) return;
+                cfData = data;
+                renderCauseFix();
+            })
+            .catch(() => {})
+            .finally(() => {
+                // Run Detail drew its failed jobs as "loading…"; give them
+                // their PRs, or a dash when there is no data to read.
+                cfSettled = true;
+                if (selectedRun && cachedData) selectRun(selectedRun.date, selectedRun.wfKey);
+            });
+    }
+    document.addEventListener('DOMContentLoaded', loadCauseFix);
+
+    // radixark/miles's own MI350 runners. Their state is read from who took
+    // the jobs of its daily scheduled PR Test (ROCm) run (see
+    // fetch_miles_runners); the card stays hidden when that is unavailable.
+    function prCiAgo(sec) {
+        const m = Math.floor((sec || 0) / 60);
+        if (m < 90) return m + 'm';
+        const h = Math.floor(m / 60);
+        return h < 48 ? h + 'h' : Math.floor(h / 24) + 'd';
+    }
+
+    function prCiResult(c) {
+        const cls = c === 'success' ? 'bg-success'
+            : (c === 'failure' || c === 'timed_out') ? 'bg-danger'
+            : (c === 'queued' || c === 'in_progress') ? 'bg-info text-dark' : 'bg-secondary';
+        return `<span class="badge ${cls}">${escapeHtml(c || '—')}</span>`;
+    }
+
+    function loadPrCiRunners() {
+        fetch('/api/runner-health/miles-runners')
+            .then(r => (r.ok ? r.json() : null))
+            .then(data => { if (data && data.available) renderPrCiRunners(data); })
+            .catch(() => {});
+    }
+    document.addEventListener('DOMContentLoaded', loadPrCiRunners);
+
+    function renderPrCiRunners(data) {
+        document.getElementById('prCiRunnersCard').classList.remove('d-none');
+        document.getElementById('prCiRunnersLabels').textContent = (data.labels || []).join(', ');
+        document.getElementById('prCiRunnersWorkflow').href =
+            `https://github.com/${data.repo}/actions/workflows/${data.workflow}`;
+        const st = data.status;
+        const stCls = st === 'online' ? 'bg-success' : (st === 'offline' ? 'bg-danger' : 'bg-secondary');
+        document.getElementById('prCiRunnersStatus').innerHTML =
+            `<span class="badge ${stCls} fs-6 align-middle">${escapeHtml(st)}</span>`;
+
+        const lp = data.last_pickup;
+        const parts = [lp
+            ? `last pickup ${prCiAgo(data.since_pickup_seconds)} ago by ${lp.runner}`
+            : `no pickup in the last ${(data.nights || []).length} nights`];
+        if (data.nights_without_runner) parts.push(`${data.nights_without_runner} nights in a row without a runner`);
+        const w = data.waiting || [];
+        if (w.length) parts.push(`${w.length} job${w.length > 1 ? 's' : ''} waiting, longest ${prCiAgo(w[0].wait_seconds)}`);
+        const meta = document.getElementById('prCiRunnersMeta');
+        meta.className = st === 'offline' ? 'text-danger' : 'text-muted';
+        meta.textContent = parts.join(' · ');
+
+        let html = (data.notices || []).map(n =>
+            `<div class="px-3 py-2 border-bottom small text-danger"><i class="bi bi-exclamation-triangle"></i> ${escapeHtml(n)}
+             <span class="text-muted">(annotation on the last job a runner took)</span></div>`).join('');
+
+        const runners = (data.runners || []).map(r => {
+            const j = r.last_job || {};
+            return `<tr><td><code>${escapeHtml(r.name)}</code></td>
+                <td class="small"><a href="${escapeHtml(j.html_url || '')}" target="_blank">${escapeHtml(j.name || '')}</a></td>
+                <td class="small text-muted" title="${escapeHtml(j.started_at || '')}">${j.started_at ? escapeHtml(shortTime(j.started_at)) : ''}</td>
+                <td>${prCiResult(j.conclusion || j.status)}</td></tr>`;
+        }).join('');
+        // One chip per scheduled run, newest first: who took its AMD jobs.
+        const nights = (data.nights || []).map(n => {
+            const cls = !n.jobs ? 'bg-light text-muted border' : (n.picked ? 'bg-success' : 'bg-danger');
+            const tip = n.jobs
+                ? `${n.date}: ${n.picked}/${n.jobs} AMD jobs picked up${n.runners.length ? ' by ' + n.runners.join(', ') : ''} · ${(n.results || []).join(', ')}`
+                : `${n.date}: no AMD job asked for`;
+            return `<a href="${escapeHtml(n.html_url)}" target="_blank" class="badge ${cls} text-decoration-none me-1 mb-1"
+                title="${escapeHtml(tip)}">${escapeHtml(n.date.slice(5))} ${n.jobs ? n.picked + '/' + n.jobs : '—'}</a>`;
+        }).join('');
+
+        html += `<div class="row g-0">
+            <div class="col-lg-6 border-end"><div class="table-responsive">
+                <table class="table table-sm table-hover mb-0 align-middle"><thead><tr>
+                    <th>Runner</th><th>Last job</th><th>Started</th><th>Result</th>
+                </tr></thead><tbody>${runners || '<tr><td colspan="4" class="text-muted">no runner took a job in this window</td></tr>'}</tbody></table>
+            </div></div>
+            <div class="col-lg-6 p-2">
+                <div class="small text-muted mb-1">Scheduled runs (15:00 UTC), newest first: AMD jobs a runner picked up</div>
+                ${nights || '<span class="text-muted small">no scheduled runs</span>'}
+            </div>
+        </div>`;
+        document.getElementById('prCiRunnersBody').innerHTML = html;
+    }
+
+    function filterCauseFix(value) {
+        cfFilter = value;
+        if (cfData) renderCauseFix();
+    }
+
+    function cfRepo(repo) { return String(repo || '').split('/')[1] || repo || ''; }
+
+    function cfGroup(row) {
+        if (row.state === 'recovered') return 'recovered';
+        if (row.followup && row.followup.state === 'awaiting') return 'landed';
+        return row.kind === 'build' ? 'build' : 'test';
+    }
+
+    // A candidate without a PR number is a commit pushed straight to the
+    // branch; it links to the commit and is named by its short sha.
+    function cfPrBadge(pr, kind, label, title) {
+        const ref = pr.number ? `#${Number(pr.number)}` : `@${String(pr.sha || '').slice(0, 7)}`;
+        const what = pr.title ? `: "${pr.title}"` : '';
+        return `<a class="badge pr-badge ${kind}" href="${escapeHtml(pr.url || pr.commit_url)}" target="_blank" rel="noopener"
+            title="${escapeHtml(`${title}${what} — ${pr.repo}${ref}`)}">${label} ${escapeHtml(cfRepo(pr.repo))}${ref}</a>`;
+    }
+
+    function cfAuthor(pr) {
+        return pr.author
+            ? ` <span class="text-nowrap small">by <a href="${escapeHtml(pr.author_url || `https://github.com/${pr.author}`)}"
+                target="_blank" rel="noopener">@${escapeHtml(pr.author)}</a></span>`
+            : '';
+    }
+
+    function cfStatePill(pr) {
+        const st = pr.pr_state;
+        return st ? ` <span class="pr-state ${escapeHtml(st)}">${escapeHtml(st)}</span>` : '';
+    }
+
+    // Why the commit was picked, and when it reached the branch searched.
+    function cfWhy(pr) {
+        const landed = pr.landed_at
+            ? ` · <a href="${escapeHtml(pr.commit_url || pr.url)}" target="_blank" rel="noopener" class="text-muted"
+                title="When the commit reached the branch the image builds from">landed ${escapeHtml(shortTime(pr.landed_at))}</a>`
+            : '';
+        return `<div class="pr-why">${escapeHtml(pr.reason || '')}${landed}</div>`;
+    }
+
+    // The CI monitor bot's analysis of the row's jobs: its hypotheses with
+    // their confidence, and the regression verdict and cluster it gave.
+    function cfBot(row) {
+        return (row.bot || []).map(a => {
+            const head = `<div class="pr-bot-head"><i class="bi bi-robot"></i>
+                <a href="${escapeHtml(a.url)}" target="_blank" rel="noopener" title="The bot's full analysis of this job, on its daily report">CI monitor</a>
+                · ${escapeHtml(a.label)}${a.at ? ` · <span class="fw-normal" title="${escapeHtml(a.at)}">${escapeHtml(shortTime(a.at))}</span>` : ''}</div>`;
+            if (a.incomplete) {
+                return `<div class="pr-bot">${head}<div class="pr-bot-meta">The bot's analysis of this job did not complete.</div></div>`;
+            }
+            const hyps = (a.hypotheses || []).map(h => `<div class="pr-bot-hyp">
+                <span class="pr-conf ${escapeHtml(h.confidence)}">${escapeHtml(h.confidence)}</span>${cfMd(h.text)}</div>`);
+            if (!hyps.length && a.note) hyps.push(`<div class="pr-bot-hyp">${cfMd(a.note)}</div>`);
+            const meta = [a.regression, a.cluster && `cluster: ${a.cluster}`].filter(Boolean)
+                .map(t => `<div class="pr-bot-meta">${cfMd(t)}</div>`).join('');
+            const [lead = '', ...rest] = hyps;
+            const more = rest.join('') + meta;
+            if (!more) return `<div class="pr-bot">${head}${lead}</div>`;
+            const extra = rest.length ? `${rest.length} more hypothes${rest.length === 1 ? 'is' : 'es'}` : 'details';
+            return `<details class="pr-bot"><summary>${head}${lead}<span class="pr-bot-more">▸ ${extra}</span></summary>${more}</details>`;
+        }).join('');
+    }
+
+    // The bot's in-flight fix check, above the log-based fix candidates.
+    function cfBotInflight(row) {
+        const seen = new Set();
+        return (row.bot || []).filter(a => a.inflight && !seen.has(a.inflight) && seen.add(a.inflight))
+            .map(a => `<div class="pr-bot-inflight"><span class="pr-bot-head"><i class="bi bi-robot"></i></span>
+                In-flight fix: ${cfMd(a.inflight)}</div>`).join('');
+    }
+
+    // The bot's reading first, then the log-based candidates under their own
+    // label so the two are never mistaken for each other.
+    function cfCauseCell(row, since) {
+        const bot = cfBot(row);
+        const logs = cfCauses(row.cause_prs) || cfNoCause(since);
+        return bot ? `${bot}<div class="pr-from-logs">From the logs</div>${logs}` : logs;
+    }
+
+    function cfCauses(prs) {
+        return (prs || []).map(pr => `<div>${pr.strong
+            ? cfPrBadge(pr, 'cause', 'Cause', 'Changed code this failure runs through, between the last passing and the first failing image')
+            : cfPrBadge(pr, 'cause-weak', 'Cause?', 'Only touched a file on the traceback, or the workflow or Dockerfile, in that window')
+        }${cfAuthor(pr)}${cfWhy(pr)}</div>`).join('');
+    }
+
+    // Why a row has no cause, so an empty cell is not read as "none found".
+    function cfNoCause(since) {
+        const note = text => `<span class="text-muted small">${text}</span>`;
+        if (since.some(s => s.pending)) return note('Earlier logs not read yet');
+        if (since.some(s => (s.windows || []).length)) {
+            return note('No commit in the range touched the test or its traceback');
+        }
+        if (since.some(s => s.image_unchanged || s.same_image)) {
+            return note('Same commits as the last pass: not a code change');
+        }
+        return '<span class="text-muted">—</span>';
+    }
+
+    function cfFixes(prs) {
+        return (prs || []).filter(pr => pr.pr_state !== 'closed').map(pr => `<div>${pr.strong
+            ? cfPrBadge(pr, 'fix', 'Fix', 'Later commit on the branch the image builds from that changes the same code')
+            : cfPrBadge(pr, 'fix-candidate', 'Fix?', 'Open PR that names the failing test')
+        }${cfStatePill(pr)}${cfAuthor(pr)}${cfWhy(pr)}</div>`).join('');
+    }
+
+    // Did the landed fix work? A fix is in an image built after it landed;
+    // the server compares that with the images the failing and later runs used.
+    function cfFollowup(fu) {
+        if (!fu) return '';
+        const link = x => `<a href="${escapeHtml(x.url)}" target="_blank" rel="noopener">${escapeHtml(x.date)}</a>`;
+        if (fu.state === 'verified') {
+            return `<div class="pr-followup verified" title="The jobs that failed passed in a newer run, after the fix landed">
+                <i class="bi bi-check-circle-fill"></i> verified: passed in ${fu.runs.map(link).join(', ')}</div>`;
+        }
+        if (fu.state === 'recovered') {
+            return `<div class="pr-followup recovered" title="The jobs that failed passed in a newer run">
+                <i class="bi bi-check-circle-fill"></i> green again in ${fu.runs.map(link).join(', ')}</div>`;
+        }
+        if (fu.state === 'failing') {
+            return `<div class="pr-followup failing" title="A run on an image built after the fix landed failed the same way — the fix did not cover it, or something else broke">
+                <i class="bi bi-x-circle-fill"></i> still failing on an image built after the fix: ${fu.runs.map(link).join(', ')}</div>`;
+        }
+        return `<div class="pr-followup awaiting" title="No nightly has run on an image built after the fix landed">
+            <i class="bi bi-hourglass-split"></i> landed ${escapeHtml(shortTime(fu.since))} — awaiting an image that has it</div>`;
+    }
+
+    function cfJobs(jobs) {
+        return jobs.map(j => {
+            const tag = j.image ? j.image.split(':').pop() : '';
+            return `<div class="pr-job"><span class="badge bg-secondary">${escapeHtml(j.label)}</span>
+                <a href="${escapeHtml(j.html_url || j.run_url)}" target="_blank" rel="noopener">${escapeHtml(j.suite)}</a>
+                <span class="text-muted small">${escapeHtml(j.date)}</span>${tag
+                ? `<div class="small text-muted text-truncate" title="${escapeHtml(j.image)}"><i class="bi bi-box-seam"></i> ${escapeHtml(tag)}</div>` : ''}${cfForkNote(j)}</div>`;
+        }).join('');
+    }
+
+    // A manual build can take miles from a fork, and its image replaces that
+    // day's nightly one: the failure may be the fork's own commits.
+    function cfForkNote(j) {
+        const fork = (j.forks || {})['radixark/miles'];
+        if (!fork) return '';
+        const ref = (j.refs || {})['radixark/miles'] || '';
+        const url = `https://github.com/${fork}${ref ? `/tree/${ref}` : ''}`;
+        return `<div class="small text-warning-emphasis text-truncate" title="This image was built from a fork of radixark/miles, not from its main branch: the failure may come from the fork's own commits">
+            <i class="bi bi-exclamation-triangle"></i> miles from fork <a href="${escapeHtml(url)}" target="_blank" rel="noopener">${escapeHtml(fork)}${ref ? `@${escapeHtml(ref)}` : ''}</a></div>`;
+    }
+
+    // The failing tests and the error, cut to one line each; a click opens
+    // every test and the traceback the cause search went through.
+    function cfTestCell(row) {
+        const chevron = '<i class="bi bi-chevron-right"></i> ';
+        const tests = row.tests || [];
+        const testLine = t => {
+            const cut = t.file.lastIndexOf('/') + 1;
+            return `<code><span class="pr-test-dir">${escapeHtml(t.file.slice(0, cut))}</span>${escapeHtml(t.file.slice(cut))}</code>${
+                t.status === 'timeout' ? ' <span class="badge bg-warning text-dark">timeout</span>' : ''}${
+                t.exit_code != null ? ` <span class="text-muted small">exit ${escapeHtml(t.exit_code)}</span>` : ''}`;
+        };
+        const first = tests[0];
+        const head = first ? `<div title="${escapeHtml(first.file)}">${chevron}${testLine(first)}</div>` : '';
+        const error = row.error
+            ? `<div class="text-danger-emphasis" title="${escapeHtml(row.error)}">${first ? '' : chevron}${escapeHtml(row.error)}</div>` : '';
+        const frames = (row.frames || []).slice().reverse().map(f =>
+            `<div>${escapeHtml(cfRepo(f.repo))}/${escapeHtml(f.path)}:${Number(f.line)} in <code>${escapeHtml(f.func)}</code></div>`).join('');
+        const more = tests.slice(1).map(t => `<div>${testLine(t)}</div>`).join('')
+            + (frames ? `<div class="pr-frames mt-1">traceback, innermost first:${frames}</div>` : '');
+        const count = tests.length > 1
+            ? `<div class="text-muted small">+${tests.length - 1} more test${tests.length === 2 ? '' : 's'}</div>` : '';
+        return `<details class="pr-test mb-1"><summary>${head}${error}${more ? `<div class="pr-test-more">${more}</div>` : ''}${count}</summary></details>`;
+    }
+
+    function cfPoint(p) {
+        return `<a href="${escapeHtml(p.job_url || p.run_url)}" target="_blank" rel="noopener">${escapeHtml(p.date)}</a>`;
+    }
+
+    // Since when, per nightly or build leg, and the commit range per
+    // repository between the image it last passed on and the first that failed.
+    function cfSince(list) {
+        return list.map(s => {
+            const first = s.first_failed, last = s.last_passed;
+            const bits = [];
+            if (!first) bits.push(s.pending ? 'reading earlier runs…' : 'no earlier run');
+            else {
+                bits.push(`since ${cfPoint(first)}${s.failed_runs > 1 ? ` <span class="text-muted">(${s.failed_runs} runs)</span>` : ''}`);
+                if (last) bits.push(`last passed ${cfPoint(last)}`);
+                else if (s.pending) bits.push('<span class="text-muted" title="A few logs are read per refresh; the walk continues on the next">still reading earlier runs</span>');
+                else if (s.lower_bound) bits.push('<span class="text-muted">no pass in the window</span>');
+            }
+            const notes = [];
+            if (s.same_image) {
+                notes.push('<div class="pr-window text-muted" title="It last passed on the very image it now fails on">same image as the last pass — not a code change; flaky, runner or data</div>');
+            } else if (s.window_unknown) {
+                notes.push('<div class="pr-window text-muted">the builds of those images were not found, so no commit range</div>');
+            } else if (s.image_unchanged) {
+                notes.push('<div class="pr-window text-muted">both images were built from the same commits</div>');
+            }
+            for (const w of s.windows || []) {
+                const ref = w.ref && w.ref !== 'main' ? `@${w.ref}` : '';
+                const forkNote = [w.base_fork && `last pass built from ${w.base_fork}`, w.head_fork && `failure built from ${w.head_fork}${ref}`]
+                    .filter(Boolean).join('; ');
+                notes.push(`<div class="pr-window"><i class="bi bi-git"></i> <a href="${escapeHtml(w.url)}" target="_blank" rel="noopener"
+                    title="${escapeHtml(`${w.repo}${ref}: ${String(w.base || '').slice(0, 10)}…${String(w.head || '').slice(0, 10)}`)}">${
+                    escapeHtml(cfRepo(w.repo))}${escapeHtml(w.head_fork ? '' : ref)} · ${Number(w.commits)} commit${w.commits === 1 ? '' : 's'}</a>${
+                    forkNote ? ` <span class="text-warning-emphasis" title="These include the fork's own commits">(${escapeHtml(forkNote)})</span>` : ''}${
+                    w.base_build && w.head_build ? ` <span class="text-muted">(builds <a href="${escapeHtml(w.base_build)}" target="_blank" rel="noopener">before</a>
+                    · <a href="${escapeHtml(w.head_build)}" target="_blank" rel="noopener">after</a>)</span>` : ''}</div>`);
+            }
+            const tests = (s.tests || []).length > 1 ? ` <span class="text-muted small">${s.tests.length} tests</span>` : '';
+            return `<div class="mb-1"><span class="badge bg-light text-dark border">${escapeHtml(s.label)}</span>${tests}
+                <div class="small">${bits.join(' · ')}</div>${notes.join('')}</div>`;
+        }).join('');
+    }
+
+    function renderCauseFix() {
+        const d = cfData;
+        document.getElementById('cfCard').classList.remove('d-none');
+        const meta = [];
+        if (d.generated_at) meta.push(`refreshed ${shortTime(d.generated_at)}`);
+        if (d.pending_logs) meta.push(`${d.pending_logs} log${d.pending_logs === 1 ? '' : 's'} still to read`);
+        document.getElementById('cfMeta').textContent = meta.join(' · ');
+
+        const nightlyHw = key => ((d.nightlies || {})[key] || {}).hardware;
+        const groups = CF_GROUPS.map(g => ({ ...g, rows: [] }));
+        for (const row of d.rows || []) {
+            let jobs = row.jobs || [], since = row.since || [];
+            if (cfFilter === 'build' && row.kind !== 'build') continue;
+            if (cfFilter === 'mi35x' || cfFilter === 'mi30x') {
+                if (row.kind === 'build') continue;
+                jobs = jobs.filter(j => j.hardware === cfFilter);
+                since = since.filter(s => nightlyHw(s.workflow) === cfFilter);
+                if (!jobs.length) continue;
+            }
+            groups.find(g => g.key === cfGroup(row)).rows.push({ row, jobs, since });
+        }
+        const visible = groups.filter(g => g.rows.length);
+        document.getElementById('cfCount').textContent = `(${visible.reduce((n, g) => n + g.rows.length, 0)})`;
+        const label = document.getElementById('cfFilterLabel');
+        // The select is left out of a screenshot, so what it shows rides here.
+        label.textContent = [(d.generated_at || '').slice(0, 10), CF_FILTER_LABELS[cfFilter] || 'all failures']
+            .filter(Boolean).join(' · ');
+        label.classList.remove('d-none');
+        document.getElementById('cfShot').disabled = !visible.length;
+
+        const body = document.getElementById('cfBody');
+        if (!visible.length) {
+            body.innerHTML = `<div class="text-muted p-3">${cfFilter === 'all'
+                ? 'Nothing is failing in the newest run of either nightly or image build.'
+                : 'Nothing is failing here — pick another in the selector above.'}</div>`;
+            return;
+        }
+        const cell = html => html || '<span class="text-muted">—</span>';
+        const rows = visible.map(g => {
+            const jobCount = g.rows.reduce((n, x) => n + x.jobs.length, 0);
+            const counts = `<span class="text-muted fw-normal small">· ${g.rows.length} failure${g.rows.length === 1 ? '' : 's'} · ${jobCount} job${jobCount === 1 ? '' : 's'}</span>`;
+            // Recovered rows are no longer failing: folded unless asked for.
+            const folded = g.key === 'recovered' && !cfShowRecovered;
+            const label = g.key === 'recovered'
+                ? `<a href="#" class="cf-fold" onclick="toggleRecovered(); return false;"
+                    title="${folded ? 'Show' : 'Hide'} the failures that have passed again">${folded ? '▸' : '▾'} ${escapeHtml(g.label)}</a>`
+                : escapeHtml(g.label);
+            const head = `<tr class="table-secondary${g.key === 'recovered' ? ' pr-fixed-head' : ''}"><th colspan="5">${label} ${counts}</th></tr>`;
+            if (folded) return head;
+            return head + g.rows.map(({ row, jobs, since }) => `<tr>
+                <td>${cfJobs(jobs)}</td>
+                <td>${cfTestCell(row)}</td>
+                <td>${cell(cfSince(since))}</td>
+                <td>${cfCauseCell(row, since)}</td>
+                <td>${cfBotInflight(row)}${cell(cfFixes(row.fix_prs))}${cfFollowup(row.followup)}</td>
+            </tr>`).join('');
+        }).join('');
+        body.innerHTML = `<div class="table-responsive" style="max-height: none;">
+            <table class="table table-sm table-bordered report-table pr-table mb-0">
+                <colgroup><col style="width: 18%"><col style="width: 22%"><col style="width: 18%"><col style="width: 25%"><col style="width: 17%"></colgroup>
+                <thead class="table-light"><tr><th>Failed jobs</th><th>Test · Error</th><th>Failing since · commit range</th>
+                    <th title="The CI monitor bot's hypotheses, then commits in the range that changed the failing test or code on its traceback">Cause?</th>
+                    <th title="Later commits that change the same code, and open PRs that name the test">Fix</th></tr></thead>
+                <tbody>${rows}</tbody>
+            </table></div>`;
+    }
+
+    // A picture of the card as filtered (copyScreenshot, in base.html).
+    function copyCauseFixImage() {
+        copyScreenshot(
+            document.getElementById('cfShot'),
+            document.getElementById('cfCard'),
+            `miles-cause-fix-${((cfData && cfData.generated_at) || '').slice(0, 10) || 'today'}-${cfFilter}`,
+        );
+    }
+</script>
+
+<script>
+document.addEventListener('DOMContentLoaded',function(){
+  // Hide refresh buttons that need a backend
+  document.querySelectorAll('[onclick*="loadStatus"],[onclick*="refreshAllPRs"]').forEach(function(el){el.classList.add('static-hidden')});
+  // Hide refresh buttons next to cache status on nightly/pr-test
+  document.querySelectorAll('[onclick*="loadData(true)"]').forEach(function(el){el.classList.add('static-hidden')});
+  // Replace visitor count with dash
+  var vc=document.getElementById('visitor-count');if(vc)vc.textContent='-';
+});
+</script>
+</body>
+</html>
